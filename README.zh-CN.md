@@ -1,4 +1,4 @@
-# Chuchen-Terminal
+﻿# Chuchen-Terminal
 
 > 面向 AI CLI 时代的本地终端工作台：多工作区、多项目、多 Pane、长任务提醒。
 
@@ -84,6 +84,59 @@ Chuchen-Terminal 的目标是把这些状态和关系显式管理起来，而不
 - 需要云端多人协作终端的人；
 - 期待一个已经完全稳定、开箱即用的正式发行版的人。
 
+## 使用场景
+
+### 1. 监督长时间运行的 AI CLI 任务
+
+- **场景**：你让 Codex CLI、Claude Code 或其他 AI CLI 跑几分钟甚至更久，然后切去做别的事情。
+- **Chuchen-Terminal 的作用**：把这些会话放在工作区内统一管理，并标记完成、等待输入、异常、疑似停滞等提醒状态。
+- **价值**：你不需要一直盯着某一个终端窗口。
+
+对应截图：
+
+- `docs/assets/screenshots/attention.png`
+
+### 2. 把前端、后端、AI 会话放进同一个工作台
+
+- **场景**：一个本地项目往往会同时跑前端开发服务、后端服务、脚本和 AI CLI。
+- **Chuchen-Terminal 的作用**：在一个工作区下，用项目 Tab 和 Pane 布局把这些终端组织起来。
+- **价值**：终端不再只是匿名标签，而是项目结构的一部分。
+
+对应截图：
+
+- `docs/assets/screenshots/workbench.png`
+
+### 3. 用模板快速复用常见终端组合
+
+- **场景**：你经常重复创建 AI CLI、前端、后端、全栈等终端组合。
+- **Chuchen-Terminal 的作用**：系统模板提供常见方案，个人模板沉淀你自己的习惯。
+- **价值**：新项目启动更快，也更一致。
+
+对应截图：
+
+- `docs/assets/screenshots/template1.png`
+- `docs/assets/screenshots/template2.png`
+
+### 4. 快速搜索本地终端工作台数据
+
+- **场景**：你忘了某个命令在哪个项目跑过，或者忘了某个终端属于哪个工作区。
+- **Chuchen-Terminal 的作用**：直接搜索工作区、项目、终端、路径、命令和布局。
+- **价值**：减少翻终端历史和手动查找的时间。
+
+对应截图：
+
+- `docs/assets/screenshots/search.png`
+
+### 5. 从更高层的上下文重新进入工作
+
+- **场景**：重新打开应用后，你想先决定从哪个工作区继续，而不是直接掉进某个 shell。
+- **Chuchen-Terminal 的作用**：首页先展示工作区层级入口，再进入具体终端工作台。
+- **价值**：你是从“上下文”回到工作，而不是从空白终端重新开始。
+
+对应截图：
+
+- `docs/assets/screenshots/home.png`
+- `docs/assets/screenshots/settings.png`
 ## 当前状态
 
 Chuchen-Terminal 目前处于 **MVP / Preview** 阶段。
@@ -100,7 +153,23 @@ Chuchen-Terminal 目前处于 **MVP / Preview** 阶段。
 - Rust 1.77+
 - WebView2 Runtime
 
+## 安装说明
+
+- `npm install` 只会安装应用壳层所需的 JavaScript / 前端依赖。
+- 如果你要运行 **桌面版**（`npm run tauri:dev`）或打包桌面安装包（`npm run tauri:build`），仍然需要完整的 Rust 工具链和 Tauri 构建环境。
+- 如果你只是想在浏览器里预览前端界面，那么 `npm install` + `npm run dev` 就够了。
+- 如果你要体验桌面端、真实终端运行时、系统通知和任务栏行为，就必须准备完整的桌面开发环境。
+
+换句话说：
+
+- `npm install` ≠ 已经具备桌面运行环境
+- `npm run dev` = 只启动前端壳子预览
+- `npm run tauri:dev` / `npm run tauri:build` = 仍然需要 Rust + Tauri 构建环境
 ## 从源码运行
+
+### 方案 A：只看前端预览
+
+如果你只是想在浏览器里看界面、改前端样式，使用这一种即可。
 
 克隆仓库：
 
@@ -133,6 +202,28 @@ npm run dev
 http://127.0.0.1:6173/
 ```
 
+### 方案 B：运行真实桌面版
+
+如果你要体验真实终端运行时、任务栏行为、系统通知和桌面集成，请使用这一种。
+
+前提条件：
+
+- Node.js 20+
+- npm 10+
+- Rust 1.77+
+- Tauri 构建环境
+- WebView2 Runtime
+
+然后执行：
+
+```bash
+cd Chuchen-Terminal/app
+npm install
+npm run tauri:dev
+```
+
+即使 `npm install` 成功了，只要 Rust 或 Tauri 构建环境缺失，桌面版仍然无法正常构建或启动。
+
 ## 构建
 
 前端构建：
@@ -151,6 +242,70 @@ npm run tauri:build
 
 Tauri / Rust 编译产物会生成在 `app/src-tauri/target/`，这个目录可能非常大，不应该提交到 Git。
 
+## 磁盘占用说明
+
+这个项目的磁盘占用大头通常 **不是源码本身**，而是开发和构建产物。
+
+主要来源包括：
+
+- `app/node_modules/`：`npm install` 安装的前端依赖
+- `app/dist/`：前端生产构建产物
+- `app/src-tauri/target/`：Rust 和 Tauri 的编译缓存与构建产物
+
+实际体验上：
+
+- `npm install` 会带来常规的 JavaScript 依赖体积；
+- 真正容易变得很大的，通常是 `app/src-tauri/target/`；
+- 这对本地 Tauri / Rust 开发来说是正常现象，但这些目录都不应该提交到仓库。
+
+如果你只是看 UI、改前端或跑浏览器预览，磁盘占用会明显小于完整桌面构建流程。
+
+## 打包与 Release
+
+对于最终用户来说，最友好的方式通常不是让每个人都自己安装 Node.js、Rust 和 Tauri，而是直接提供打包好的可执行文件。
+
+推荐流程：
+
+1. 先在本地确认构建通过：
+
+```bash
+cd Chuchen-Terminal/app
+npm run build
+npm run tauri:build
+```
+
+2. 打包产物通常位于：
+
+```text
+app/src-tauri/target/release/bundle/
+```
+
+3. 把生成的安装包或可执行文件上传到 GitHub Release。
+
+在 Windows 下，最实用的首发产物通常就是 `bundle/` 目录下生成的这些文件之一：
+
+- `.exe`
+- `.msi`
+
+如果你只是想先把第一个版本发出去，那么直接上传生成好的 Windows 安装包 / 可执行文件，并配一个版本号（例如 `v0.1.0`）就够了。
+
+公开仓库后的典型下一步：
+
+- 创建一个例如 `v0.1.0` 的 GitHub Release
+- 上传 Windows 构建产物
+- 在 README 里补上 Release 下载入口
+
+Release 页面描述建议至少写清楚：
+
+- 这是哪个版本
+- 它目前是 Preview / MVP 还是稳定版
+- 用户现在能用它做什么
+- 当前有哪些已知限制
+
+这样用户会有两种清晰入口：
+
+- **开发者**：从源码运行
+- **普通用户**：直接下载打包好的桌面版本
 ## 演示数据
 
 仓库只保留脱敏后的演示工作区数据。示例路径类似：
@@ -227,4 +382,6 @@ npm run build
 ## License
 
 MIT
+
+
 
