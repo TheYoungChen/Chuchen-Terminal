@@ -387,12 +387,6 @@
         <section v-else-if="isWorkspaceWorkbench && selectedWorkspace" class="workbench-shell" :style="workbenchShellStyle">
           <aside class="workbench-sidebar">
             <section class="explorer-shell">
-              <div class="explorer-shell__header">
-                <div>
-                  <h3>工作区 Explorer</h3>
-                </div>
-              </div>
-
               <div class="explorer-list">
                 <article
                   v-for="workspace in openedWorkspaces"
@@ -460,13 +454,10 @@
                             :size="12"
                           />
                         </button>
-                        <div
-                          role="button"
-                          tabindex="0"
+                        <button
+                          type="button"
                           class="explorer-project__button"
                           @click="openProjectWorkspace(workspace.id, tab.id)"
-                          @keydown.enter.prevent="openProjectWorkspace(workspace.id, tab.id)"
-                          @keydown.space.prevent="openProjectWorkspace(workspace.id, tab.id)"
                           @contextmenu.prevent.stop="toggleExplorerProjectMenu(workspace.id, tab.id, $event)"
                         >
                           <div class="explorer-project__summary">
@@ -486,26 +477,26 @@
                               <span>{{ tabRunningCount(workspace, tab) }} 运行中</span>
                             </div>
                           </div>
-                          <div class="explorer-project__actions">
-                            <button
-                              type="button"
-                              class="icon-btn icon-btn--mini explorer-project__action"
-                              title="重命名项目"
-                              @pointerdown="handleMenuTriggerPointerDown"
-                              @click.stop="openExplorerTabRename(workspace.id, tab.id)"
-                            >
-                              <AppIcon name="edit" :size="13" />
-                            </button>
-                            <button
-                              type="button"
-                              class="icon-btn icon-btn--mini explorer-project__action"
-                              title="项目操作"
-                              @pointerdown="handleMenuTriggerPointerDown"
-                              @click.stop="toggleExplorerProjectMenu(workspace.id, tab.id, $event)"
-                            >
-                              <AppIcon name="more" :size="13" />
-                            </button>
-                          </div>
+                        </button>
+                        <div class="explorer-project__actions">
+                          <button
+                            type="button"
+                            class="icon-btn icon-btn--mini explorer-project__action"
+                            title="重命名项目"
+                            @pointerdown="handleMenuTriggerPointerDown"
+                            @click.stop="openExplorerTabRename(workspace.id, tab.id)"
+                          >
+                            <AppIcon name="edit" :size="13" />
+                          </button>
+                          <button
+                            type="button"
+                            class="icon-btn icon-btn--mini explorer-project__action"
+                            title="项目操作"
+                            @pointerdown="handleMenuTriggerPointerDown"
+                            @click.stop="toggleExplorerProjectMenu(workspace.id, tab.id, $event)"
+                          >
+                            <AppIcon name="more" :size="13" />
+                          </button>
                         </div>
                       </div>
                       <PopoverMenu :open="activeExplorerProjectMenuId === tab.id && activeExplorerProjectWorkspaceId === workspace.id" :items="explorerProjectMenuItems" :position="activeExplorerProjectMenuPosition" />
@@ -522,14 +513,17 @@
                             :class="[
                               { 'explorer-pane--active': activeRuntimePaneId === item.pane.id && currentActiveRuntimeSessionId() === item.session.id },
                               { 'explorer-pane--supervised': sessionIsSupervised(item.session) },
+                              { 'explorer-pane--ai-cli': isConfirmedAiCliInfo(item.info) },
                               explorerSessionAttentionClass(item.session),
                             ]"
+                            :style="isConfirmedAiCliInfo(item.info) ? explorerAiPaneStyle(workspace, item.pane, item.session) : undefined"
                             @click="openWorkspaceTerminalSession(workspace.id, tab.id, item.pane.id, item.session.id)"
                           >
                             <span class="status-dot" :class="`status-dot--${explorerSessionTone(item.session)}`"></span>
                             <div class="explorer-pane__body">
                               <div class="explorer-pane__title-row">
-                                <strong>{{ item.session.name }}</strong>
+                                <strong>{{ item.displayName }}</strong>
+                                <span v-if="isConfirmedAiCliInfo(item.info)" class="explorer-ai-badge__text">{{ item.info.label }}</span>
                                 <span class="explorer-pane__status">{{ explorerSessionLabel(item.session) }}</span>
                               </div>
                               <span class="explorer-pane__path">{{ workspaceEntryById(workspace, item.session.terminalEntryId)?.workingDirectory || item.session.pathLabel || item.pane.pathLabel }}</span>
@@ -572,11 +566,9 @@
 
           <section class="workbench-main">
             <div class="runtime-header runtime-header--workbench">
-              <div class="runtime-header__workspace">
-                <div class="runtime-header__copy">
-                  <h2>{{ selectedWorkspace.name }}</h2>
-                  <p>{{ selectedWorkspace.description || selectedWorkspace.rootPath }}</p>
-                </div>
+              <div class="runtime-header__workspace runtime-header__workspace--compact">
+                <strong>{{ selectedWorkspace.name }}</strong>
+                <span>{{ activeRuntimeTab?.name || '未选择项目' }}</span>
               </div>
 
               <div class="runtime-tabs runtime-tabs--embedded">
@@ -597,6 +589,29 @@
                 </button>
                 <PopoverMenu :open="Boolean(activeRuntimeTabMenuId)" :items="runtimeTabMenuItems" :position="activeRuntimeTabMenuPosition" />
                 
+              </div>
+
+              <div class="runtime-header__ai-actions">
+                <button
+                  type="button"
+                  class="ghost-btn ghost-btn--small runtime-ai-action"
+                  :disabled="!selectedWorkspaceAiCliSessions.length && !selectedWorkspaceAiCliCommands.length && !selectedWorkspaceAiResumeSnapshots.length"
+                  @click="openAiHistoryDrawer = true"
+                >
+                  <AppIcon name="recent" :size="14" />
+                  <span>AI 历史</span>
+                  <small>{{ currentWorkspaceAiCliSessions.length }}</small>
+                </button>
+                <button
+                  type="button"
+                  class="ghost-btn ghost-btn--small runtime-ai-action"
+                  :class="{ 'ghost-btn--active': aiAssistantPinned && !aiAssistantMinimized }"
+                  :disabled="!activeAiAssistItem"
+                  @click="toggleAiAssistantVisibility()"
+                >
+                  <AppIcon name="bolt" :size="14" />
+                  <span>辅助层</span>
+                </button>
               </div>
             </div>
 
@@ -776,14 +791,6 @@
                     <span class="pane-line__path">{{ entryById(pane.terminalEntryId)?.workingDirectory || pane.pathLabel }}</span>
                   </div>
                   <div class="pane-line__meta">
-                    <span class="meta-inline">
-                      <span class="meta-inline__label">Provider</span>
-                      <span class="meta-inline__value meta-inline__value--accent">{{ providerSummaryLabel(entryById(pane.terminalEntryId)) }}</span>
-                    </span>
-                    <span class="meta-inline">
-                      <span class="meta-inline__label">模型</span>
-                      <span class="meta-inline__value meta-inline__value--muted">{{ entryById(pane.terminalEntryId)?.modelId || runtimeProfileResolvedProvider(entryById(pane.terminalEntryId) || undefined)?.defaultModel || '未设置' }}</span>
-                    </span>
                     <span class="meta-inline">
                       <span class="meta-inline__label">默认命令</span>
                       <code class="meta-inline__value">{{ entryById(pane.terminalEntryId)?.defaultCommand || '未设置' }}</code>
@@ -971,7 +978,7 @@
                   <div class="terminal-space"></div>
                   <div v-if="pane.terminalEntryId" class="terminal-hint">
                     <AppIcon name="info" :size="14" />
-                    <span>当前 Pane 已绑定运行配置，可复用该配置的目录、命令、Provider 与环境变量。</span>
+                    <span>当前 Pane 已绑定运行配置，可复用该配置的目录、命令与环境变量。</span>
                   </div>
                   <div v-else class="terminal-hint">
                     <AppIcon name="info" :size="14" />
@@ -1267,6 +1274,345 @@
           </section>
         </section>
 
+        <section class="p45-page p45-page--providers" v-else-if="appSection === 'providers'">
+          <header class="p45-hero panel p45-hero--providers">
+            <div class="p45-hero__copy">
+              <h2>Provider</h2>
+              <p>像 CC Switch 一样管理本机 Codex、Claude Code、Gemini CLI 等 CLI 的本地配置档案；这里只读扫描和登记，不在终端运行配置里注入 URL / Key。</p>
+            </div>
+            <div class="p45-hero__actions">
+              <button type="button" class="ghost-btn" :disabled="providerDetectionRunning" @click="seedCliProviderProfiles()">
+                <AppIcon :name="providerDetectionRunning ? 'refresh' : 'download'" :size="14" :class="{ 'is-spinning': providerDetectionRunning }" />
+                <span>{{ providerDetectionRunning ? '扫描中' : '扫描本机配置' }}</span>
+              </button>
+              <button type="button" class="ghost-btn ghost-btn--primary" @click="openProviderCreateModal()">
+                <AppIcon name="plus" :size="14" />
+                <span>新建配置档案</span>
+              </button>
+            </div>
+          </header>
+          <div v-if="providerDetectionSummary" class="provider-scan-banner panel">
+            <AppIcon name="info" :size="14" />
+            <span>{{ providerDetectionSummary }}</span>
+          </div>
+
+          <section class="provider-page-layout">
+            <aside class="provider-sidebar panel">
+              <div class="provider-sidebar__head">
+                <strong>CLI 工具</strong>
+                <span>{{ filteredWorkspaceProviders.length }} / {{ selectedWorkspaceProviders.length }}</span>
+              </div>
+              <div class="provider-tool-filter">
+                <button
+                  v-for="tool in providerToolFilters"
+                  :key="tool.id"
+                  type="button"
+                  class="provider-tool-filter__item"
+                  :class="{ 'provider-tool-filter__item--active': activeProviderToolFilter === tool.id }"
+                  @click="activeProviderToolFilter = tool.id"
+                >
+                  <span>{{ tool.label }}</span>
+                  <small>{{ tool.count }}</small>
+                </button>
+              </div>
+              <div class="provider-search-field">
+                <AppIcon name="search" :size="13" />
+                <input v-model.trim="providerSearchQuery" type="text" placeholder="搜索配置档案" />
+              </div>
+              <div v-if="filteredWorkspaceProviders.length" class="provider-card-list">
+                <button
+                  v-for="provider in filteredWorkspaceProviders"
+                  :key="provider.id"
+                  type="button"
+                  class="provider-switch-card"
+                  :class="{ 'provider-switch-card--active': activeProviderStatsId === provider.id, 'provider-switch-card--current': provider.isActive }"
+                  @click="activeProviderStatsId = provider.id"
+                >
+                  <span class="provider-switch-card__icon" :style="{ background: provider.color || providerKindColor(provider.providerKind) }">
+                    {{ providerKindShortLabel(provider.providerKind) }}
+                  </span>
+                  <span class="provider-switch-card__body">
+                    <strong>{{ provider.name }}</strong>
+                    <small>{{ provider.profileName }} · {{ providerSourceLabel(provider.managedBy) }}</small>
+                    <em>{{ provider.configPath }}</em>
+                  </span>
+                  <span class="provider-switch-card__badges">
+                    <span v-if="provider.isActive" class="meta-badge meta-badge--soft">当前</span>
+                    <span v-else class="meta-badge meta-badge--soft">{{ providerStatusLabel(provider.status) }}</span>
+                  </span>
+                </button>
+              </div>
+              <div v-else class="empty-state empty-state--panel">
+                <div class="empty-state__icon"><AppIcon name="settings" :size="18" /></div>
+                <div class="empty-state__body">
+                  <strong>还没有配置档案</strong>
+                  <p>导入当前 CLI 配置，或手动登记 Codex / Claude / Gemini 的本地配置文件。</p>
+                </div>
+              </div>
+            </aside>
+
+            <section class="provider-main">
+              <article v-if="activeProviderProfile" class="provider-hero-card panel">
+                <div class="provider-hero-card__head">
+                  <div class="provider-title-block">
+                    <span class="provider-title-block__icon" :style="{ background: activeProviderProfile.color || providerKindColor(activeProviderProfile.providerKind) }">
+                      {{ providerKindShortLabel(activeProviderProfile.providerKind) }}
+                    </span>
+                    <div>
+                      <span class="provider-title-block__eyebrow">{{ providerKindLabel(activeProviderProfile.providerKind) }}</span>
+                    <h3>{{ activeProviderProfile.name }}</h3>
+                      <p>{{ activeProviderProfile.configPath }}</p>
+                    </div>
+                  </div>
+                  <div class="provider-hero-card__meta">
+                    <span class="meta-badge" :class="{ 'meta-badge--soft': activeProviderProfile.status !== 'active' }">{{ providerStatusLabel(activeProviderProfile.status) }}</span>
+                    <span class="meta-badge meta-badge--soft">{{ providerSourceLabel(activeProviderProfile.managedBy) }}</span>
+                  </div>
+                </div>
+                <div class="provider-hero-card__stats">
+                  <div class="provider-stat-chip">
+                    <span>Profile</span>
+                    <strong>{{ activeProviderProfile.profileName || 'default' }}</strong>
+                  </div>
+                  <div class="provider-stat-chip">
+                    <span>模型备注</span>
+                    <strong>{{ activeProviderProfile.defaultModel || '未设置' }}</strong>
+                  </div>
+                  <div class="provider-stat-chip">
+                    <span>适用 CLI</span>
+                    <strong>{{ activeProviderProfile.toolTargets.map(providerToolTargetLabel).join(' · ') || providerKindLabel(activeProviderProfile.providerKind) }}</strong>
+                  </div>
+                  <div class="provider-stat-chip">
+                    <span>认证来源</span>
+                    <strong>{{ activeProviderProfile.authSource || 'CLI 本地配置' }}</strong>
+                  </div>
+                </div>
+                <div class="provider-config-preview">
+                  <span>切换命令</span>
+                  <code>{{ activeProviderProfile.switchCommand || providerFallbackSwitchCommand(activeProviderProfile) }}</code>
+                </div>
+                <div class="provider-safety-note">
+                  <AppIcon name="info" :size="14" />
+                  <span>启用只更新 Chuchen-Terminal 内的当前档案标记，并提供可复制命令；不会改写你的 Codex / Claude / Gemini 真实配置文件。</span>
+                </div>
+                <p v-if="activeProviderProfile.note" class="provider-note">{{ activeProviderProfile.note }}</p>
+              </article>
+
+              <div v-if="activeProviderProfile" class="provider-action-row">
+                <button type="button" class="ghost-btn ghost-btn--primary" :disabled="!providerCanBeActivated(activeProviderProfile)" @click="activateProviderProfile(activeProviderProfile.id)">
+                  <AppIcon name="terminal" :size="14" />
+                  <span>{{ providerCanBeActivated(activeProviderProfile) ? '设为当前档案' : '配置未检测到' }}</span>
+                </button>
+                <button type="button" class="ghost-btn" @click="openProviderEditModal(activeProviderProfile.id)">
+                  <AppIcon name="edit" :size="14" />
+                  <span>编辑</span>
+                </button>
+                <button type="button" class="ghost-btn" @click="duplicateProviderProfile(activeProviderProfile.id)">
+                  <AppIcon name="copy" :size="14" />
+                  <span>复制</span>
+                </button>
+                <button type="button" class="ghost-btn" @click="copyProviderSwitchCommand(activeProviderProfile)">
+                  <AppIcon name="copy" :size="14" />
+                  <span>复制切换命令</span>
+                </button>
+                <button type="button" class="ghost-btn ghost-btn--danger" @click="removeProviderProfile(activeProviderProfile.id)">
+                  <AppIcon name="trash" :size="14" />
+                  <span>删除</span>
+                </button>
+              </div>
+
+              <article v-if="activeProviderProfile" class="provider-detail-grid">
+                <div class="provider-detail-tile panel">
+                  <span>配置作用域</span>
+                  <strong>{{ providerScopeLabel(activeProviderProfile.configScope) }}</strong>
+                </div>
+                <div class="provider-detail-tile panel">
+                  <span>最近检测</span>
+                  <strong>{{ activeProviderProfile.lastDetectedAt ? formatUsageDate(activeProviderProfile.lastDetectedAt) : '未检测' }}</strong>
+                </div>
+                <div class="provider-detail-tile panel">
+                  <span>统计请求</span>
+                  <strong>{{ activeProviderQuota?.requestsToday ?? activeUsageSummary.totalRequests }}</strong>
+                </div>
+                <div class="provider-detail-tile panel">
+                  <span>累计成本</span>
+                  <strong>${{ activeUsageSummary.totalCostUsd.toFixed(2) }}</strong>
+                </div>
+              </article>
+
+              <article v-if="activeProviderProfile" class="provider-request-preview panel">
+                <div class="provider-request-preview__head">
+                  <strong>最近请求</strong>
+                  <button type="button" class="ghost-btn ghost-btn--small" @click="appSection = 'usage'">
+                    <AppIcon name="refresh" :size="14" />
+                    <span>查看统计</span>
+                  </button>
+                </div>
+                <div class="provider-request-preview__list">
+                  <div v-for="log in activeUsageLogs.slice(0, 3)" :key="log.id" class="provider-request-preview__item">
+                    <span>{{ log.appType }}</span>
+                    <strong>{{ log.model }}</strong>
+                    <code>${{ log.costUsd.toFixed(4) }}</code>
+                  </div>
+                  <div v-if="!activeUsageLogs.length" class="provider-request-preview__empty">
+                    暂无请求记录
+                  </div>
+                </div>
+              </article>
+            </section>
+          </section>
+        </section>
+
+        <section class="p45-page p45-page--usage" v-else-if="appSection === 'usage'">
+          <header class="p45-hero panel p45-hero--usage">
+            <div class="p45-hero__copy">
+              <h2>使用统计</h2>
+              <p>{{ activeProviderProfile ? `${providerKindLabel(activeProviderProfile.providerKind)} · ${activeProviderProfile.name}` : '参考 CC Switch 的展示方式，先提供总览、趋势图和请求日志三块核心能力。' }}</p>
+            </div>
+          </header>
+
+          <section class="usage-dashboard">
+            <article class="usage-hero panel">
+              <div class="usage-hero__left">
+                <span class="usage-hero__eyebrow">真实消耗 Tokens</span>
+                <strong>{{ formatLargeNumber(activeUsageSummary.totalInputTokens + activeUsageSummary.totalOutputTokens + activeUsageSummary.totalCacheReadTokens + activeUsageSummary.totalCacheCreationTokens) }}</strong>
+                <small>≈ {{ formatCompactWan(activeUsageSummary.totalInputTokens + activeUsageSummary.totalOutputTokens + activeUsageSummary.totalCacheReadTokens + activeUsageSummary.totalCacheCreationTokens) }} tokens</small>
+              </div>
+              <div class="usage-hero__right">
+                <div class="usage-kpi-grid">
+                  <div class="usage-kpi-card">
+                    <span>总请求数</span>
+                    <strong>{{ activeUsageSummary.totalRequests }}</strong>
+                  </div>
+                  <div class="usage-kpi-card">
+                    <span>总成本</span>
+                    <strong>${{ activeUsageSummary.totalCostUsd.toFixed(4) }}</strong>
+                  </div>
+                  <div class="usage-kpi-card">
+                    <span>输入</span>
+                    <strong>{{ formatCompactWan(activeUsageSummary.totalInputTokens) }}</strong>
+                  </div>
+                  <div class="usage-kpi-card">
+                    <span>输出</span>
+                    <strong>{{ formatCompactWan(activeUsageSummary.totalOutputTokens) }}</strong>
+                  </div>
+                  <div class="usage-kpi-card">
+                    <span>缓存命中</span>
+                    <strong>{{ formatCompactWan(activeUsageSummary.totalCacheReadTokens) }}</strong>
+                  </div>
+                  <div class="usage-kpi-card">
+                    <span>命中率</span>
+                    <strong>{{ Math.round(activeUsageSummary.cacheHitRate * 1000) / 10 }}%</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="usage-chart-card panel">
+              <div class="usage-chart-card__head">
+                <div>
+                  <strong>趋势图</strong>
+                  <span>输入 / 输出 / 缓存 / 成本</span>
+                </div>
+              </div>
+              <div class="usage-chart-shell">
+                <svg v-if="usageTrendChartData.length" class="usage-trend-svg" viewBox="0 0 1000 360" preserveAspectRatio="none" aria-label="Provider 使用趋势图">
+                  <g class="usage-trend-grid">
+                    <line x1="40" y1="40" x2="960" y2="40" />
+                    <line x1="40" y1="120" x2="960" y2="120" />
+                    <line x1="40" y1="200" x2="960" y2="200" />
+                    <line x1="40" y1="280" x2="960" y2="280" />
+                  </g>
+                  <path class="usage-trend-line usage-trend-line--input" :d="usageTrendInputPath" fill="none" />
+                  <path class="usage-trend-line usage-trend-line--output" :d="usageTrendOutputPath" fill="none" />
+                  <path class="usage-trend-line usage-trend-line--cache" :d="usageTrendCachePath" fill="none" />
+                  <path class="usage-trend-line usage-trend-line--cost" :d="usageTrendCostPath" fill="none" />
+                  <g class="usage-trend-labels">
+                    <text v-for="point in usageTrendLabelPoints" :key="`usage-label-${point.label}`" :x="point.x" y="334">{{ point.label }}</text>
+                  </g>
+                </svg>
+                <div v-else class="usage-empty-state">
+                  <AppIcon name="activity" :size="20" />
+                  <strong>暂无趋势数据</strong>
+                  <span>扫描到的 CLI 配置还没有可导入的请求统计，或当前处于浏览器预览模式。</span>
+                </div>
+                <div class="usage-chart-legend">
+                  <span class="usage-chart-legend__item usage-chart-legend__item--input">输入</span>
+                  <span class="usage-chart-legend__item usage-chart-legend__item--output">输出</span>
+                  <span class="usage-chart-legend__item usage-chart-legend__item--cache">缓存命中</span>
+                  <span class="usage-chart-legend__item usage-chart-legend__item--cost">成本</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="usage-log-card panel">
+              <div class="usage-log-card__head">
+                <div class="segmented-control segmented-control--secondary">
+                  <button type="button" class="segmented-control__item segmented-control__item--active">
+                    <span>请求日志</span>
+                  </button>
+                  <button type="button" class="segmented-control__item" disabled>
+                    <span>Provider 统计</span>
+                  </button>
+                  <button type="button" class="segmented-control__item" disabled>
+                    <span>模型统计</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="usage-log-toolbar">
+                <div class="usage-log-filter">全部应用</div>
+                <div class="usage-log-filter">全部</div>
+                <div class="usage-log-search">搜索供应商...</div>
+                <div class="usage-log-search">搜索模型...</div>
+                <div class="usage-log-filter">今天</div>
+              </div>
+
+              <div class="usage-log-table-wrap">
+                <table class="usage-log-table">
+                  <thead>
+                    <tr>
+                      <th>时间</th>
+                      <th>供应商</th>
+                      <th>计费模型</th>
+                      <th>输入</th>
+                      <th>输出</th>
+                      <th>总成本</th>
+                      <th>用时/首字</th>
+                      <th>状态</th>
+                      <th>来源</th>
+                    </tr>
+                  </thead>
+                  <tbody v-if="activeUsageLogs.length">
+                    <tr v-for="log in activeUsageLogs" :key="log.id">
+                      <td>{{ formatUsageDate(log.createdAt) }}</td>
+                      <td>{{ providerNameById(log.providerProfileId) }}</td>
+                      <td>{{ log.model }}</td>
+                      <td>{{ log.inputTokens.toLocaleString('zh-CN') }}</td>
+                      <td>{{ log.outputTokens.toLocaleString('zh-CN') }}</td>
+                      <td>${{ log.costUsd.toFixed(4) }}</td>
+                      <td>{{ (log.durationMs / 1000).toFixed(1) }}s</td>
+                      <td>{{ log.statusCode }}</td>
+                      <td>{{ log.dataSource }}</td>
+                    </tr>
+                  </tbody>
+                  <tbody v-else>
+                    <tr>
+                      <td colspan="9">
+                        <div class="usage-empty-state usage-empty-state--table">
+                          <AppIcon name="terminal" :size="18" />
+                          <strong>暂无请求日志</strong>
+                          <span>Provider 只负责读取和管理本地 AI CLI 配置；统计数据来自可识别的 CLI 会话或 CC Switch 数据库。</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+        </section>
+
         <section class="p45-page p45-page--search" v-else-if="appSection === 'search'">
           <section class="app-search-panel panel">
             <label class="app-search-input">
@@ -1539,7 +1885,7 @@
 
                 <div v-if="group.id === 'data'" class="settings-note">
                   <strong>cc-switch 配置导入</strong>
-                  <p>用于承接常见 AI CLI 配置迁移流程。导入前会先预览 Provider、模型和敏感字段。</p>
+                  <p>用于承接常见 AI CLI 配置迁移流程。导入前只读预览 CLI 档案、模型备注和认证来源，不保存 URL 或密钥。</p>
                 </div>
                 <div v-if="group.id === 'data'" class="settings-actions">
                   <button type="button" class="ghost-btn" @click="clearDiagnosticsCaches()">
@@ -1572,7 +1918,7 @@
       size="md"
       @close="closeWorkspaceEditorModal()"
     >
-      <form class="editor-form editor-form--pixel" @submit.prevent="submitWorkspaceForm()">
+      <form class="editor-form editor-form--refined" @submit.prevent="submitWorkspaceForm()">
         <label class="form-field">
           <span>工作区名称</span>
           <input v-model.trim="workspaceForm.name" type="text" placeholder="例如：demo-workspace / app-suite" />
@@ -1602,12 +1948,12 @@
     <ModalShell
       :open="openTerminalEntryEditorModal"
       :title="terminalEntryEditorMode === 'create' ? '新建运行配置' : '编辑运行配置'"
-      description="运行配置保存目录、命令、Provider 绑定和环境变量，是 Pane 恢复与运行时解析的基础对象。"
+      description="运行配置保存目录、命令、环境变量和备注，是 Pane 恢复与运行时解析的基础对象。"
       icon="terminal"
       size="md"
       @close="closeTerminalEntryEditorModal()"
     >
-      <form class="editor-form" @submit.prevent="submitTerminalEntryForm()">
+      <form class="editor-form editor-form--refined" @submit.prevent="submitTerminalEntryForm()">
         <label class="form-field">
           <span>运行配置名称</span>
           <input v-model.trim="terminalEntryForm.name" type="text" placeholder="例如：前端 / 后端 / Codex" />
@@ -1626,7 +1972,7 @@
         <label class="form-field">
           <span>启动模式</span>
           <div class="pane__binding-wrap form-select-wrap">
-            <button type="button" class="binding-trigger form-select-trigger" @click.stop="toggleLaunchModeMenu()">
+            <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleLaunchModeMenu()">
               <span>{{ launchModeLabel(terminalEntryForm.launchMode) }}</span>
               <AppIcon name="chevron-right" :size="14" />
             </button>
@@ -1634,45 +1980,8 @@
           </div>
         </label>
         <label class="form-field">
-          <span>Provider 绑定</span>
-          <select v-model="terminalEntryForm.providerBindingMode">
-            <option value="inherit">继承默认 Provider</option>
-            <option value="explicit">显式指定 Provider</option>
-            <option value="disabled">不注入 Provider</option>
-          </select>
-        </label>
-        <label v-if="terminalEntryForm.providerBindingMode === 'explicit'" class="form-field">
-          <span>Provider</span>
-          <select v-model="terminalEntryForm.providerProfileId">
-            <option value="">请选择 Provider</option>
-            <option v-for="provider in selectedWorkspaceProviders" :key="provider.id" :value="provider.id">{{ provider.name }}</option>
-          </select>
-        </label>
-        <label class="form-field">
-          <span>模型</span>
-          <input v-model.trim="terminalEntryForm.modelId" type="text" placeholder="例如：gpt-5 / claude-sonnet-4 / gemini-2.5-pro" />
-        </label>
-        <label class="form-field">
-          <span>MCP 策略</span>
-          <select v-model="terminalEntryForm.mcpPolicy">
-            <option value="inherit">继承工作区</option>
-            <option value="workspace">强制使用工作区</option>
-            <option value="none">不注入 MCP</option>
-            <option value="custom">后续自定义</option>
-          </select>
-        </label>
-        <label class="form-field">
-          <span>Skill 策略</span>
-          <select v-model="terminalEntryForm.skillPolicy">
-            <option value="inherit">继承工作区</option>
-            <option value="workspace">强制使用工作区</option>
-            <option value="none">不注入 Skill</option>
-            <option value="custom">后续自定义</option>
-          </select>
-        </label>
-        <label class="form-field">
           <span>环境变量</span>
-          <textarea v-model.trim="terminalEntryForm.environmentVariablesText" rows="4" placeholder="每行一个，例如：&#10;OPENAI_API_KEY=***&#10;HTTP_PROXY=http://127.0.0.1:7890"></textarea>
+          <textarea v-model.trim="terminalEntryForm.environmentVariablesText" rows="4" placeholder="每行一个，例如：&#10;NODE_ENV=development&#10;HTTP_PROXY=http://127.0.0.1:7890"></textarea>
         </label>
         <label class="form-field">
           <span>标签</span>
@@ -1697,7 +2006,7 @@
       size="md"
       @close="closeWorkflowTemplateEditorModal()"
     >
-      <form class="editor-form" @submit.prevent="submitWorkflowTemplateForm()">
+      <form class="editor-form editor-form--refined" @submit.prevent="submitWorkflowTemplateForm()">
         <label class="form-field">
           <span>模板名称</span>
           <input v-model.trim="workflowTemplateForm.name" type="text" placeholder="例如：前后端联调 / AI CLI 工作流" />
@@ -1719,50 +2028,70 @@
 
     <ModalShell
       :open="openProviderEditorModal"
-      :title="providerEditorMode === 'create' ? '新建 Provider' : '编辑 Provider'"
-      description="Provider 保存 Base URL、认证方式、默认模型和适用工具，是运行配置解析的上游对象。"
+      :title="providerEditorMode === 'create' ? '新建配置档案' : '编辑配置档案'"
+      description="记录本地 Codex / Claude Code / Gemini CLI 的配置文件、Profile、模型备注和切换入口，不配置请求 URL 或密钥。"
       icon="settings"
       size="md"
       @close="closeProviderEditorModal()"
     >
-      <form class="editor-form" @submit.prevent="submitProviderForm()">
+      <form class="editor-form editor-form--refined" @submit.prevent="submitProviderForm()">
         <label class="form-field">
-          <span>Provider 名称</span>
-          <input v-model.trim="providerForm.name" type="text" placeholder="例如：OpenAI Main / Claude Proxy" />
+          <span>档案名称</span>
+          <input v-model.trim="providerForm.name" type="text" placeholder="例如：Codex Stable / Claude Team / Gemini Personal" />
         </label>
         <label class="form-field">
-          <span>Provider 类型</span>
-          <select v-model="providerForm.providerKind">
-            <option value="openai-compatible">OpenAI Compatible</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="gemini">Gemini</option>
-            <option value="custom">Custom</option>
-          </select>
+          <span>CLI 应用</span>
+          <div class="pane__binding-wrap form-select-wrap">
+            <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleProviderKindMenu()">
+              <span>{{ providerKindLabel(providerForm.providerKind) }}</span>
+              <AppIcon name="chevron-right" :size="14" />
+            </button>
+            <PopoverMenu :open="openProviderKindMenu" :items="providerKindItems" />
+          </div>
         </label>
         <label class="form-field">
-          <span>Base URL</span>
-          <input v-model.trim="providerForm.baseUrl" type="text" placeholder="例如：https://api.openai.com/v1" />
+          <span>Profile 名称</span>
+          <input v-model.trim="providerForm.profileName" type="text" placeholder="例如：stable / team / personal" />
         </label>
         <label class="form-field">
-          <span>认证密钥</span>
-          <input v-model.trim="providerForm.apiKey" type="password" placeholder="留空，运行前在本机填写" />
+          <span>配置文件</span>
+          <input v-model.trim="providerForm.configPath" type="text" placeholder="例如：~/.codex/config.toml / ~/.claude.json" />
         </label>
         <label class="form-field">
-          <span>API 格式</span>
-          <select v-model="providerForm.apiFormat">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="gemini">Gemini</option>
-            <option value="custom">Custom</option>
-          </select>
+          <span>配置来源</span>
+          <div class="pane__binding-wrap form-select-wrap">
+            <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleProviderSourceMenu()">
+              <span>{{ providerSourceLabel(providerForm.managedBy) }}</span>
+              <AppIcon name="chevron-right" :size="14" />
+            </button>
+            <PopoverMenu :open="openProviderSourceMenu" :items="providerSourceItems" />
+          </div>
         </label>
         <label class="form-field">
-          <span>默认模型</span>
-          <input v-model.trim="providerForm.defaultModel" type="text" placeholder="例如：gpt-5 / claude-sonnet-4" />
+          <span>作用域</span>
+          <div class="pane__binding-wrap form-select-wrap">
+            <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleProviderScopeMenu()">
+              <span>{{ providerScopeLabel(providerForm.configScope) }}</span>
+              <AppIcon name="chevron-right" :size="14" />
+            </button>
+            <PopoverMenu :open="openProviderScopeMenu" :items="providerScopeItems" />
+          </div>
         </label>
         <label class="form-field">
-          <span>适用工具</span>
-          <input v-model.trim="providerForm.toolTargetsText" type="text" placeholder="例如：codex, claude, generic" />
+          <span>适用 CLI</span>
+          <input v-model.trim="providerForm.toolTargetsText" type="text" placeholder="例如：codex, claude, gemini" />
+        </label>
+        <label class="form-field">
+          <span>模型备注</span>
+          <input v-model.trim="providerForm.defaultModel" type="text" placeholder="仅作为本地配置检测值或备注，例如 gpt-5" />
+        </label>
+        <label class="form-field">
+          <span>认证来源</span>
+          <input v-model.trim="providerForm.authSource" type="text" placeholder="例如：Codex OAuth 登录态 / Claude Code 本地登录态" />
+        </label>
+        <label class="form-field">
+          <span>切换命令</span>
+          <input v-model.trim="providerForm.switchCommand" type="text" placeholder="例如：cc-switch codex use stable" />
         </label>
         <label class="form-field">
           <span>标识颜色</span>
@@ -1770,15 +2099,19 @@
         </label>
         <label class="form-field">
           <span>备注</span>
-          <textarea v-model.trim="providerForm.note" rows="3" placeholder="说明认证来源、适用项目或限额提示"></textarea>
+          <textarea v-model.trim="providerForm.note" rows="3" placeholder="说明这套配置绑定了什么 CLI、在哪切换、适用于哪些项目"></textarea>
         </label>
         <label class="form-field form-field--inline">
           <input v-model="providerForm.isDefault" type="checkbox" />
-          <span>设为当前工作区默认 Provider</span>
+          <span>设为默认档案</span>
+        </label>
+        <label class="form-field form-field--inline">
+          <input v-model="providerForm.isActive" type="checkbox" />
+          <span>标记为当前启用</span>
         </label>
         <div class="form-actions">
           <button type="button" class="ghost-btn" @click="closeProviderEditorModal()">取消</button>
-          <button type="submit" class="ghost-btn ghost-btn--primary">保存 Provider</button>
+          <button type="submit" class="ghost-btn ghost-btn--primary">保存档案</button>
         </div>
       </form>
     </ModalShell>
@@ -1786,7 +2119,7 @@
     <ModalShell
       :open="openTerminalEntriesModal"
       title="运行配置"
-      description="运行配置负责工作目录、命令、Provider 绑定与环境变量；Provider 则是独立的供应商配置对象。"
+      description="运行配置只负责工作目录、命令与环境变量。AI CLI 配置档案在左侧 Provider 菜单中单独管理。"
       icon="terminal"
       size="lg"
       @close="openTerminalEntriesModal = false"
@@ -1795,55 +2128,15 @@
         <div class="entry-modal__toolbar">
           <div class="entry-modal__intro">
             <strong>{{ selectedWorkspace?.name }}</strong>
-            <span>当前工作区的运行配置与 Provider 都在这里管理。</span>
+            <span>当前工作区的运行配置列表。</span>
           </div>
           <div class="entry-modal__toolbar-actions">
-            <button class="ghost-btn" @click="openProviderCreateModal()">
-              <AppIcon name="settings" :size="15" />
-              <span>新建 Provider</span>
-            </button>
             <button class="ghost-btn ghost-btn--primary" @click="openTerminalEntryCreateModal()">
               <AppIcon name="terminal" :size="15" />
               <span>新建运行配置</span>
             </button>
           </div>
         </div>
-
-        <div v-if="selectedWorkspaceProviders.length" class="entry-list entry-list--providers">
-          <article v-for="provider in selectedWorkspaceProviders" :key="provider.id" class="entry-card entry-card--provider">
-            <div class="entry-card__head">
-              <div>
-                <strong>{{ provider.name }}</strong>
-                <span>{{ provider.baseUrl || '未设置 Base URL' }}</span>
-              </div>
-              <div class="entry-card__head-meta">
-                <span class="meta-badge">{{ provider.providerKind }}</span>
-                <span v-if="provider.isDefault" class="meta-badge meta-badge--soft">默认 Provider</span>
-              </div>
-            </div>
-            <div class="entry-card__body">
-              <span>API 格式：{{ provider.apiFormat }}</span>
-              <span>默认模型：{{ provider.defaultModel || '未设置' }}</span>
-              <span>适用工具：{{ provider.toolTargets.length ? provider.toolTargets.join(' · ') : 'generic' }}</span>
-            </div>
-            <div class="entry-card__actions">
-              <button class="ghost-btn ghost-btn--small" @click="openProviderEditModal(provider.id)">编辑</button>
-              <button class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeProviderProfile(provider.id)">删除</button>
-            </div>
-          </article>
-        </div>
-
-        <div v-else class="empty-state empty-state--modal">
-          <div class="empty-state__icon">
-            <AppIcon name="settings" :size="18" />
-          </div>
-          <div class="empty-state__body">
-            <strong>还没有 Provider</strong>
-            <p>先创建 Provider，运行配置才能选择“显式指定”或“继承默认”。</p>
-          </div>
-        </div>
-
-        <div class="entry-modal__divider"></div>
 
         <div v-if="selectedWorkspaceEntries.length" class="entry-list">
           <article v-for="entry in selectedWorkspaceEntries" :key="entry.id" class="entry-card">
@@ -1858,11 +2151,8 @@
               </div>
             </div>
             <div class="entry-card__body">
-              <span>Provider：{{ providerSummaryLabel(entry) }}</span>
-              <span>模型：{{ entry.modelId || runtimeProfileResolvedProvider(entry)?.defaultModel || '未设置' }}</span>
               <span>默认命令：{{ entry.defaultCommand || '未设置' }}</span>
               <span>环境变量：{{ entry.environmentVariablesText ? '已配置' : '未配置' }}</span>
-              <span>MCP / Skill：{{ entry.mcpPolicy || 'inherit' }} / {{ entry.skillPolicy || 'inherit' }}</span>
               <span>最近命令：{{ entry.lastCommand || '未记录' }}</span>
             </div>
             <div class="entry-card__actions">
@@ -2200,7 +2490,7 @@
       size="sm"
       @close="closeRenameModal()"
     >
-      <form class="editor-form" @submit.prevent="submitRenameModal()">
+      <form class="editor-form editor-form--refined" @submit.prevent="submitRenameModal()">
         <label class="form-field">
           <span>{{ renameTarget.kind === 'tab' ? '项目名称' : renameTarget.kind === 'session' ? '终端名称' : 'Pane 名称' }}</span>
           <input ref="renameInputRef" v-model.trim="renameTarget.value" type="text" :placeholder="renameTarget.placeholder" />
@@ -2373,6 +2663,92 @@
       </div>
     </DrawerPanel>
 
+    <DrawerPanel
+      :open="openAiHistoryDrawer"
+      title="AI CLI 历史 / Resume"
+      description="聚合当前工作区内 Codex、Claude Code、Gemini CLI 等 AI 终端上下文，用于快速回到最近会话或复用命令。"
+      side="right"
+      @close="openAiHistoryDrawer = false"
+    >
+      <div class="ai-history-drawer">
+        <section class="ai-history-section">
+          <div class="ai-history-section__head">
+            <h4>AI CLI 会话</h4>
+            <span>{{ selectedWorkspaceAiCliSessions.length }} 个</span>
+          </div>
+          <div v-if="selectedWorkspaceAiCliSessions.length" class="ai-history-list">
+            <button
+              v-for="item in selectedWorkspaceAiCliSessions.slice(0, 12)"
+              :key="item.id"
+              type="button"
+              class="ai-history-card"
+              :class="`ai-history-card--${item.statusState}`"
+              @click="openAiCliSessionItem(item)"
+            >
+              <span class="ai-history-card__rail">{{ item.lastInfo.shortLabel }}</span>
+              <span class="ai-history-card__body">
+                <strong>{{ item.sessionName }}</strong>
+                <small>
+                  {{ item.tabName }} / {{ item.path }}
+                  <template v-if="item.info.kind !== item.lastInfo.kind">
+                    · 当前：普通终端
+                  </template>
+                </small>
+                <code v-if="item.command">{{ item.command }}</code>
+              </span>
+              <span class="ai-history-card__state">
+                <span class="session-status-badge" :class="`session-status-badge--${aiSessionStateBadgeClass(item.statusState)}`">
+                  {{ item.statusLabel }}
+                </span>
+              </span>
+            </button>
+          </div>
+          <div v-else class="ai-history-empty">当前工作区还没有识别到 AI CLI 终端。</div>
+        </section>
+
+        <section class="ai-history-section">
+          <div class="ai-history-section__head">
+            <h4>Resume 命令</h4>
+            <span>{{ selectedWorkspaceAiCliCommands.length }} 条</span>
+          </div>
+          <div v-if="selectedWorkspaceAiCliCommands.length" class="ai-command-list">
+            <article v-for="item in selectedWorkspaceAiCliCommands.slice(0, 10)" :key="item.id" class="ai-command-card">
+              <div class="ai-command-card__body">
+                <strong>{{ item.entryName }}</strong>
+                <span>{{ item.workingDirectory }}</span>
+                <code>{{ item.command }}</code>
+              </div>
+              <div class="ai-command-card__actions">
+                <button type="button" class="ghost-btn ghost-btn--small" @click="copyCommandText(item.command)">复制</button>
+                <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary" @click="insertAiCommand(item)">回填</button>
+              </div>
+            </article>
+          </div>
+          <div v-else class="ai-history-empty">还没有 AI CLI 命令历史。</div>
+        </section>
+
+        <section class="ai-history-section">
+          <div class="ai-history-section__head">
+            <h4>布局快照</h4>
+            <span>{{ selectedWorkspaceAiResumeSnapshots.length }} 个</span>
+          </div>
+          <div v-if="selectedWorkspaceAiResumeSnapshots.length" class="ai-snapshot-list">
+            <button
+              v-for="snapshot in selectedWorkspaceAiResumeSnapshots"
+              :key="snapshot.id"
+              type="button"
+              class="ai-snapshot-card"
+              @click="restoreAiSnapshotFromHistory(snapshot.workspaceId, snapshot.id)"
+            >
+              <strong>{{ snapshot.name }}</strong>
+              <span>{{ relativeTimeLabel(snapshot.updatedAt) }} · {{ snapshot.tabsState.length }} 项目</span>
+            </button>
+          </div>
+          <div v-else class="ai-history-empty">还没有包含 AI CLI 的布局快照。</div>
+        </section>
+      </div>
+    </DrawerPanel>
+
     <transition name="toast-slide">
       <div v-if="uiToast" class="top-toast" :key="uiToast.id">
         <div class="top-toast__content">
@@ -2418,6 +2794,123 @@
         height: `${dragDropTarget.marker.height}px`,
       }"
     ></div>
+
+    <aside
+      v-if="visibleAiAssistItems.length && aiAssistantPinned && isWorkspaceWorkbench"
+      ref="aiAssistCardRef"
+      class="ai-assist-card"
+      :class="[{ 'ai-assist-card--minimized': aiAssistantMinimized }]"
+      :style="aiAssistCardStyle"
+    >
+      <header class="ai-assist-card__head" @pointerdown="beginAiAssistDrag">
+        <div>
+          <span class="ai-assist-card__eyebrow">
+            <span>AI Workspace Monitor</span>
+          </span>
+          <strong v-if="!aiAssistantMinimized">{{ selectedWorkspace?.name || '当前工作区' }} · {{ visibleAiAssistItems.length }} 个 AI 对话</strong>
+          <div v-else class="ai-assist-card__compact-strip">
+            <button
+              v-for="item in visibleAiAssistItems.slice(0, 4)"
+              :key="item.id"
+              type="button"
+              class="ai-assist-card__compact-pill"
+              :class="`ai-assist-card__compact-pill--${aiSessionStateBadgeClass(item.state)}`"
+              :title="`${item.meta} / ${item.title}`"
+              data-no-drag="true"
+              @click="openAiAssistTarget(item)"
+            >
+              <img
+                v-if="aiCliBrandIconSrc(item.info.kind)"
+                :src="aiCliBrandIconSrc(item.info.kind) || undefined"
+                class="ai-brand-icon ai-brand-icon--compact"
+                :class="aiCliBrandIconClass(item.info.kind)"
+                alt=""
+              />
+              <AppIcon v-else :name="item.info.iconName" :size="11" />
+              <strong>{{ item.info.shortLabel }}</strong>
+              <span>{{ item.statusLabel }}</span>
+            </button>
+          </div>
+        </div>
+        <div class="ai-assist-card__actions">
+          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" title="打开历史" @click="openAiHistoryDrawer = true">
+            <AppIcon name="recent" :size="12" />
+          </button>
+          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" :title="aiAssistantMinimized ? '展开辅助层' : '最小化辅助层'" @click="aiAssistantMinimized = !aiAssistantMinimized">
+            <AppIcon :name="aiAssistantMinimized ? 'chevron-right' : 'chevron-down'" :size="12" />
+          </button>
+          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" title="关闭辅助层" @click="aiAssistantPinned = false">
+            <AppIcon name="close" :size="12" />
+          </button>
+        </div>
+      </header>
+
+      <div v-if="!aiAssistantMinimized" class="ai-assist-card__body">
+        <div class="ai-assist-monitor-list">
+          <article
+            v-for="item in visibleAiAssistItems"
+            :key="item.id"
+            class="ai-assist-monitor-item"
+            :class="`ai-assist-monitor-item--${aiSessionStateBadgeClass(item.state)}`"
+          >
+            <div class="ai-assist-monitor-item__pin">
+              <button
+                type="button"
+                class="icon-btn icon-btn--mini"
+                :title="pinnedAiAssistItemId === item.id ? '取消置顶' : '置顶'"
+                @click="pinAiAssistItem(item.id)"
+              >
+                <AppIcon name="star" :size="12" />
+              </button>
+            </div>
+            <div class="ai-assist-monitor-item__head">
+              <span class="ai-assist-monitor-item__brand">
+                <img
+                  v-if="resolvedAiBrandKind(selectedWorkspace, item.info) && aiCliBrandIconSrc(resolvedAiBrandKind(selectedWorkspace, item.info)!)"
+                  :src="aiCliBrandIconSrc(resolvedAiBrandKind(selectedWorkspace, item.info)!) || undefined"
+                  class="ai-brand-icon ai-brand-icon--eyebrow"
+                  :class="aiCliBrandIconClass(resolvedAiBrandKind(selectedWorkspace, item.info)!)"
+                  alt=""
+                />
+                <AppIcon v-else :name="item.info.iconName" :size="12" />
+                <strong>{{ item.info.label }}</strong>
+              </span>
+              <span class="session-status-badge" :class="`session-status-badge--${aiSessionStateBadgeClass(item.state)}`">
+                {{ item.statusLabel }}
+              </span>
+            </div>
+            <div class="ai-assist-monitor-item__body">
+              <div class="ai-assist-monitor-item__identity">
+                <strong>{{ item.meta }}</strong>
+                <span>{{ item.title }}</span>
+              </div>
+              <div class="ai-assist-monitor-item__path-row">
+                <code :title="item.path">{{ item.path }}</code>
+                <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary ai-assist-monitor-item__jump" @click="openAiAssistTarget(item)">
+                  <AppIcon name="terminal" :size="12" />
+                  <span>定位</span>
+                </button>
+                <button
+                  v-if="shouldCountAttentionState(item.state)"
+                  type="button"
+                  class="icon-btn icon-btn--mini ai-assist-monitor-item__ack"
+                  title="标记已处理"
+                  @click="clearSessionAttention(item.sessionId)"
+                >
+                  <AppIcon name="check" :size="12" />
+                </button>
+              </div>
+            </div>
+            <div class="ai-assist-monitor-item__actions sr-only">
+              <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary" @click="openAiAssistTarget(item)">
+                <AppIcon name="terminal" :size="13" />
+                <span>定位</span>
+              </button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </aside>
   </teleport>
 
 </template>
@@ -2437,6 +2930,10 @@ import githubIcon from './assets/env-icons/github.svg'
 import goIcon from './assets/env-icons/go.svg'
 import javaIcon from './assets/env-icons/java.svg'
 import nodejsIcon from './assets/env-icons/nodejs.svg'
+import openAiBrandIcon from './assets/ai-brand-icons/openai.svg'
+import claudeBrandIcon from './assets/ai-brand-icons/claude.svg'
+import geminiBrandIcon from './assets/ai-brand-icons/gemini.svg'
+import deepseekBrandIcon from './assets/ai-brand-icons/deepseek.svg'
 import powershellIcon from './assets/env-icons/powershell.svg'
 import pythonIcon from './assets/env-icons/python.svg'
 import rustIcon from './assets/env-icons/Rust-icon.svg'
@@ -2453,6 +2950,7 @@ import {
   relativeTimeLabel,
   saveWorkspaces,
 } from './services/workspace-storage'
+import { detectLocalProviderProfiles, type DetectedProviderProfile } from './services/provider-detector'
 import {
   createWorkflowTemplateFromInput,
   loadUserWorkflowTemplates,
@@ -2462,11 +2960,18 @@ import {
 import { destroyTerminalRuntime, ensureTerminalReady, getTerminalRuntimeState, writeTerminalText } from './services/terminal-runtime'
 import { sendSessionAttentionNotification } from './services/session-attention-notifier'
 import type {
+  AiCliKind,
   AppSection,
   PaneNode,
   PaneTerminalSession,
+  ProviderQuotaSnapshot,
+  ProviderConfigScope,
+  ProviderKind,
   ProviderProfile,
+  ProviderProfileSource,
+  ProviderRequestLog,
   ProviderToolTarget,
+  ProviderUsageStats,
   SessionAttentionState,
   SplitDirection,
   TabLayoutMode,
@@ -2519,6 +3024,59 @@ type SearchResultItem = {
   score?: number
   command?: string
   onOpen: () => void
+}
+
+type AiCliInfo = {
+  isAi: boolean
+  kind: AiCliKind
+  label: string
+  shortLabel: string
+  tone: string
+  iconName: string
+}
+
+type AiCliSessionItem = {
+  id: string
+  workspaceId: string
+  tabId: string
+  paneId: string
+  sessionId: string
+  workspaceName: string
+  tabName: string
+  paneName: string
+  sessionName: string
+  path: string
+  statusLabel: string
+  statusState: SessionAttentionState
+  command: string
+  updatedAt: string
+  info: AiCliInfo
+  lastInfo: AiCliInfo
+}
+
+type AiCliCommandItem = {
+  id: string
+  workspaceId: string
+  entryId: string
+  entryName: string
+  command: string
+  workingDirectory: string
+  meta: string
+  info: AiCliInfo
+}
+
+type AiAssistItem = {
+  id: string
+  title: string
+  meta: string
+  path: string
+  statusLabel: string
+  state: SessionAttentionState
+  workspaceId: string
+  tabId: string
+  paneId: string
+  sessionId: string
+  info: AiCliInfo
 }
 
 type DropEdge = 'left' | 'right' | 'top' | 'bottom'
@@ -2813,6 +3371,7 @@ const themePanelTab = ref<ThemePanelTab>('theme')
 const openThemeModal = ref(false)
 const openSearchModal = ref(false)
 const openRecentRecycleBinModal = ref(false)
+const openAiHistoryDrawer = ref(false)
 const recentFilter = ref<RecentFilter>('all')
 const recentWorkspaceFilter = ref('all')
 const pinnedRecentItemIds = ref<string[]>([])
@@ -2836,6 +3395,12 @@ const activePaneHeaderMenu = ref<string | null>(null)
 const activePaneBindingMenu = ref<string | null>(null)
 const activePaneSessionMenu = ref<{ paneId: string; sessionId: string } | null>(null)
 const activeCommandPanelPaneId = ref<string | null>(null)
+const aiAssistantPinned = ref(true)
+const aiAssistantMinimized = ref(false)
+const pinnedAiAssistItemId = ref<string | null>(null)
+const aiAssistCardRef = ref<HTMLElement | null>(null)
+const aiAssistCardPosition = ref<{ left: number; top: number } | null>(null)
+const aiAssistDragging = ref(false)
 const activeWorkspaceMenu = ref<string | null>(null)
 const activeWorkspaceMenuPosition = ref<{ x: number; y: number } | null>(null)
 const activePaneMenuPosition = ref<{ x: number; y: number } | null>(null)
@@ -2850,6 +3415,9 @@ const activeExplorerProjectMenuPosition = ref<{ x: number; y: number } | null>(n
 const activeRailTooltipId = ref<string | null>(null)
 const openRecentWorkspaceFilterMenu = ref(false)
 const openLaunchModeMenu = ref(false)
+const openProviderKindMenu = ref(false)
+const openProviderSourceMenu = ref(false)
+const openProviderScopeMenu = ref(false)
 const openSplitActionModal = ref(false)
 const openConfirmModal = ref(false)
 const railCollapsed = ref(false)
@@ -2937,6 +3505,11 @@ let cachedDropZones: CachedDropZone[] = []
 const collapsedWorkspaceIds = ref<string[]>(resolveCollapsedWorkspaceIds(workspaces.value, initialWorkbenchRestoreState.collapsedWorkspaceIds))
 const collapsedTreeTabIds = ref<string[]>(resolveRestoredCollapsedTreeTabIds(initialSelectedWorkspace, initialWorkspaceFocus?.collapsedTreeTabIds))
 const workbenchSidebarWidth = ref(loadWorkbenchSidebarWidth())
+const activeProviderStatsId = ref('')
+const activeProviderToolFilter = ref<'all' | ProviderProfile['providerKind']>('all')
+const providerSearchQuery = ref('')
+const providerDetectionRunning = ref(false)
+const providerDetectionSummary = ref('')
 let workbenchResizeCleanup: (() => void) | null = null
 let saveWorkspacesTimer: number | null = null
 let saveWorkspacesIdleHandle: number | null = null
@@ -2971,27 +3544,26 @@ const terminalEntryForm = reactive({
   workingDirectory: '',
   defaultCommand: '',
   launchMode: 'open-only' as TerminalEntry['launchMode'],
-  providerBindingMode: 'inherit' as NonNullable<TerminalEntry['providerBindingMode']>,
-  providerProfileId: '',
-  modelId: '',
   environmentVariablesText: '',
-  mcpPolicy: 'inherit' as NonNullable<TerminalEntry['mcpPolicy']>,
-  skillPolicy: 'inherit' as NonNullable<TerminalEntry['skillPolicy']>,
   tagsText: '',
   note: '',
 })
 
 const providerForm = reactive({
   name: '',
-  providerKind: 'openai-compatible' as ProviderProfile['providerKind'],
-  baseUrl: '',
-  apiKey: '',
-  apiFormat: 'openai' as ProviderProfile['apiFormat'],
+  providerKind: 'codex' as ProviderProfile['providerKind'],
+  profileName: '',
+  configPath: '',
+  configScope: 'global' as ProviderConfigScope,
+  managedBy: 'cli-config' as ProviderProfileSource,
+  authSource: '',
+  switchCommand: '',
   defaultModel: '',
-  toolTargetsText: 'codex, generic',
+  toolTargetsText: 'codex',
   color: '#4b83ff',
   note: '',
   isDefault: true,
+  isActive: false,
 })
 
 const workflowTemplateForm = reactive({
@@ -3032,6 +3604,29 @@ const launchModeOptions: Array<{ value: TerminalEntry['launchMode']; label: stri
   { value: 'prefill', label: '预填命令', description: '将命令填入终端输入区，由用户确认后发送。' },
   { value: 'execute', label: '立即执行', description: '打开终端后按配置发送默认命令，适合可信的本地开发命令。' },
   { value: 'switch-or-create', label: '切换或创建', description: '优先切换已有终端，没有再创建新的终端。' },
+]
+
+const providerKindOptions: Array<{ value: ProviderProfile['providerKind']; label: string; description: string }> = [
+  { value: 'codex', label: 'Codex CLI', description: '读取或切换本机 Codex CLI 的配置档案。' },
+  { value: 'claude-code', label: 'Claude Code', description: '读取或切换 Claude Code 的本地配置档案。' },
+  { value: 'gemini-cli', label: 'Gemini CLI', description: '读取或切换 Gemini CLI 的账号与配置档案。' },
+  { value: 'opencode', label: 'OpenCode', description: '读取或切换 OpenCode 的本地 provider 配置。' },
+  { value: 'custom-cli', label: '自定义 CLI', description: '适合脚本切换、团队代理或其他未预置的本地 CLI 档案。' },
+]
+
+const providerSourceOptions: Array<{ value: ProviderProfileSource; label: string; description: string }> = [
+  { value: 'cli-config', label: 'CLI 本地配置', description: '由工具自己的配置文件决定，不在运行配置中注入。' },
+  { value: 'cc-switch', label: 'CC Switch', description: '通过 cc-switch 风格的配置档案或切换层管理。' },
+  { value: 'oauth', label: 'OAuth 登录态', description: '使用 CLI 已登录账号和本地 token。' },
+  { value: 'env', label: '环境变量', description: '由用户 shell/profile 或系统环境变量决定。' },
+  { value: 'script', label: '切换脚本', description: '通过自定义脚本完成配置切换。' },
+  { value: 'manual', label: '手动登记', description: '只记录配置档案信息，不自动读取。' },
+]
+
+const providerScopeOptions: Array<{ value: ProviderConfigScope; label: string; description: string }> = [
+  { value: 'global', label: '全局配置', description: '配置位于用户目录，影响该 CLI 的默认行为。' },
+  { value: 'workspace', label: '工作区配置', description: '配置跟随当前 Chuchen 工作区管理。' },
+  { value: 'project', label: '项目配置', description: '配置位于项目根目录或项目子目录。' },
 ]
 
 const restoreCommandStrategyOptions: Array<{ value: RestoreCommandStrategy; label: string; description: string }> = [
@@ -3147,6 +3742,178 @@ const isWorkspaceWorkbench = computed(() => appSection.value === 'workspace' && 
 const activeHelpContent = computed(() => helpContentMap[activeHelpTopicId.value] ?? helpContentMap.layout)
 const selectedWorkspaceEntries = computed(() => selectedWorkspace.value?.terminalEntries ?? [])
 const selectedWorkspaceProviders = computed(() => selectedWorkspace.value?.providerProfiles ?? [])
+const selectedWorkspaceProviderQuotas = computed(() => selectedWorkspace.value?.providerQuotas ?? [])
+const selectedWorkspaceProviderUsageStats = computed(() => selectedWorkspace.value?.providerUsageStats ?? [])
+const selectedWorkspaceAiCliSessions = computed<AiCliSessionItem[]>(() => {
+  const workspace = selectedWorkspace.value
+  if (!workspace) return []
+
+  const items: AiCliSessionItem[] = []
+  workspace.tabs.forEach((tab) => {
+    flattenLeafPanes(tab.panes).forEach((pane) => {
+      paneSessions(pane).forEach((session) => {
+        const entry = workspaceEntryById(workspace, session.terminalEntryId ?? pane.terminalEntryId)
+        const info = aiCliInfoForSession(workspace, pane, session)
+        const lastInfo = lastAiCliInfoForSession(workspace, pane, session)
+        if (!lastInfo.isAi) return
+        const displayName = sessionHistoryDisplayName(workspace, pane, session, info, lastInfo)
+
+        items.push({
+          id: `${workspace.id}-${tab.id}-${pane.id}-${session.id}`,
+          workspaceId: workspace.id,
+          tabId: tab.id,
+          paneId: pane.id,
+          sessionId: session.id,
+          workspaceName: workspace.name,
+          tabName: tab.name,
+          paneName: pane.name,
+          sessionName: displayName,
+          path: entry?.workingDirectory || session.pathLabel || pane.pathLabel || workspace.rootPath,
+          statusLabel: explorerSessionLabel(session),
+          statusState: sessionAttentionState(session),
+          command: entry?.lastCommand || entry?.defaultCommand || '',
+          updatedAt: session.lastActivityAt || session.lastOutputAt || session.lastCommandAt || entry?.updatedAt || tab.updatedAt || workspace.updatedAt,
+          info,
+          lastInfo,
+        })
+      })
+    })
+  })
+
+  return items.sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+})
+const currentWorkspaceAiCliSessions = computed(() =>
+  selectedWorkspaceAiCliSessions.value.filter((item) => item.info.isAi),
+)
+const selectedWorkspaceAiCliCommands = computed<AiCliCommandItem[]>(() => {
+  const workspace = selectedWorkspace.value
+  if (!workspace) return []
+
+  return workspace.terminalEntries.flatMap((entry) => {
+    const info = aiCliInfoForEntry(entry)
+    if (!info.isAi) return []
+
+    return uniqueCommandList([entry.lastCommand, ...(entry.commandHistory ?? []), entry.defaultCommand], 5).map((command, index) => ({
+      id: `${workspace.id}-${entry.id}-${index}`,
+      workspaceId: workspace.id,
+      entryId: entry.id,
+      entryName: entry.name,
+      command,
+      workingDirectory: entry.workingDirectory,
+      meta: entry.tags.join(' / ') || launchModeLabel(entry.launchMode),
+      info,
+    }))
+  })
+})
+const selectedWorkspaceAiResumeSnapshots = computed(() =>
+  selectedWorkspaceSnapshots.value
+    .filter((snapshot) => snapshot.tabsState.some((tab) =>
+      flattenLeafPanes(tab.panes).some((pane) =>
+        paneSessions(pane).some((session) => {
+          const entry = selectedWorkspace.value?.terminalEntries.find((item) => item.id === (session.terminalEntryId ?? pane.terminalEntryId))
+          return aiCliInfoForEntry(entry).isAi || Boolean(session.lastAiCliKind) || Boolean(session.aiCliKind)
+        }),
+      ),
+    ))
+    .slice(0, 6),
+)
+const aiAssistItems = computed<AiAssistItem[]>(() =>
+  currentWorkspaceAiCliSessions.value
+    .filter((item) => shouldShowAiAssistState(item.statusState) || item.statusState === 'fresh' || item.statusState === 'idle')
+    .map((item): AiAssistItem => ({
+      id: item.id,
+      title: item.sessionName,
+      meta: item.tabName,
+      path: item.path,
+      statusLabel: item.statusLabel,
+      state: item.statusState,
+      workspaceId: item.workspaceId,
+      tabId: item.tabId,
+      paneId: item.paneId,
+      sessionId: item.sessionId,
+      info: item.info,
+    })),
+)
+const activeAiAssistItem = computed<AiAssistItem | null>(() => {
+  const items = aiAssistItems.value
+  if (!items.length) return null
+  return items.find((item) => item.id === pinnedAiAssistItemId.value)
+    ?? items.find((item) => shouldCountAttentionState(item.state))
+    ?? items[0]
+})
+const visibleAiAssistItems = computed(() => {
+  const items = aiAssistItems.value
+  if (!items.length) return []
+  const primary = activeAiAssistItem.value
+  const ordered = primary
+    ? [primary, ...items.filter((item) => item.id !== primary.id)]
+    : items
+  return ordered.slice(0, 6)
+})
+const providerToolFilters = computed<Array<{ id: 'all' | ProviderProfile['providerKind']; label: string; count: number }>>(() => {
+  const providers = selectedWorkspaceProviders.value
+  const countByKind = providers.reduce<Record<string, number>>((result, provider) => {
+    result[provider.providerKind] = (result[provider.providerKind] ?? 0) + 1
+    return result
+  }, {})
+
+  return [
+    { id: 'all', label: '全部', count: providers.length },
+    ...providerKindOptions.map((option) => ({
+      id: option.value,
+      label: option.label,
+      count: countByKind[option.value] ?? 0,
+    })),
+  ]
+})
+const filteredWorkspaceProviders = computed(() => {
+  const query = normalizeSearchText(providerSearchQuery.value)
+  return selectedWorkspaceProviders.value.filter((provider) => {
+    if (activeProviderToolFilter.value !== 'all' && provider.providerKind !== activeProviderToolFilter.value) {
+      return false
+    }
+    if (!query) return true
+
+    return [
+      provider.name,
+      provider.profileName,
+      provider.configPath,
+      provider.authSource,
+      provider.defaultModel,
+      provider.note ?? '',
+    ].some((value) => normalizeSearchText(value).includes(query))
+  })
+})
+const activeProviderProfile = computed(() => {
+  const providerId = activeProviderStatsId.value || filteredWorkspaceProviders.value[0]?.id || selectedWorkspaceProviders.value[0]?.id || ''
+  return selectedWorkspaceProviders.value.find((provider) => provider.id === providerId) ?? null
+})
+const activeProviderQuota = computed(() => {
+  const providerIndex = selectedWorkspaceProviders.value.findIndex((provider) => provider.id === activeProviderProfile.value?.id)
+  return providerIndex >= 0 ? selectedWorkspaceProviderQuotas.value[providerIndex] ?? null : null
+})
+const activeProviderStats = computed(() => {
+  const provider = activeProviderProfile.value
+  if (!provider) return null
+  const stats = selectedWorkspaceProviderUsageStats.value.find((item) => item.providerProfileId === provider.id)
+  return normalizeProviderUsageStatsForProfile(provider, stats ?? createEmptyProviderUsageStatsForProfile(provider.id))
+})
+const activeUsageSummary = computed(() => activeProviderStats.value?.summary ?? emptyProviderUsageSummary())
+const activeUsageLogs = computed(() => activeProviderStats.value?.requestLogs ?? [])
+const usageTrendChartData = computed(() => (activeProviderStats.value?.trends ?? []).map((point) => ({
+  ...point,
+  label: formatUsageHour(point.timestamp),
+})))
+const usageTrendMaxTokens = computed(() => Math.max(1, ...usageTrendChartData.value.map((point) => Math.max(point.inputTokens, point.outputTokens, point.cacheReadTokens))))
+const usageTrendMaxCost = computed(() => Math.max(1, ...usageTrendChartData.value.map((point) => point.costUsd)))
+const usageTrendLabelPoints = computed(() => usageTrendChartData.value.map((point, index, arr) => ({
+  label: point.label,
+  x: arr.length <= 1 ? 500 : 40 + (920 / (arr.length - 1)) * index,
+})))
+const usageTrendInputPath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.inputTokens, usageTrendMaxTokens.value))
+const usageTrendOutputPath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.outputTokens, usageTrendMaxTokens.value))
+const usageTrendCachePath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.cacheReadTokens, usageTrendMaxTokens.value))
+const usageTrendCostPath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.costUsd, usageTrendMaxCost.value))
 const referencedTerminalEntryIds = computed(() => {
   const ids = selectedWorkspace.value?.tabs.flatMap((tab) => flattenLeafPanes(tab.panes).map((pane) => pane.terminalEntryId).filter((entryId): entryId is string => Boolean(entryId))) ?? []
   return new Set(ids)
@@ -3237,7 +4004,7 @@ const allRecentItems = computed<RecentItem[]>(() => {
             id: `session-${workspace.id}-${tab.id}-${pane.id}-${session.id}`,
             type: 'session',
             icon: 'terminal',
-            title: session.name || pane.name,
+            title: sessionDisplayName(workspace, pane, session),
             description: entry?.workingDirectory || session.pathLabel || pane.pathLabel,
             meta: `${workspace.name} / ${tab.name}`,
             badge: explorerSessionLabel(session),
@@ -3337,12 +4104,12 @@ const searchResults = computed<SearchResultItem[]>(() => {
             id: `session-${workspace.id}-${tab.id}-${pane.id}-${session.id}`,
             type: 'session',
             icon: 'terminal',
-            title: session.name || pane.name,
+            title: sessionDisplayName(workspace, pane, session),
             description: entry?.workingDirectory || session.pathLabel || pane.pathLabel,
             meta: `${workspace.name} / ${tab.name}`,
             actionLabel: '打开终端',
             onOpen: () => openWorkspaceTerminalSession(workspace.id, tab.id, pane.id, session.id),
-          }, [workspace.name, tab.name, pane.name, session.name, entry?.workingDirectory ?? '', entry?.defaultCommand ?? '', entry?.lastCommand ?? ''])
+          }, sessionDisplayTitle(workspace, tab, pane, session))
         })
       })
     })
@@ -3561,6 +4328,22 @@ const primaryRailItems = computed<RailItem[]>(() => [
     summary: '常用布局、运行配置和启动蓝图。',
     active: appSection.value === 'templates',
     action: () => { appSection.value = 'templates' },
+  },
+  {
+    id: 'providers',
+    label: 'Provider',
+    icon: 'settings',
+    summary: '参考 CC Switch 管理本地 CLI Provider 档案。',
+    active: appSection.value === 'providers',
+    action: () => { appSection.value = 'providers' },
+  },
+  {
+    id: 'usage',
+    label: '统计',
+    icon: 'recent',
+    summary: '查看请求日志、趋势图与用量总览。',
+    active: appSection.value === 'usage',
+    action: () => { appSection.value = 'usage' },
   },
 ])
 const secondaryRailItems = computed<RailItem[]>(() => [
@@ -3909,6 +4692,37 @@ watch(openRenameModal, async (open) => {
   renameInputRef.value?.select()
 })
 
+watch(() => providerForm.providerKind, (kind) => {
+  if (!openProviderEditorModal.value) return
+  if (!providerForm.configPath.trim()) {
+    providerForm.configPath = defaultConfigPathForProvider(kind)
+  }
+  if (!providerForm.toolTargetsText.trim()) {
+    providerForm.toolTargetsText = defaultProviderTargetsText(kind)
+  }
+  if (!providerForm.color.trim()) {
+    providerForm.color = providerKindColor(kind)
+  }
+  if (!providerForm.authSource.trim()) {
+    providerForm.authSource = defaultAuthSourceForProvider(kind, providerForm.managedBy)
+  }
+})
+
+watch(() => providerForm.managedBy, (source) => {
+  if (!openProviderEditorModal.value || providerForm.authSource.trim()) return
+  providerForm.authSource = defaultAuthSourceForProvider(providerForm.providerKind, source)
+})
+
+watch(filteredWorkspaceProviders, (providers) => {
+  if (!providers.length) {
+    activeProviderStatsId.value = ''
+    return
+  }
+  if (!providers.some((provider) => provider.id === activeProviderStatsId.value)) {
+    activeProviderStatsId.value = providers[0].id
+  }
+})
+
 watch(selectedWorkspace, (workspace) => {
   if (!workspace) {
     activeRuntimeTabId.value = ''
@@ -3942,6 +4756,9 @@ function closeFloatingMenus() {
   activePaneSessionMenuPosition.value = null
   openRecentWorkspaceFilterMenu.value = false
   openLaunchModeMenu.value = false
+  openProviderKindMenu.value = false
+  openProviderSourceMenu.value = false
+  openProviderScopeMenu.value = false
   activeRailTooltipId.value = null
 }
 
@@ -4017,8 +4834,12 @@ onMounted(() => {
   void refreshTauriViewportWidth()
   window.addEventListener('click', handleGlobalClick)
   window.addEventListener('pointerdown', handleGlobalPointerDown)
+  window.addEventListener('pointermove', handleAiAssistPointerMove)
+  window.addEventListener('pointerup', endAiAssistDrag)
+  window.addEventListener('pointercancel', endAiAssistDrag)
   window.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('resize', refreshCachedDropZones)
+  window.addEventListener('resize', clampAiAssistCardIntoViewport)
   if ('__TAURI_INTERNALS__' in window) {
     void getCurrentWindow().onResized(() => {
       void refreshTauriViewportWidth()
@@ -4031,8 +4852,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('click', handleGlobalClick)
   window.removeEventListener('pointerdown', handleGlobalPointerDown)
+  window.removeEventListener('pointermove', handleAiAssistPointerMove)
+  window.removeEventListener('pointerup', endAiAssistDrag)
+  window.removeEventListener('pointercancel', endAiAssistDrag)
   window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('resize', refreshCachedDropZones)
+  window.removeEventListener('resize', clampAiAssistCardIntoViewport)
+  document.body.classList.remove('is-dragging-ai-assist')
   unlistenWindowResize?.()
   unlistenWindowResize = null
   saveWorkbenchRestoreState()
@@ -4483,62 +5309,6 @@ function paneSessionMenuItems(pane: PaneNode, session: PaneTerminalSession): Pop
         copyPanePath(pane)
       },
     },
-    {
-      label: '复制默认命令',
-      icon: 'copy',
-      description: `预览：${paneCommandPreview(pane, 'default')}`,
-      onClick: () => {
-        activePaneSessionMenu.value = null
-        copyPaneCommand(pane, 'default')
-      },
-    },
-    {
-      label: '插入默认命令',
-      icon: 'terminal',
-      description: `预览：${paneCommandPreview(pane, 'default')}`,
-      onClick: () => {
-        activePaneSessionMenu.value = null
-        insertPaneCommand(pane, 'default')
-      },
-    },
-    {
-      label: '复制最后命令',
-      icon: 'copy',
-      description: `预览：${paneCommandPreview(pane, 'last')}`,
-      onClick: () => {
-        activePaneSessionMenu.value = null
-        copyPaneCommand(pane, 'last')
-      },
-    },
-    {
-      label: '插入最后命令',
-      icon: 'terminal',
-      description: `预览：${paneCommandPreview(pane, 'last')}`,
-      onClick: () => {
-        activePaneSessionMenu.value = null
-        insertPaneCommand(pane, 'last')
-      },
-    },
-    {
-      label: '拆分到右侧',
-      icon: 'pane',
-      description: '在当前 Pane 右侧拆出一个新的分组。',
-      shortcut: 'Alt+→',
-      onClick: () => {
-        activePaneSessionMenu.value = null
-        splitLeafPane(pane.id, 'horizontal')
-      },
-    },
-    {
-      label: '拆分到下方',
-      icon: 'pane',
-      description: '在当前 Pane 下方拆出一个新的分组。',
-      shortcut: 'Alt+↓',
-      onClick: () => {
-        activePaneSessionMenu.value = null
-        splitLeafPane(pane.id, 'vertical')
-      },
-    },
   )
 
   if (pane.terminalEntryId) {
@@ -4577,6 +5347,46 @@ function paneHeaderMenuItems(pane: PaneNode): PopoverItem[] {
       onClick: () => {
         activePaneHeaderMenu.value = null
         createPaneSession(pane.id)
+      },
+    },
+    {
+      label: '插入默认命令',
+      description: `预览：${paneCommandPreview(pane, 'default')}`,
+      onClick: () => {
+        activePaneHeaderMenu.value = null
+        insertPaneCommand(pane, 'default')
+      },
+    },
+    {
+      label: '复制默认命令',
+      description: `预览：${paneCommandPreview(pane, 'default')}`,
+      onClick: () => {
+        activePaneHeaderMenu.value = null
+        copyPaneCommand(pane, 'default')
+      },
+    },
+    {
+      label: '复制最后命令',
+      description: `预览：${paneCommandPreview(pane, 'last')}`,
+      onClick: () => {
+        activePaneHeaderMenu.value = null
+        copyPaneCommand(pane, 'last')
+      },
+    },
+    {
+      label: '拆分到右侧',
+      description: '在当前 Pane 右侧拆出一个新的分组。',
+      onClick: () => {
+        activePaneHeaderMenu.value = null
+        splitLeafPane(pane.id, 'horizontal')
+      },
+    },
+    {
+      label: '拆分到下方',
+      description: '在当前 Pane 下方拆出一个新的分组。',
+      onClick: () => {
+        activePaneHeaderMenu.value = null
+        splitLeafPane(pane.id, 'vertical')
       },
     },
   ]
@@ -5410,7 +6220,7 @@ function activatePendingTabPress() {
   draggingSession.value = {
     sourcePaneId: pending.paneId,
     sourceSessionId: pending.sessionId,
-    sessionName: sourceSession.name || 'PowerShell 7',
+    sessionName: sessionDisplayName(selectedWorkspace.value, sourcePane, sourceSession),
     pointerId: pending.pointerId,
     active: true,
     moved: false,
@@ -5736,6 +6546,7 @@ function openWorkspaceTerminalSession(workspaceId: string, tabId: string, paneId
   switchOpenedWorkspace(workspaceId)
   openRuntimeFromPane(tabId, paneId)
   activatePaneSession(paneId, sessionId)
+  openAiHistoryDrawer.value = false
 }
 
 function setActiveTabLayout(layoutMode: 'grid' | 'horizontal' | 'vertical') {
@@ -5775,10 +6586,64 @@ const launchModeItems = computed<PopoverItem[]>(() => {
   }))
 })
 
+const providerKindItems = computed<PopoverItem[]>(() => (
+  providerKindOptions.map((option) => ({
+    label: option.label,
+    description: option.description,
+    active: providerForm.providerKind === option.value,
+    onClick: () => {
+      providerForm.providerKind = option.value
+      openProviderKindMenu.value = false
+    },
+  }))
+))
+
+const providerSourceItems = computed<PopoverItem[]>(() => (
+  providerSourceOptions.map((option) => ({
+    label: option.label,
+    description: option.description,
+    active: providerForm.managedBy === option.value,
+    onClick: () => {
+      providerForm.managedBy = option.value
+      openProviderSourceMenu.value = false
+    },
+  }))
+))
+
+const providerScopeItems = computed<PopoverItem[]>(() => (
+  providerScopeOptions.map((option) => ({
+    label: option.label,
+    description: option.description,
+    active: providerForm.configScope === option.value,
+    onClick: () => {
+      providerForm.configScope = option.value
+      openProviderScopeMenu.value = false
+    },
+  }))
+))
+
 function toggleLaunchModeMenu() {
   const shouldOpen = !openLaunchModeMenu.value
   closeFloatingMenus()
   openLaunchModeMenu.value = shouldOpen
+}
+
+function toggleProviderKindMenu() {
+  const shouldOpen = !openProviderKindMenu.value
+  closeFloatingMenus()
+  openProviderKindMenu.value = shouldOpen
+}
+
+function toggleProviderSourceMenu() {
+  const shouldOpen = !openProviderSourceMenu.value
+  closeFloatingMenus()
+  openProviderSourceMenu.value = shouldOpen
+}
+
+function toggleProviderScopeMenu() {
+  const shouldOpen = !openProviderScopeMenu.value
+  closeFloatingMenus()
+  openProviderScopeMenu.value = shouldOpen
 }
 
 function toggleRailCollapsed() {
@@ -5807,6 +6672,411 @@ function recentItemTimestamp(item: RecentItem) {
 
 function normalizeSearchText(value: string) {
   return value.trim().toLocaleLowerCase()
+}
+
+const aiAssistCardStyle = computed(() => {
+  if (!aiAssistCardPosition.value) return undefined
+  return {
+    left: `${aiAssistCardPosition.value.left}px`,
+    top: `${aiAssistCardPosition.value.top}px`,
+    right: 'auto',
+    bottom: 'auto',
+  }
+})
+
+const aiAssistDragState = reactive({
+  active: false,
+  pointerId: -1,
+  pointerOffsetX: 0,
+  pointerOffsetY: 0,
+})
+
+function aiCliBadgeText(info: AiCliInfo) {
+  return aiCliBrandIconSrc(info.kind) ? '' : info.kind === 'generic-ai' ? '' : info.shortLabel
+}
+
+function isConfirmedAiCliInfo(info: AiCliInfo) {
+  return info.isAi && info.kind !== 'generic-ai'
+}
+
+function shouldShowAiSessionStyling(info: AiCliInfo) {
+  return info.isAi
+}
+
+function hasAiBrandIcon(info: AiCliInfo) {
+  return Boolean(aiCliBrandIconSrc(info.kind))
+}
+
+function aiCliDisplayName(kind: AiCliKind) {
+  if (kind === 'claude-code') return 'Claude'
+  if (kind === 'gemini-cli') return 'Gemini'
+  if (kind === 'deepseek-cli') return 'DeepSeek'
+  if (kind === 'opencode') return 'OpenCode'
+  if (kind === 'generic-ai') return 'AI CLI'
+  if (kind === 'custom-cli') return 'Terminal'
+  return 'Codex'
+}
+
+function aiCliBrandIconSrc(kind: AiCliKind) {
+  if (kind === 'codex') return openAiBrandIcon
+  if (kind === 'claude-code') return claudeBrandIcon
+  if (kind === 'gemini-cli') return geminiBrandIcon
+  if (kind === 'deepseek-cli') return deepseekBrandIcon
+  return null
+}
+
+function aiCliBrandIconClass(kind: AiCliKind) {
+  if (kind === 'codex') return 'ai-brand-icon--codex'
+  if (kind === 'claude-code') return 'ai-brand-icon--claude-code'
+  if (kind === 'gemini-cli') return 'ai-brand-icon--gemini-cli'
+  if (kind === 'deepseek-cli') return 'ai-brand-icon--deepseek-cli'
+  if (kind === 'opencode') return 'ai-brand-icon--opencode'
+  return 'ai-brand-icon--generic'
+}
+
+function tokenizeShellLikeCommand(command: string) {
+  return command.match(/"[^"]*"|'[^']*'|\S+/g) ?? []
+}
+
+function matchesAiCliLaunchAlias(token: string, kind: AiCliKind) {
+  const normalized = token.trim().toLocaleLowerCase()
+  if (kind === 'codex') return normalized === 'codex' || normalized === 'cx'
+  if (kind === 'claude-code') return normalized === 'claude' || normalized === 'cc'
+  if (kind === 'gemini-cli') return normalized === 'gemini'
+  if (kind === 'deepseek-cli') return normalized === 'deepseek'
+  if (kind === 'opencode') return normalized === 'opencode'
+  return false
+}
+
+function isCliOptionToken(token: string) {
+  return /^-{1,2}[a-z0-9][\w-]*$/i.test(token) || /^\/[a-z][\w-]*$/i.test(token)
+}
+
+function isAiCliLaunchOnlyCommand(command: string, kind: AiCliKind | null | undefined) {
+  if (!kind || kind === 'generic-ai' || kind === 'custom-cli') return false
+  const tokens = tokenizeShellLikeCommand(command.trim())
+  const firstToken = tokens[0]
+  if (!firstToken || !matchesAiCliLaunchAlias(firstToken, kind)) return false
+  if (tokens.length === 1) return true
+
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index]
+    const previous = tokens[index - 1]
+    if (!token) continue
+    if (isCliOptionToken(token)) continue
+    if (previous && isCliOptionToken(previous) && !/[<>&|]/.test(token)) continue
+    return false
+  }
+
+  return true
+}
+
+function activeProviderKindForWorkspace(workspace: WorkspaceCard | undefined | null): ProviderKind | null {
+  if (!workspace?.providerProfiles?.length) return null
+  const active = workspace.providerProfiles.find((profile) => profile.isActive)
+    ?? workspace.providerProfiles.find((profile) => profile.isDefault)
+  return active?.providerKind ?? null
+}
+
+function aiKindFromProviderKind(kind: ProviderKind | null | undefined): AiCliKind | null {
+  if (kind === 'codex' || kind === 'claude-code' || kind === 'gemini-cli' || kind === 'deepseek-cli' || kind === 'opencode') {
+    return kind
+  }
+  return null
+}
+
+function resolvedAiBrandKind(
+  workspace: WorkspaceCard | undefined | null,
+  info: AiCliInfo,
+): AiCliKind | null {
+  const direct = hasAiBrandIcon(info) ? info.kind : null
+  if (direct) return direct
+  return null
+}
+
+function renderAiBrandIcon(kind: AiCliKind, variant: string, fallbackIconName: string, size = 10): VNode {
+  const src = aiCliBrandIconSrc(kind)
+  if (src) {
+    return h('img', {
+      src,
+      alt: '',
+      class: ['ai-brand-icon', `ai-brand-icon--${variant}`, aiCliBrandIconClass(kind)],
+    })
+  }
+  return h(AppIcon, { name: fallbackIconName, size })
+}
+
+function explorerAiPaneStyle(workspace: WorkspaceCard, pane: PaneNode, session: PaneTerminalSession) {
+  const info = aiCliInfoForSession(workspace, pane, session)
+  const brandKind = resolvedAiBrandKind(workspace, info)
+  const iconSrc = brandKind ? aiCliBrandIconSrc(brandKind) : null
+  if (!iconSrc) {
+    return info.kind === 'generic-ai'
+      ? ({
+          '--explorer-ai-watermark': 'linear-gradient(135deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent-rgb), 0.02))',
+        } as Record<string, string>)
+      : undefined
+  }
+  return {
+    '--explorer-ai-watermark': `url("${iconSrc}")`,
+  } as Record<string, string>
+}
+
+function aiCliInfoFromText(...parts: Array<string | null | undefined>): AiCliInfo {
+  const text = normalizeSearchText(parts.filter(Boolean).join(' '))
+  if (/(^|[\s>])(codex|cx)(?=$|[\s/:-])|openai codex|gpt-/.test(text)) {
+    return { isAi: true, kind: 'codex', label: 'Codex CLI', shortLabel: 'CX', tone: 'blue', iconName: 'codex' }
+  }
+  if (/(^|[\s>])(claude|cc)(?=$|[\s/:-])|claude code|anthropic|sonnet|opus/.test(text)) {
+    return { isAi: true, kind: 'claude-code', label: 'Claude Code', shortLabel: 'CC', tone: 'amber', iconName: 'claude' }
+  }
+  if (/(^|[\s>])gemini(?=$|[\s/:-])|google ai|google-ai/.test(text)) {
+    return { isAi: true, kind: 'gemini-cli', label: 'Gemini CLI', shortLabel: 'GM', tone: 'green', iconName: 'gemini' }
+  }
+  if (/(^|[\s>])deepseek(?=$|[\s/:-])|deep seek/.test(text)) {
+    return { isAi: true, kind: 'deepseek-cli', label: 'DeepSeek CLI', shortLabel: 'DS', tone: 'cyan', iconName: 'sparkle' }
+  }
+  if (/opencode|open code/.test(text)) {
+    return { isAi: true, kind: 'opencode', label: 'OpenCode', shortLabel: 'OC', tone: 'indigo', iconName: 'opencode' }
+  }
+  if (/\b(ai\s*cli|agent|assistant|llm)\b/.test(text)) {
+    return { isAi: true, kind: 'generic-ai', label: 'AI CLI', shortLabel: 'AI', tone: 'cyan', iconName: 'sparkle' }
+  }
+  return { isAi: false, kind: 'custom-cli', label: 'Terminal', shortLabel: 'SH', tone: 'neutral', iconName: 'terminal' }
+}
+
+function aiCliInfoForEntry(entry?: TerminalEntry | null): AiCliInfo {
+  if (!entry) return aiCliInfoFromText('')
+  return aiCliInfoFromText(
+    entry.defaultCommand,
+    entry.lastCommand,
+  )
+}
+
+function lastAiCliInfoForSession(workspace: WorkspaceCard | undefined | null, pane: PaneNode, session?: PaneTerminalSession): AiCliInfo {
+  if (session?.lastAiCliKind && session.lastAiCliKind !== 'generic-ai') {
+    return aiCliInfoFromText(session.lastAiCliKind)
+  }
+  if (session?.aiCliKind && session.aiCliKind !== 'generic-ai') {
+    return aiCliInfoFromText(session.aiCliKind)
+  }
+  const entry = workspace ? workspaceEntryById(workspace, session?.terminalEntryId ?? pane.terminalEntryId) : undefined
+  const outputInfo = aiCliInfoFromText(session ? sessionOutputTailBySession.get(session.id) ?? '' : '')
+  const entryInfo = aiCliInfoForEntry(entry)
+  if (outputInfo.isAi && outputInfo.kind !== 'generic-ai') return outputInfo
+  if (entryInfo.isAi && entryInfo.kind !== 'generic-ai') return entryInfo
+  return aiCliInfoFromText('')
+}
+
+function aiCliInfoForSession(workspace: WorkspaceCard | undefined | null, pane: PaneNode, session?: PaneTerminalSession): AiCliInfo {
+  if (session?.aiCliKind && session.aiCliKind !== 'generic-ai') {
+    return aiCliInfoFromText(session.aiCliKind)
+  }
+  const outputInfo = aiCliInfoFromText(session ? sessionOutputTailBySession.get(session.id) ?? '' : '')
+  if (outputInfo.isAi && outputInfo.kind !== 'generic-ai') return outputInfo
+  return aiCliInfoFromText('')
+}
+
+function stripAnsiSequences(value: string) {
+  return value
+    .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\u001b\][^\u0007]*(\u0007|\u001b\\)/g, '')
+}
+
+function hasReturnedToShellPrompt(value: string) {
+  const cleaned = stripAnsiSequences(value).replace(/\r/g, '')
+  return /(^|\n)(?:PS [^\n>]*>\s*|[A-Z]:\\[^\n>]*>\s*|\[[^\n\]]+\]\s*[#$>]\s*|[^\n]*[#$>]\s*)$/i.test(cleaned)
+}
+
+function hasReturnedToAiReadyState(value: string, kind: AiCliKind | null | undefined) {
+  if (!kind || kind === 'generic-ai' || kind === 'custom-cli') return false
+  const cleaned = stripAnsiSequences(value).replace(/\r/g, '\n')
+
+  if (kind === 'claude-code') {
+    return /\?\s+for shortcuts/i.test(cleaned) || /esc\s+for agents/i.test(cleaned) || /Try\s+"[^"]+"/i.test(cleaned)
+  }
+
+  if (kind === 'codex') {
+    return /Use \/skills to list available skills/i.test(cleaned) || /\/model to change/i.test(cleaned)
+  }
+
+  if (kind === 'gemini-cli') {
+    return /Type (?:a message|something)/i.test(cleaned) || /\/help/i.test(cleaned)
+  }
+
+  return false
+}
+
+function isGenericTerminalSessionName(value: string | null | undefined) {
+  const text = normalizeSearchText(value ?? '')
+  if (!text) return true
+  return text === 'powershell'
+    || text === 'powershell 7'
+    || text === 'pwsh'
+    || text === 'terminal'
+    || text === 'shell'
+    || text === 'cmd'
+    || text === 'command prompt'
+    || text === 'bash'
+    || text === 'zsh'
+    || /^pane\d+$/.test(text)
+}
+
+function sessionDisplayName(
+  workspace: WorkspaceCard | undefined | null,
+  pane: PaneNode,
+  session: PaneTerminalSession,
+  info = aiCliInfoForSession(workspace, pane, session),
+) {
+  const raw = session.name?.trim() || pane.name?.trim() || '终端'
+  if (!info.isAi) return raw
+  if (isGenericTerminalSessionName(raw)) return aiCliDisplayName(info.kind)
+  return raw
+}
+
+function sessionHistoryDisplayName(
+  workspace: WorkspaceCard | undefined | null,
+  pane: PaneNode,
+  session: PaneTerminalSession,
+  currentInfo = aiCliInfoForSession(workspace, pane, session),
+  historyInfo = lastAiCliInfoForSession(workspace, pane, session),
+) {
+  if (currentInfo.isAi) return sessionDisplayName(workspace, pane, session, currentInfo)
+  const raw = session.name?.trim() || pane.name?.trim() || '终端'
+  if (historyInfo.isAi && isGenericTerminalSessionName(raw)) return aiCliDisplayName(historyInfo.kind)
+  return raw
+}
+
+function sessionDisplayTitle(
+  workspace: WorkspaceCard | undefined | null,
+  tab: WorkspaceTab | undefined | null,
+  pane: PaneNode,
+  session: PaneTerminalSession,
+) {
+  const info = aiCliInfoForSession(workspace, pane, session)
+  const displayName = sessionDisplayName(workspace, pane, session, info)
+  const entry = workspace ? workspaceEntryById(workspace, session.terminalEntryId ?? pane.terminalEntryId) : undefined
+  return [workspace?.name ?? '', tab?.name ?? '', pane.name, displayName, entry?.workingDirectory ?? '', entry?.defaultCommand ?? '', entry?.lastCommand ?? '']
+}
+
+function shouldShowAiAssistState(state: SessionAttentionState) {
+  return state === 'running'
+    || state === 'waiting'
+    || state === 'needs-input'
+    || state === 'stalled'
+    || state === 'completed'
+    || state === 'error'
+}
+
+function aiSessionStateBadgeClass(state: SessionAttentionState) {
+  if (state === 'waiting' || state === 'needs-input' || state === 'stalled') return 'waiting'
+  if (state === 'completed') return 'completed'
+  if (state === 'error') return 'error'
+  if (state === 'running') return 'running'
+  if (state === 'fresh') return 'fresh'
+  return 'idle'
+}
+
+function toggleAiAssistantVisibility() {
+  if (!activeAiAssistItem.value) return
+  if (!aiAssistantPinned.value) {
+    aiAssistantPinned.value = true
+    aiAssistantMinimized.value = false
+    return
+  }
+  aiAssistantMinimized.value = !aiAssistantMinimized.value
+}
+
+function pinAiAssistItem(itemId: string) {
+  pinnedAiAssistItemId.value = pinnedAiAssistItemId.value === itemId ? null : itemId
+}
+
+function clampAiAssistCardPosition(left: number, top: number) {
+  const card = aiAssistCardRef.value
+  if (!card) return { left, top }
+
+  const padding = 12
+  const rect = card.getBoundingClientRect()
+  return {
+    left: clamp(left, padding, Math.max(padding, window.innerWidth - rect.width - padding)),
+    top: clamp(top, padding, Math.max(padding, window.innerHeight - rect.height - padding)),
+  }
+}
+
+function beginAiAssistDrag(event: PointerEvent) {
+  if (event.button !== 0) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('[data-no-drag="true"]')) return
+
+  const card = aiAssistCardRef.value
+  const header = event.currentTarget as HTMLElement | null
+  if (!card || !header) return
+
+  const rect = card.getBoundingClientRect()
+  aiAssistCardPosition.value = { left: rect.left, top: rect.top }
+  aiAssistDragging.value = true
+  aiAssistDragState.active = true
+  aiAssistDragState.pointerId = event.pointerId
+  aiAssistDragState.pointerOffsetX = event.clientX - rect.left
+  aiAssistDragState.pointerOffsetY = event.clientY - rect.top
+  try {
+    header.setPointerCapture?.(event.pointerId)
+  } catch {
+    // Synthetic pointer events used in verification do not always create capturable pointers.
+  }
+  document.body.classList.add('is-dragging-ai-assist')
+}
+
+function handleAiAssistPointerMove(event: PointerEvent) {
+  if (!aiAssistDragState.active || event.pointerId !== aiAssistDragState.pointerId) return
+  const nextPosition = clampAiAssistCardPosition(
+    event.clientX - aiAssistDragState.pointerOffsetX,
+    event.clientY - aiAssistDragState.pointerOffsetY,
+  )
+  aiAssistCardPosition.value = nextPosition
+}
+
+function endAiAssistDrag(event?: PointerEvent) {
+  if (!aiAssistDragState.active) return
+  if (event && event.pointerId !== aiAssistDragState.pointerId) return
+  aiAssistDragState.active = false
+  aiAssistDragState.pointerId = -1
+  aiAssistDragging.value = false
+  document.body.classList.remove('is-dragging-ai-assist')
+}
+
+function clampAiAssistCardIntoViewport() {
+  if (!aiAssistCardPosition.value) return
+  aiAssistCardPosition.value = clampAiAssistCardPosition(aiAssistCardPosition.value.left, aiAssistCardPosition.value.top)
+}
+
+function closeAiHistoryDrawerBeforeAction(action: () => void) {
+  openAiHistoryDrawer.value = false
+  nextTick(() => {
+    window.requestAnimationFrame(action)
+  })
+}
+
+function openAiCliSessionItem(item: AiCliSessionItem) {
+  closeAiHistoryDrawerBeforeAction(() => {
+    openWorkspaceTerminalSession(item.workspaceId, item.tabId, item.paneId, item.sessionId)
+  })
+}
+
+function openAiAssistTarget(item: AiAssistItem) {
+  openWorkspaceTerminalSession(item.workspaceId, item.tabId, item.paneId, item.sessionId)
+}
+
+function insertAiCommand(item: AiCliCommandItem) {
+  closeAiHistoryDrawerBeforeAction(() => {
+    openRecentCommandTarget(item.workspaceId, item.entryId, item.command)
+  })
+}
+
+function restoreAiSnapshotFromHistory(workspaceId: string, snapshotId: string) {
+  closeAiHistoryDrawerBeforeAction(() => {
+    restoreWorkspaceSnapshotFromRecent(workspaceId, snapshotId)
+  })
 }
 
 function highlightedText(text: string, query: string) {
@@ -6119,7 +7389,6 @@ function applyWorkflowTemplateToWorkspace(template: WorkflowTemplate, workspaceI
     })
     const paneId = createId('pane')
     const sessionId = createId('session')
-
     pendingTemplateEntries.push(entry)
 
     return {
@@ -6139,6 +7408,8 @@ function applyWorkflowTemplateToWorkspace(template: WorkflowTemplate, workspaceI
         pathLabel: entry.workingDirectory,
         terminalEntryId: entry.id,
         status: 'idle',
+        aiCliKind: null,
+        lastAiCliKind: null,
       }],
       children: [],
     }
@@ -6518,12 +7789,7 @@ function openTerminalEntryCreateModal() {
   terminalEntryForm.workingDirectory = selectedWorkspace.value.rootPath
   terminalEntryForm.defaultCommand = ''
   terminalEntryForm.launchMode = 'open-only'
-  terminalEntryForm.providerBindingMode = 'inherit'
-  terminalEntryForm.providerProfileId = ''
-  terminalEntryForm.modelId = ''
   terminalEntryForm.environmentVariablesText = ''
-  terminalEntryForm.mcpPolicy = 'inherit'
-  terminalEntryForm.skillPolicy = 'inherit'
   terminalEntryForm.tagsText = ''
   terminalEntryForm.note = ''
   openTerminalEntryEditorModal.value = true
@@ -6541,12 +7807,7 @@ function openTerminalEntryEditModal(entryId: string) {
   terminalEntryForm.workingDirectory = entry.workingDirectory
   terminalEntryForm.defaultCommand = entry.defaultCommand
   terminalEntryForm.launchMode = entry.launchMode
-  terminalEntryForm.providerBindingMode = entry.providerBindingMode ?? 'inherit'
-  terminalEntryForm.providerProfileId = entry.providerProfileId ?? ''
-  terminalEntryForm.modelId = entry.modelId ?? ''
   terminalEntryForm.environmentVariablesText = entry.environmentVariablesText ?? ''
-  terminalEntryForm.mcpPolicy = entry.mcpPolicy ?? 'inherit'
-  terminalEntryForm.skillPolicy = entry.skillPolicy ?? 'inherit'
   terminalEntryForm.tagsText = entry.tags.join(', ')
   terminalEntryForm.note = entry.note ?? ''
   openTerminalEntryEditorModal.value = true
@@ -6574,12 +7835,7 @@ function submitTerminalEntryForm() {
       workingDirectory: terminalEntryForm.workingDirectory.trim(),
       defaultCommand: terminalEntryForm.defaultCommand.trim(),
       launchMode: terminalEntryForm.launchMode,
-      providerBindingMode: terminalEntryForm.providerBindingMode,
-      providerProfileId: terminalEntryForm.providerBindingMode === 'explicit' ? (terminalEntryForm.providerProfileId || null) : null,
-      modelId: terminalEntryForm.modelId.trim() || null,
       environmentVariablesText: terminalEntryForm.environmentVariablesText.trim() || null,
-      mcpPolicy: terminalEntryForm.mcpPolicy,
-      skillPolicy: terminalEntryForm.skillPolicy,
       tags,
       note: terminalEntryForm.note.trim() || null,
     })
@@ -6603,12 +7859,7 @@ function submitTerminalEntryForm() {
           workingDirectory: terminalEntryForm.workingDirectory.trim(),
           defaultCommand: terminalEntryForm.defaultCommand.trim(),
           launchMode: terminalEntryForm.launchMode,
-          providerBindingMode: terminalEntryForm.providerBindingMode,
-          providerProfileId: terminalEntryForm.providerBindingMode === 'explicit' ? (terminalEntryForm.providerProfileId || null) : null,
-          modelId: terminalEntryForm.modelId.trim() || null,
           environmentVariablesText: terminalEntryForm.environmentVariablesText.trim() || null,
-          mcpPolicy: terminalEntryForm.mcpPolicy,
-          skillPolicy: terminalEntryForm.skillPolicy,
           tags,
           note: terminalEntryForm.note.trim() || null,
           updatedAt: now,
@@ -6635,7 +7886,7 @@ function removeTerminalEntry(entryId: string) {
 
   requestConfirm({
     title: `删除运行配置「${entry.name}」`,
-    description: '删除后，该运行配置的目录、命令、Provider 绑定和启动模式会从当前工作区移除。',
+    description: '删除后，该运行配置的目录、命令、环境变量和启动模式会从当前工作区移除。',
     confirmLabel: '确认删除',
     action: () => {
       patchSelectedWorkspace((workspace) => ({
@@ -6707,6 +7958,8 @@ function createPane() {
       pathLabel: selectedWorkspace.value.rootPath,
       terminalEntryId: null,
       status: 'idle',
+      aiCliKind: null,
+      lastAiCliKind: null,
     }],
     children: [],
   }
@@ -6733,15 +7986,19 @@ function openProviderCreateModal() {
   providerEditorMode.value = 'create'
   editingProviderId.value = null
   providerForm.name = ''
-  providerForm.providerKind = 'openai-compatible'
-  providerForm.baseUrl = ''
-  providerForm.apiKey = ''
-  providerForm.apiFormat = 'openai'
+  providerForm.providerKind = activeProviderToolFilter.value === 'all' ? 'codex' : activeProviderToolFilter.value
+  providerForm.profileName = ''
+  providerForm.configPath = defaultConfigPathForProvider(providerForm.providerKind)
+  providerForm.configScope = 'global'
+  providerForm.managedBy = 'cli-config'
+  providerForm.authSource = defaultAuthSourceForProvider(providerForm.providerKind, providerForm.managedBy)
+  providerForm.switchCommand = ''
   providerForm.defaultModel = ''
-  providerForm.toolTargetsText = 'codex, generic'
-  providerForm.color = '#4b83ff'
+  providerForm.toolTargetsText = defaultProviderTargetsText(providerForm.providerKind)
+  providerForm.color = providerKindColor(providerForm.providerKind)
   providerForm.note = ''
   providerForm.isDefault = selectedWorkspaceProviders.value.length === 0
+  providerForm.isActive = selectedWorkspaceProviders.value.length === 0
   openProviderEditorModal.value = true
 }
 
@@ -6754,20 +8011,27 @@ function openProviderEditModal(providerId: string) {
   editingProviderId.value = providerId
   providerForm.name = provider.name
   providerForm.providerKind = provider.providerKind
-  providerForm.baseUrl = provider.baseUrl
-  providerForm.apiKey = provider.apiKey
-  providerForm.apiFormat = provider.apiFormat
+  providerForm.profileName = provider.profileName
+  providerForm.configPath = provider.configPath
+  providerForm.configScope = provider.configScope
+  providerForm.managedBy = provider.managedBy
+  providerForm.authSource = provider.authSource
+  providerForm.switchCommand = provider.switchCommand
   providerForm.defaultModel = provider.defaultModel
   providerForm.toolTargetsText = provider.toolTargets.join(', ')
-  providerForm.color = provider.color || '#4b83ff'
+  providerForm.color = provider.color || providerKindColor(provider.providerKind)
   providerForm.note = provider.note || ''
   providerForm.isDefault = Boolean(provider.isDefault)
+  providerForm.isActive = Boolean(provider.isActive)
   openProviderEditorModal.value = true
 }
 
 function closeProviderEditorModal() {
   openProviderEditorModal.value = false
   editingProviderId.value = null
+  openProviderKindMenu.value = false
+  openProviderSourceMenu.value = false
+  openProviderScopeMenu.value = false
 }
 
 function submitProviderForm() {
@@ -6778,61 +8042,104 @@ function submitProviderForm() {
   }
 
   const toolTargets = parseProviderToolTargets(providerForm.toolTargetsText)
+  const now = new Date().toISOString()
+  const profileName = providerForm.profileName.trim() || 'default'
+  const switchCommand = providerForm.switchCommand.trim() || providerFallbackSwitchCommand({
+    providerKind: providerForm.providerKind,
+    profileName,
+  } as ProviderProfile)
 
   if (providerEditorMode.value === 'create') {
     const provider = createProviderProfileRecord({
       workspaceId: selectedWorkspace.value.id,
       name: providerForm.name.trim(),
       providerKind: providerForm.providerKind,
-      baseUrl: providerForm.baseUrl.trim(),
-      apiKey: providerForm.apiKey.trim(),
-      apiFormat: providerForm.apiFormat,
+      profileName,
+      configPath: providerForm.configPath.trim() || defaultConfigPathForProvider(providerForm.providerKind),
+      configScope: providerForm.configScope,
+      managedBy: providerForm.managedBy,
+      authSource: providerForm.authSource.trim() || defaultAuthSourceForProvider(providerForm.providerKind, providerForm.managedBy),
+      switchCommand,
       defaultModel: providerForm.defaultModel.trim(),
       toolTargets,
+      status: providerForm.isActive ? 'active' : 'available',
       color: providerForm.color.trim() || null,
       note: providerForm.note.trim() || null,
       isDefault: providerForm.isDefault,
+      isActive: providerForm.isActive,
     })
 
-    patchSelectedWorkspace((workspace) => ({
-      ...workspace,
-      providerProfiles: [
-        ...(workspace.providerProfiles ?? []).map((item) => ({ ...item, isDefault: provider.isDefault ? false : item.isDefault })),
+    patchSelectedWorkspace((workspace) => {
+      const nextProfiles = normalizeActiveProviderProfiles([
+        ...(workspace.providerProfiles ?? []).map((item) => ({
+          ...item,
+          isDefault: provider.isDefault ? false : item.isDefault,
+          isActive: provider.isActive && item.providerKind === provider.providerKind ? false : item.isActive,
+          status: provider.isActive && item.providerKind === provider.providerKind ? 'available' : item.status,
+        })),
         provider,
-      ],
-      updatedAt: new Date().toISOString(),
-    }))
+      ])
 
-    showToast('Provider 已创建', provider.name)
+      return {
+        ...workspace,
+        providerProfiles: nextProfiles,
+        providerUsageStats: upsertProviderUsageStatsForProfiles(workspace.providerUsageStats ?? [], nextProfiles),
+        updatedAt: now,
+      }
+    })
+
+    activeProviderStatsId.value = provider.id
+    showToast('配置档案已创建', provider.name)
   } else if (editingProviderId.value) {
-    patchSelectedWorkspace((workspace) => ({
-      ...workspace,
-      providerProfiles: (workspace.providerProfiles ?? []).map((provider) => {
-        if (provider.id === editingProviderId.value) {
-          return {
-            ...provider,
-            name: providerForm.name.trim(),
-            providerKind: providerForm.providerKind,
-            baseUrl: providerForm.baseUrl.trim(),
-            apiKey: providerForm.apiKey.trim(),
-            apiFormat: providerForm.apiFormat,
-            defaultModel: providerForm.defaultModel.trim(),
-            toolTargets,
-            color: providerForm.color.trim() || null,
-            note: providerForm.note.trim() || null,
-            isDefault: providerForm.isDefault,
-            updatedAt: new Date().toISOString(),
-          }
-        }
+    const existingProvider = selectedWorkspaceProviders.value.find((provider) => provider.id === editingProviderId.value)
+    if (!existingProvider) return
+
+    const editedProvider: ProviderProfile = {
+      ...existingProvider,
+      name: providerForm.name.trim(),
+      providerKind: providerForm.providerKind,
+      profileName,
+      configPath: providerForm.configPath.trim() || defaultConfigPathForProvider(providerForm.providerKind),
+      configScope: providerForm.configScope,
+      managedBy: providerForm.managedBy,
+      authSource: providerForm.authSource.trim() || defaultAuthSourceForProvider(providerForm.providerKind, providerForm.managedBy),
+      switchCommand,
+      defaultModel: providerForm.defaultModel.trim(),
+      toolTargets,
+      status: providerForm.isActive && providerCanBeActivated(existingProvider) ? 'active' : existingProvider.status === 'active' ? 'available' : existingProvider.status,
+      isActive: providerForm.isActive && providerCanBeActivated(existingProvider),
+      lastDetectedAt: existingProvider.lastDetectedAt ?? now,
+      color: providerForm.color.trim() || null,
+      note: providerForm.note.trim() || null,
+      isDefault: providerForm.isDefault,
+      updatedAt: now,
+    }
+
+    if (providerForm.isActive && !providerCanBeActivated(existingProvider)) {
+      showToast('无法设为当前档案', '未检测到或已停用的配置档案不能标记为当前。')
+      return
+    }
+
+    patchSelectedWorkspace((workspace) => {
+      const nextProfiles = normalizeActiveProviderProfiles((workspace.providerProfiles ?? []).map((provider) => {
+        if (provider.id === editingProviderId.value) return editedProvider
         return {
           ...provider,
-          isDefault: providerForm.isDefault ? false : provider.isDefault,
+          isDefault: editedProvider.isDefault ? false : provider.isDefault,
+          isActive: editedProvider.isActive && provider.providerKind === editedProvider.providerKind ? false : provider.isActive,
+          status: editedProvider.isActive && provider.providerKind === editedProvider.providerKind ? 'available' : provider.status,
         }
-      }),
-      updatedAt: new Date().toISOString(),
-    }))
+      }))
 
-    showToast('Provider 已更新', providerForm.name.trim())
+      return {
+        ...workspace,
+        providerProfiles: nextProfiles,
+        providerUsageStats: upsertProviderUsageStatsForProfiles(workspace.providerUsageStats ?? [], nextProfiles),
+        updatedAt: now,
+      }
+    })
+
+    showToast('配置档案已更新', providerForm.name.trim())
   }
 
   closeProviderEditorModal()
@@ -6843,25 +8150,375 @@ function removeProviderProfile(providerId: string) {
   const provider = selectedWorkspaceProviders.value.find((item) => item.id === providerId)
   if (!provider) return
 
-  const inUse = selectedWorkspaceEntries.value.some((entry) => entry.providerBindingMode === 'explicit' && entry.providerProfileId === providerId)
-  if (inUse) {
-    showToast('无法删除 Provider', '仍有运行配置显式绑定该 Provider，请先调整绑定关系。')
-    return
-  }
-
   requestConfirm({
-    title: `删除 Provider「${provider.name}」`,
-    description: '删除后，当前工作区中与它相关的显式选择将失效。',
-    confirmLabel: '删除 Provider',
+    title: `删除配置档案「${provider.name}」`,
+    description: '删除后只会移除 Chuchen-Terminal 中登记的档案记录，不会改动本机真实 CLI 配置文件。',
+    confirmLabel: '删除档案',
     action: () => {
       patchSelectedWorkspace((workspace) => ({
         ...workspace,
         providerProfiles: (workspace.providerProfiles ?? []).filter((item) => item.id !== providerId),
+        providerUsageStats: (workspace.providerUsageStats ?? []).filter((stats) => stats.providerProfileId !== providerId),
         updatedAt: new Date().toISOString(),
       }))
-      showToast('Provider 已删除', provider.name)
+      activeProviderStatsId.value = selectedWorkspaceProviders.value.find((item) => item.id !== providerId)?.id ?? ''
+      showToast('配置档案已删除', provider.name)
     },
   })
+}
+
+function activateProviderProfile(providerId: string) {
+  const provider = selectedWorkspaceProviders.value.find((item) => item.id === providerId)
+  if (!provider) return
+  if (!providerCanBeActivated(provider)) {
+    showToast('无法设为当前档案', '未检测到或已停用的配置档案不能标记为当前。')
+    return
+  }
+  const now = new Date().toISOString()
+
+  patchSelectedWorkspace((workspace) => ({
+    ...workspace,
+    providerProfiles: (workspace.providerProfiles ?? []).map((item) => ({
+      ...item,
+      isActive: item.providerKind === provider.providerKind ? item.id === providerId : item.isActive,
+      isDefault: item.id === providerId ? true : item.isDefault && item.providerKind !== provider.providerKind,
+      status: item.providerKind === provider.providerKind
+        ? item.id === providerId ? 'active' : item.status === 'disabled' || item.status === 'missing' ? item.status : 'available'
+        : item.status,
+      lastDetectedAt: item.id === providerId ? now : item.lastDetectedAt,
+      updatedAt: item.id === providerId ? now : item.updatedAt,
+    })),
+    updatedAt: now,
+  }))
+
+  activeProviderStatsId.value = providerId
+  showToast('配置档案已启用', `${providerKindLabel(provider.providerKind)} · ${provider.name}`)
+}
+
+function duplicateProviderProfile(providerId: string) {
+  if (!selectedWorkspace.value) return
+  const provider = selectedWorkspaceProviders.value.find((item) => item.id === providerId)
+  if (!provider) return
+
+  const now = new Date().toISOString()
+  const profileName = `${provider.profileName || 'default'}-copy`
+  const copy: ProviderProfile = {
+    ...provider,
+    id: createId('provider'),
+    name: `${provider.name} Copy`,
+    profileName,
+    switchCommand: providerFallbackSwitchCommand({ providerKind: provider.providerKind, profileName } as ProviderProfile),
+    isDefault: false,
+    isActive: false,
+    status: provider.status === 'disabled' || provider.status === 'missing' ? provider.status : 'available',
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  patchSelectedWorkspace((workspace) => ({
+    ...workspace,
+    providerProfiles: [...(workspace.providerProfiles ?? []), copy],
+    providerUsageStats: [...(workspace.providerUsageStats ?? []), createEmptyProviderUsageStatsForProfile(copy.id)],
+    updatedAt: now,
+  }))
+
+  activeProviderStatsId.value = copy.id
+  showToast('配置档案已复制', copy.name)
+}
+
+async function copyProviderSwitchCommand(provider: ProviderProfile) {
+  const command = provider.switchCommand || providerFallbackSwitchCommand(provider)
+  await copyCommandText(command)
+}
+
+async function seedCliProviderProfiles() {
+  if (!selectedWorkspace.value) return
+
+  providerDetectionRunning.value = true
+  providerDetectionSummary.value = '正在只读扫描本机 CLI 配置文件和 CC Switch 档案。'
+
+  try {
+    const detectedProfiles = await detectLocalProviderProfiles()
+    const now = new Date().toISOString()
+    let addedCount = 0
+    let updatedCount = 0
+    let firstImportedId = ''
+
+    patchSelectedWorkspace((workspace) => {
+      const nextProfiles = [...(workspace.providerProfiles ?? [])]
+      const nextUsageStats = [...(workspace.providerUsageStats ?? [])]
+
+      detectedProfiles.forEach((detected) => {
+        const existingIndex = nextProfiles.findIndex((provider) => providerProfileKey(provider) === detectedProviderProfileKey(detected))
+        if (existingIndex >= 0) {
+          const existing = nextProfiles[existingIndex]
+          const detectedCanActivate = detected.status !== 'missing' && detected.status !== 'disabled'
+          nextProfiles[existingIndex] = {
+            ...existing,
+            name: detected.name || existing.name,
+            configScope: detected.configScope,
+            managedBy: detected.managedBy,
+            authSource: detected.authSource,
+            switchCommand: detected.switchCommand || providerFallbackSwitchCommand(existing),
+            defaultModel: detected.defaultModel || existing.defaultModel,
+            toolTargets: detected.toolTargets.length ? detected.toolTargets : existing.toolTargets,
+            status: detected.status,
+            isActive: detectedCanActivate && (detected.isActive || existing.isActive),
+            color: detected.color || existing.color,
+            note: detected.note || existing.note,
+            lastDetectedAt: now,
+            updatedAt: now,
+          }
+          updatedCount += 1
+          if (!firstImportedId) firstImportedId = existing.id
+          const detectedStats = createProviderUsageStatsFromDetection(existing.id, detected)
+          const usageStatsIndex = nextUsageStats.findIndex((stats) => stats.providerProfileId === existing.id)
+          if (detectedStats && usageStatsIndex >= 0) {
+            nextUsageStats[usageStatsIndex] = detectedStats
+          } else if (detectedStats) {
+            nextUsageStats.push(detectedStats)
+          } else if (usageStatsIndex < 0) {
+            nextUsageStats.push(createEmptyProviderUsageStatsForProfile(existing.id))
+          }
+          return
+        }
+
+        const provider = createProviderProfileFromDetection(workspace.id, detected, nextProfiles.length === 0)
+        nextProfiles.push(provider)
+        nextUsageStats.push(createProviderUsageStatsFromDetection(provider.id, detected) ?? createEmptyProviderUsageStatsForProfile(provider.id))
+        addedCount += 1
+        if (!firstImportedId) firstImportedId = provider.id
+      })
+
+      const normalizedProfiles = normalizeActiveProviderProfiles(nextProfiles)
+
+      return {
+        ...workspace,
+        providerProfiles: normalizedProfiles,
+        providerUsageStats: upsertProviderUsageStatsForProfiles(nextUsageStats, normalizedProfiles),
+        updatedAt: now,
+      }
+    })
+
+    activeProviderStatsId.value = firstImportedId || activeProviderStatsId.value
+    providerDetectionSummary.value = `扫描完成：新增 ${addedCount} 个，更新 ${updatedCount} 个。只更新 Chuchen 档案，不改写真实 CLI 配置。`
+    showToast('Provider 扫描完成', providerDetectionSummary.value)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    providerDetectionSummary.value = `扫描失败：${message}`
+    showToast('Provider 扫描失败', message)
+  } finally {
+    providerDetectionRunning.value = false
+  }
+}
+
+function providerProfileKey(provider: Pick<ProviderProfile, 'providerKind' | 'profileName' | 'configPath'>) {
+  return [
+    provider.providerKind,
+    provider.profileName.trim().toLowerCase() || 'default',
+    provider.configPath.trim().toLowerCase().replace(/\\/g, '/'),
+  ].join('::')
+}
+
+function detectedProviderProfileKey(provider: Pick<DetectedProviderProfile, 'providerKind' | 'profileName' | 'configPath'>) {
+  return [
+    provider.providerKind,
+    provider.profileName.trim().toLowerCase() || 'default',
+    provider.configPath.trim().toLowerCase().replace(/\\/g, '/'),
+  ].join('::')
+}
+
+function createProviderProfileFromDetection(workspaceId: string, detected: DetectedProviderProfile, shouldBecomeDefault: boolean) {
+  const canActivate = detected.status !== 'missing' && detected.status !== 'disabled'
+  return createProviderProfileRecord({
+    workspaceId,
+    name: detected.name,
+    providerKind: detected.providerKind,
+    profileName: detected.profileName || 'default',
+    configPath: detected.configPath || defaultConfigPathForProvider(detected.providerKind),
+    configScope: detected.configScope,
+    managedBy: detected.managedBy,
+    authSource: detected.authSource,
+    switchCommand: detected.switchCommand || providerFallbackSwitchCommand({
+      providerKind: detected.providerKind,
+      profileName: detected.profileName || 'default',
+    }),
+    defaultModel: detected.defaultModel,
+    toolTargets: detected.toolTargets.length ? detected.toolTargets : parseProviderToolTargets(defaultProviderTargetsText(detected.providerKind)),
+    status: detected.status,
+    color: detected.color || providerKindColor(detected.providerKind),
+    note: detected.note,
+    isDefault: (shouldBecomeDefault || detected.isActive) && canActivate,
+    isActive: (shouldBecomeDefault || detected.isActive) && canActivate,
+  })
+}
+
+function createProviderUsageStatsFromDetection(providerProfileId: string, detected: DetectedProviderProfile): ProviderUsageStats | null {
+  if (!detected.usageStats) return null
+
+  return {
+    providerProfileId,
+    summary: normalizeProviderUsageSummary(detected.usageStats.summary),
+    trends: (detected.usageStats.trends || []).map((point) => ({ ...point })),
+    requestLogs: (detected.usageStats.requestLogs || []).map((log, index) => ({
+      ...log,
+      id: log.id || `${providerProfileId}-cc-switch-${index}`,
+      providerProfileId,
+      appType: log.appType || providerKindToAppType(detected.providerKind),
+      model: log.model || providerDefaultModel(detected),
+      dataSource: log.dataSource || 'cc_switch_db',
+    })),
+  }
+}
+
+function normalizeActiveProviderProfiles(profiles: ProviderProfile[]): ProviderProfile[] {
+  const activeByKind = new Set<string>()
+  return profiles.map((profile) => {
+    if (profile.isActive && !providerCanBeActivated(profile)) {
+      return {
+        ...profile,
+        isActive: false,
+        status: profile.status === 'active' ? 'available' : profile.status,
+      }
+    }
+
+    if (profile.isActive && !activeByKind.has(profile.providerKind)) {
+      activeByKind.add(profile.providerKind)
+      return {
+        ...profile,
+        status: (profile.status === 'missing' || profile.status === 'disabled' ? profile.status : 'active') as ProviderProfile['status'],
+      }
+    }
+
+    if (profile.isActive) {
+      return {
+        ...profile,
+        isActive: false,
+        status: (profile.status === 'missing' || profile.status === 'disabled' ? profile.status : 'available') as ProviderProfile['status'],
+      }
+    }
+
+    return profile
+  })
+}
+
+function providerCanBeActivated(provider: Pick<ProviderProfile, 'status'>) {
+  return provider.status !== 'missing' && provider.status !== 'disabled'
+}
+
+function providerKindToAppType(kind: ProviderProfile['providerKind']): ProviderRequestLog['appType'] {
+  if (kind === 'claude-code') return 'claude'
+  if (kind === 'gemini-cli') return 'gemini'
+  if (kind === 'opencode') return 'opencode'
+  return 'codex'
+}
+
+function providerDefaultModel(provider: Pick<ProviderProfile, 'providerKind' | 'defaultModel'>) {
+  if (provider.defaultModel.trim()) return provider.defaultModel.trim()
+  if (provider.providerKind === 'claude-code') return 'claude-sonnet-4'
+  if (provider.providerKind === 'gemini-cli') return 'gemini-2.5-pro'
+  if (provider.providerKind === 'opencode') return 'provider/default'
+  return 'gpt-5'
+}
+
+function emptyProviderUsageSummary() {
+  return {
+    totalRequests: 0,
+    totalCostUsd: 0,
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    totalCacheReadTokens: 0,
+    totalCacheCreationTokens: 0,
+    cacheHitRate: 0,
+  }
+}
+
+function normalizeProviderUsageSummary(summary?: Partial<ProviderUsageStats['summary']>) {
+  return {
+    totalRequests: summary?.totalRequests ?? 0,
+    totalCostUsd: summary?.totalCostUsd ?? 0,
+    totalInputTokens: summary?.totalInputTokens ?? 0,
+    totalOutputTokens: summary?.totalOutputTokens ?? 0,
+    totalCacheReadTokens: summary?.totalCacheReadTokens ?? 0,
+    totalCacheCreationTokens: summary?.totalCacheCreationTokens ?? 0,
+    cacheHitRate: summary?.cacheHitRate ?? 0,
+  }
+}
+
+function recalculateProviderUsageSummary(requestLogs: ProviderRequestLog[]) {
+  if (!requestLogs.length) return emptyProviderUsageSummary()
+
+  const totals = requestLogs.reduce((result, log) => {
+    result.totalRequests += 1
+    result.totalCostUsd += log.costUsd
+    result.totalInputTokens += log.inputTokens
+    result.totalOutputTokens += log.outputTokens
+    result.totalCacheReadTokens += log.cacheReadTokens
+    result.totalCacheCreationTokens += log.cacheCreationTokens
+    return result
+  }, emptyProviderUsageSummary())
+  const cacheableTokens = totals.totalInputTokens + totals.totalCacheReadTokens + totals.totalCacheCreationTokens
+
+  return {
+    ...totals,
+    totalCostUsd: Number(totals.totalCostUsd.toFixed(4)),
+    cacheHitRate: cacheableTokens > 0 ? totals.totalCacheReadTokens / cacheableTokens : 0,
+  }
+}
+
+function normalizeProviderUsageStatsForProfile(provider: ProviderProfile, stats: ProviderUsageStats): ProviderUsageStats {
+  if (provider.status === 'missing' || provider.status === 'disabled') {
+    return createEmptyProviderUsageStatsForProfile(provider.id)
+  }
+
+  const appType = providerKindToAppType(provider.providerKind)
+  const model = providerDefaultModel(provider)
+  const dataSource = provider.managedBy === 'cc-switch' ? 'cc_switch_profile' : `${appType}_session`
+  const requestLogs = (stats.requestLogs || []).map((log, index) => ({
+    ...log,
+    id: log.id || `${provider.id}-usage-${index}`,
+    providerProfileId: provider.id,
+    appType: log.appType || appType,
+    model: log.model || model,
+    dataSource: log.dataSource || dataSource,
+  }))
+
+  return {
+    providerProfileId: provider.id,
+    summary: stats.summary?.totalRequests ? normalizeProviderUsageSummary(stats.summary) : recalculateProviderUsageSummary(requestLogs),
+    trends: (stats.trends || []).map((point) => ({ ...point })),
+    requestLogs,
+  }
+}
+
+function upsertProviderUsageStats(statsList: ProviderUsageStats[], provider: ProviderProfile) {
+  const nextStats = normalizeProviderUsageStatsForProfile(
+    provider,
+    statsList.find((stats) => stats.providerProfileId === provider.id) ?? createEmptyProviderUsageStatsForProfile(provider.id),
+  )
+  const existingIndex = statsList.findIndex((stats) => stats.providerProfileId === provider.id)
+
+  if (existingIndex < 0) {
+    return [...statsList, nextStats]
+  }
+
+  return statsList.map((stats, index) => index === existingIndex ? nextStats : stats)
+}
+
+function upsertProviderUsageStatsForProfiles(statsList: ProviderUsageStats[], providers: ProviderProfile[]) {
+  const providerIds = new Set(providers.map((provider) => provider.id))
+  return providers.reduce<ProviderUsageStats[]>((result, provider) => {
+    return upsertProviderUsageStats(result, provider)
+  }, statsList.filter((stats) => providerIds.has(stats.providerProfileId)))
+}
+
+function createEmptyProviderUsageStatsForProfile(providerProfileId: string): ProviderUsageStats {
+  return {
+    providerProfileId,
+    summary: emptyProviderUsageSummary(),
+    trends: [],
+    requestLogs: [],
+  }
 }
 
 function snapshotName(workspaceName = '工作区') {
@@ -7040,7 +8697,7 @@ function cloneSnapshotTab(tab: WorkspaceTab, workspaceId: string, updatedAt: str
   return {
     ...tab,
     workspaceId,
-    panes: clonePaneTreeForRestore(tab.panes),
+    panes: clonePaneTreeForRestore(tab.panes, tab),
     updatedAt,
   }
 }
@@ -7048,6 +8705,7 @@ function cloneSnapshotTab(tab: WorkspaceTab, workspaceId: string, updatedAt: str
 function clonePaneSessionForRestore(
   pane: PaneNode,
   session: PaneTerminalSession | undefined,
+  tab: WorkspaceTab | undefined,
   fallbackIndex = 0,
 ): PaneTerminalSession {
   const fallbackName = fallbackIndex === 0 ? pane.name : `${pane.name} · ${fallbackIndex + 1}`
@@ -7057,6 +8715,8 @@ function clonePaneSessionForRestore(
     pathLabel: session?.pathLabel || pane.pathLabel,
     terminalEntryId: session?.terminalEntryId ?? pane.terminalEntryId ?? null,
     status: 'idle',
+    aiCliKind: null,
+    lastAiCliKind: session?.lastAiCliKind ?? session?.aiCliKind ?? null,
     hasUserCommand: false,
     lastCommandAt: null,
     lastOutputAt: null,
@@ -7070,14 +8730,14 @@ function clonePaneSessionForRestore(
   }
 }
 
-function clonePaneTreeForRestore(panes: PaneNode[]): PaneNode[] {
+function clonePaneTreeForRestore(panes: PaneNode[], tab?: WorkspaceTab): PaneNode[] {
   return panes.map((pane) => {
-    const nextChildren = pane.children?.length ? clonePaneTreeForRestore(pane.children) : []
+    const nextChildren = pane.children?.length ? clonePaneTreeForRestore(pane.children, tab) : []
     const nextSessions = nextChildren.length
       ? []
       : (pane.sessions?.length
-          ? pane.sessions.map((session, index) => clonePaneSessionForRestore(pane, session, index))
-          : [clonePaneSessionForRestore(pane, undefined, 0)])
+          ? pane.sessions.map((session, index) => clonePaneSessionForRestore(pane, session, tab, index))
+          : [clonePaneSessionForRestore(pane, undefined, tab, 0)])
 
     return {
       ...pane,
@@ -7274,6 +8934,8 @@ function createPaneWithLayout(layoutMode: TabLayoutMode) {
         pathLabel: selectedWorkspace.value.rootPath,
         terminalEntryId: null,
         status: 'idle',
+        aiCliKind: null,
+        lastAiCliKind: null,
       },
     ],
     children: [],
@@ -7340,6 +9002,8 @@ function createPaneSession(paneId: string) {
     pathLabel: terminalSessionWorkingDirectory(targetPane),
     terminalEntryId: targetPane.terminalEntryId,
     status: 'idle',
+    aiCliKind: null,
+    lastAiCliKind: null,
   }
 
   patchSelectedWorkspace((workspace) => ({
@@ -8044,39 +9708,137 @@ function parseProviderToolTargets(value: string): ProviderToolTarget[] {
   )) as ProviderToolTarget[]
 }
 
-function workspaceProviderById(workspace: WorkspaceCard | undefined, providerId?: string | null) {
-  return workspace?.providerProfiles?.find((provider) => provider.id === providerId) ?? null
+function providerKindLabel(kind?: ProviderProfile['providerKind']) {
+  if (kind === 'claude-code') return 'Claude Code'
+  if (kind === 'gemini-cli') return 'Gemini CLI'
+  if (kind === 'opencode') return 'OpenCode'
+  if (kind === 'custom-cli') return '自定义 CLI'
+  return 'Codex CLI'
 }
 
-function selectedWorkspaceProviderById(providerId?: string | null) {
-  return workspaceProviderById(selectedWorkspace.value, providerId)
+function providerKindShortLabel(kind?: ProviderProfile['providerKind']) {
+  if (kind === 'claude-code') return 'CC'
+  if (kind === 'gemini-cli') return 'GM'
+  if (kind === 'opencode') return 'OC'
+  if (kind === 'custom-cli') return 'SH'
+  return 'CX'
 }
 
-function defaultWorkspaceProvider(workspace: WorkspaceCard | undefined = selectedWorkspace.value) {
-  return workspace?.providerProfiles?.find((provider) => provider.isDefault) ?? workspace?.providerProfiles?.[0] ?? null
+function providerKindColor(kind?: ProviderProfile['providerKind']) {
+  if (kind === 'claude-code') return '#d97706'
+  if (kind === 'gemini-cli') return '#0f9f6e'
+  if (kind === 'opencode') return '#2563eb'
+  if (kind === 'custom-cli') return '#475569'
+  return '#4b83ff'
 }
 
-function runtimeProfileResolvedProvider(entry: TerminalEntry | undefined | null, workspace: WorkspaceCard | undefined = selectedWorkspace.value) {
-  if (!entry) return null
-  if (entry.providerBindingMode === 'disabled') return null
-  if (entry.providerBindingMode === 'explicit') {
-    return workspaceProviderById(workspace, entry.providerProfileId)
-  }
-  return defaultWorkspaceProvider(workspace)
+function providerToolTargetLabel(target: ProviderToolTarget) {
+  if (target === 'claude') return 'Claude'
+  if (target === 'gemini') return 'Gemini'
+  if (target === 'opencode') return 'OpenCode'
+  if (target === 'codex') return 'Codex'
+  return 'Generic'
 }
 
-function providerBindingModeLabel(mode?: TerminalEntry['providerBindingMode']) {
-  if (mode === 'explicit') return '显式指定'
-  if (mode === 'disabled') return '不注入'
-  return '继承默认'
+function providerSourceLabel(source?: ProviderProfileSource) {
+  if (source === 'cc-switch') return 'CC Switch'
+  if (source === 'oauth') return 'OAuth 登录态'
+  if (source === 'env') return '环境变量'
+  if (source === 'script') return '切换脚本'
+  if (source === 'manual') return '手动登记'
+  return 'CLI 本地配置'
 }
 
-function providerSummaryLabel(entry: TerminalEntry | undefined | null, workspace: WorkspaceCard | undefined = selectedWorkspace.value) {
-  if (!entry) return '未绑定运行配置'
-  if (entry.providerBindingMode === 'disabled') return '不注入 Provider'
-  const provider = runtimeProfileResolvedProvider(entry, workspace)
-  if (!provider) return entry.providerBindingMode === 'explicit' ? '未选择 Provider' : '继承但未设置默认 Provider'
-  return provider.name
+function providerScopeLabel(scope?: ProviderConfigScope) {
+  if (scope === 'workspace') return '工作区配置'
+  if (scope === 'project') return '项目配置'
+  return '全局配置'
+}
+
+function providerStatusLabel(status?: ProviderProfile['status']) {
+  if (status === 'active') return '当前启用'
+  if (status === 'missing') return '未检测到'
+  if (status === 'disabled') return '已停用'
+  return '可切换'
+}
+
+function defaultProviderTargetsText(kind: ProviderProfile['providerKind']) {
+  if (kind === 'claude-code') return 'claude'
+  if (kind === 'gemini-cli') return 'gemini'
+  if (kind === 'opencode') return 'opencode'
+  if (kind === 'custom-cli') return 'generic'
+  return 'codex'
+}
+
+function defaultConfigPathForProvider(kind: ProviderProfile['providerKind']) {
+  if (kind === 'claude-code') return '~/.claude.json'
+  if (kind === 'gemini-cli') return '~/.gemini/settings.json'
+  if (kind === 'opencode') return '~/.config/opencode/opencode.json'
+  if (kind === 'custom-cli') return '本地 CLI 配置文件'
+  return '~/.codex/config.toml'
+}
+
+function defaultAuthSourceForProvider(kind: ProviderProfile['providerKind'], source: ProviderProfileSource) {
+  if (source === 'oauth') return 'CLI OAuth 登录态'
+  if (source === 'env') return 'Shell / 系统环境变量'
+  if (source === 'script') return '切换脚本决定'
+  if (kind === 'claude-code') return 'Claude Code 本地登录态'
+  if (kind === 'gemini-cli') return 'Gemini CLI 本地登录态'
+  if (kind === 'codex') return 'Codex CLI 本地登录态'
+  return '本地配置决定'
+}
+
+function providerFallbackSwitchCommand(provider: Pick<ProviderProfile, 'providerKind' | 'profileName'>) {
+  const profileName = provider.profileName || 'default'
+  if (provider.providerKind === 'claude-code') return `cc-switch claude use ${profileName}`
+  if (provider.providerKind === 'gemini-cli') return `cc-switch gemini use ${profileName}`
+  if (provider.providerKind === 'opencode') return `cc-switch opencode use ${profileName}`
+  if (provider.providerKind === 'custom-cli') return `cc-switch use ${profileName}`
+  return `cc-switch codex use ${profileName}`
+}
+
+function providerNameById(providerId: string) {
+  return selectedWorkspaceProviders.value.find((provider) => provider.id === providerId)?.name ?? '未知配置档案'
+}
+
+function formatLargeNumber(value: number) {
+  return Math.round(value).toLocaleString('en-US')
+}
+
+function formatCompactWan(value: number) {
+  return `${(value / 10000).toFixed(1)} 万`
+}
+
+function formatUsageHour(value: string) {
+  const date = new Date(value)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  return `${month}/${day} ${hour}:00`
+}
+
+function formatUsageDate(value: string) {
+  const date = new Date(value)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${month}/${day} ${hour}:${minute}`
+}
+
+function buildUsageLinePath(
+  points: Array<{ inputTokens: number; outputTokens: number; cacheReadTokens: number; costUsd: number }>,
+  getter: (point: { inputTokens: number; outputTokens: number; cacheReadTokens: number; costUsd: number }) => number,
+  maxValue: number,
+) {
+  if (!points.length) return ''
+  return points
+    .map((point, index) => {
+      const x = points.length === 1 ? 500 : 40 + (920 / (points.length - 1)) * index
+      const y = 300 - (getter(point) / Math.max(1, maxValue)) * 240
+      return `${index === 0 ? 'M' : 'L'}${x},${y}`
+    })
+    .join(' ')
 }
 
 function removeTab(tabId: string) {
@@ -8154,10 +9916,10 @@ function closeConfirmModal() {
 }
 
 function loadWorkbenchSidebarWidth() {
-  if (typeof window === 'undefined') return 320
+  if (typeof window === 'undefined') return 248
   const raw = window.localStorage.getItem('chuchen-terminal.workbench-sidebar-width')
   const parsed = raw ? Number(raw) : NaN
-  return Number.isFinite(parsed) ? Math.min(480, Math.max(260, parsed)) : 320
+  return Number.isFinite(parsed) ? Math.min(420, Math.max(192, parsed)) : 248
 }
 
 function saveWorkbenchSidebarWidth(width: number) {
@@ -8546,7 +10308,7 @@ function startWorkbenchResize(event: PointerEvent) {
 
   const handleMove = (moveEvent: PointerEvent) => {
     const next = startWidth + (moveEvent.clientX - startX)
-    workbenchSidebarWidth.value = Math.min(480, Math.max(260, next))
+    workbenchSidebarWidth.value = Math.min(420, Math.max(192, next))
   }
 
   const handleUp = () => {
@@ -8595,7 +10357,15 @@ function totalWorkspaceSessions(workspace: WorkspaceCard) {
 
 function explorerSessionItems(workspace: WorkspaceCard, tab: WorkspaceTab) {
   return flattenLeafPanes(tab.panes).flatMap((pane) =>
-    paneSessions(pane).map((session) => ({ pane, session })),
+    paneSessions(pane).map((session) => {
+      const info = aiCliInfoForSession(workspace, pane, session)
+      return {
+        pane,
+        session,
+        info,
+        displayName: sessionDisplayName(workspace, pane, session, info),
+      }
+    }),
   )
 }
 
@@ -8773,7 +10543,7 @@ function explorerSessionTone(session: PaneTerminalSession) {
 
 function explorerSessionLabel(session: PaneTerminalSession) {
   const state = sessionAttentionState(session)
-  if (state === 'fresh') return '未开始'
+  if (state === 'fresh') return session.lastAiCliKind || session.aiCliKind ? '待开始' : '未开始'
   if (state === 'running') return '运行中'
   if (state === 'needs-input') return '等待输入'
   if (state === 'waiting') return '等待中'
@@ -8863,10 +10633,11 @@ const currentActiveRuntimeSessionMeta = computed(() => {
   if (!sessionId) return null
   const located = locateSessionAcrossWorkspaces(sessionId)
   if (!located) return null
+  const info = aiCliInfoForSession(located.workspace, located.pane, located.session)
   return {
     workspaceName: located.workspace.name,
     tabName: located.tab.name,
-    sessionName: located.session.name,
+    sessionName: sessionDisplayName(located.workspace, located.pane, located.session, info),
     sessionId: located.session.id,
   }
 })
@@ -9123,6 +10894,7 @@ function simulateSessionAttention(
                     return {
                       ...session,
                       status: 'idle',
+                      aiCliKind: null,
                       hasUserCommand: false,
                       lastCommandAt: null,
                       lastOutputAt: null,
@@ -9138,6 +10910,7 @@ function simulateSessionAttention(
                   return {
                     ...session,
                     status: 'idle',
+                    aiCliKind: null,
                     hasUserCommand: true,
                     lastCommandAt: now,
                     lastOutputAt: now,
@@ -9192,7 +10965,7 @@ function simulateSessionAttention(
       void sendSessionAttentionNotification({
         workspaceName: located.workspace.name,
         tabName: located.tab.name,
-        sessionName: located.session.name,
+        sessionName: sessionDisplayName(located.workspace, located.pane, located.session),
         state,
       })
     }
@@ -9227,7 +11000,7 @@ function queueSessionAttentionNotifications() {
             void sendSessionAttentionNotification({
               workspaceName: workspace.name,
               tabName: tab.name,
-              sessionName: session.name,
+              sessionName: sessionDisplayName(workspace, pane, session),
               state,
             })
           }
@@ -9309,6 +11082,16 @@ function recordSessionCommand(sessionId: string, command: string) {
   const entryId = located.session.terminalEntryId ?? located.pane.terminalEntryId ?? null
   const now = new Date().toISOString()
   sessionOutputTailBySession.set(sessionId, '')
+  const commandAiInfo = aiCliInfoFromText(trimmed)
+  const nextDetectedKind = isConfirmedAiCliInfo(commandAiInfo)
+    ? commandAiInfo.kind
+    : (located.session.aiCliKind && located.session.aiCliKind !== 'generic-ai' ? located.session.aiCliKind : null)
+  const nextLastDetectedKind = isConfirmedAiCliInfo(commandAiInfo)
+    ? commandAiInfo.kind
+    : (located.session.lastAiCliKind && located.session.lastAiCliKind !== 'generic-ai'
+        ? located.session.lastAiCliKind
+        : nextDetectedKind)
+  const launchOnlyAiCommand = isAiCliLaunchOnlyCommand(trimmed, nextLastDetectedKind)
 
   commitWorkspaces((current) => current.map((workspace) => {
     if (workspace.id !== located.workspace.id) return workspace
@@ -9328,12 +11111,16 @@ function recordSessionCommand(sessionId: string, command: string) {
                     ? {
                         ...session,
                         status: 'running',
-                        hasUserCommand: true,
+                        aiCliKind: nextDetectedKind,
+                        lastAiCliKind: nextLastDetectedKind,
+                        hasUserCommand: launchOnlyAiCommand ? false : true,
                         lastCommandAt: now,
                         lastExitCode: null,
                         lastActivityAt: now,
                         lastHeartbeatAt: now,
-                        supervisorState: session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume'
+                        supervisorState: launchOnlyAiCommand
+                          ? 'idle'
+                          : session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume'
                           ? 'watching'
                           : 'idle',
                         supervisorNote: null,
@@ -9357,7 +11144,7 @@ function recordSessionCommand(sessionId: string, command: string) {
           : entry,
       ),
     }
-  }), entryId ? 'persist' : 'transient')
+  }), 'persist')
 
   syncSessionState(sessionId, 'running')
 }
@@ -9371,8 +11158,19 @@ function recordSessionOutput(sessionId: string, chunk: string) {
   const completed = Boolean(expected && chunk.includes(expected))
   const previousTail = sessionOutputTailBySession.get(sessionId) ?? ''
   const mergedTail = `${previousTail}${chunk}`.slice(-2048)
-  sessionOutputTailBySession.set(sessionId, mergedTail)
-  const promptReturned = /(^|\r?\n)PS [^\r\n]*>\s*$/.test(mergedTail)
+  const promptReturned = hasReturnedToShellPrompt(mergedTail)
+  const detectedAiInfo = aiCliInfoFromText(mergedTail)
+  const nextDetectedKind = isConfirmedAiCliInfo(detectedAiInfo)
+    ? detectedAiInfo.kind
+    : (located.session.aiCliKind && located.session.aiCliKind !== 'generic-ai' ? located.session.aiCliKind : null)
+  const aiReadyReturned = hasReturnedToAiReadyState(mergedTail, nextDetectedKind ?? located.session.lastAiCliKind ?? located.session.aiCliKind)
+  sessionOutputTailBySession.set(sessionId, promptReturned || aiReadyReturned ? '' : mergedTail)
+  const nextActiveKind = promptReturned ? null : nextDetectedKind
+  const nextLastDetectedKind = isConfirmedAiCliInfo(detectedAiInfo)
+    ? detectedAiInfo.kind
+    : (located.session.lastAiCliKind && located.session.lastAiCliKind !== 'generic-ai'
+        ? located.session.lastAiCliKind
+        : nextDetectedKind)
 
   commitWorkspaces((current) => current.map((workspace) => {
     if (workspace.id !== located.workspace.id) return workspace
@@ -9389,19 +11187,21 @@ function recordSessionOutput(sessionId: string, chunk: string) {
                   session.id === sessionId
                     ? {
                         ...session,
-                        status: promptReturned ? 'idle' : session.status,
+                        status: (promptReturned || aiReadyReturned) ? 'idle' : session.status,
+                        aiCliKind: nextActiveKind,
+                        lastAiCliKind: nextLastDetectedKind,
                         lastOutputAt: now,
                         lastActivityAt: now,
                         lastHeartbeatAt: now,
                         lastExitCode: completed ? 0 : session.lastExitCode ?? null,
-                        supervisorState: completed
+                        supervisorState: completed || (aiReadyReturned && session.hasUserCommand)
                           ? 'completed'
                           : promptReturned && session.hasUserCommand && (session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume')
                             ? 'completed'
                             : promptReturned && session.hasUserCommand
                               ? 'idle'
                             : session.supervisorState,
-                        supervisorNote: completed || (promptReturned && session.hasUserCommand && (session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume'))
+                        supervisorNote: completed || (aiReadyReturned && session.hasUserCommand) || (promptReturned && session.hasUserCommand && (session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume'))
                           ? '任务监督：检测到终端回到可输入状态。'
                           : session.supervisorNote,
                       }
@@ -9443,6 +11243,8 @@ function recordSessionExit(sessionId: string, exitCode: number) {
                     ? {
                         ...session,
                         status: 'idle',
+                        aiCliKind: null,
+                        lastAiCliKind: session.lastAiCliKind ?? session.aiCliKind ?? null,
                         lastExitCode: exitCode,
                         lastActivityAt: now,
                         lastHeartbeatAt: now,
@@ -9595,6 +11397,8 @@ function renderCommandRow(pane: PaneNode, command: string, favoriteScope: boolea
 
 function renderPaneTree(pane: PaneNode): VNode {
   if (!isSplitPane(pane)) {
+    const activeSession = activePaneSession(pane)
+    const activeAiInfo = aiCliInfoForSession(selectedWorkspace.value, pane, activeSession)
     return h('section', {
         'data-pane-id': pane.id,
         class: [
@@ -9602,6 +11406,7 @@ function renderPaneTree(pane: PaneNode): VNode {
           {
             'pane--running': paneHasRunningSession(pane),
             'pane--selected': activeRuntimePaneId.value === pane.id,
+            'pane--ai-cli': activeAiInfo.isAi,
           },
         ],
         style: {
@@ -9628,62 +11433,71 @@ function renderPaneTree(pane: PaneNode): VNode {
             }],
             'data-tabbar-pane-id': pane.id,
           }, [
-            ...paneSessions(pane).map((session) => h('div', {
-              key: session.id,
-              role: 'button',
-              tabindex: 0,
-              'data-session-id': session.id,
-              class: ['terminal-window-tab', {
-                'terminal-window-tab--active': activePaneSession(pane)?.id === session.id,
-                'terminal-window-tab--dragging': draggingSession.value?.sourceSessionId === session.id,
-                'terminal-window-tab--supervised': sessionIsSupervised(session),
-              }],
-              title: session.pathLabel,
-              onClick: (event: MouseEvent) => {
-                event.stopPropagation()
-                if (Date.now() < suppressSessionClickUntil.value) return
-                activeRuntimePaneId.value = pane.id
-                activatePaneSession(pane.id, session.id)
-              },
-              onContextmenu: (event: MouseEvent) => {
-                event.preventDefault()
-                event.stopPropagation()
-                suppressFloatingMenuCloseUntil = Date.now() + 320
-                closeFloatingMenus()
-                activePaneSessionMenu.value = { paneId: pane.id, sessionId: session.id }
-                activePaneSessionMenuPosition.value = menuPositionFromEvent(event)
-              },
-              onPointerdown: (event: PointerEvent) => {
-                if (event.button !== 0) return
-                const target = event.target as HTMLElement | null
-                if (target?.closest('[data-no-drag="true"]')) return
-                beginSessionDrag(pane.id, session.id, event)
-              },
-            }, [
-              h(AppIcon, { name: 'terminal', size: 14 }),
-              h('span', session.name),
-              h('small', sessionStatusLabel(session)),
-              h('button', {
-                    type: 'button',
-                    class: 'terminal-window-tab__reload',
-                    title: '重新加载当前终端',
-                    role: 'button',
-                    tabindex: 0,
-                    'data-no-drag': 'true',
-                    onClick: (event: MouseEvent) => { event.stopPropagation(); reloadPaneSession(pane.id, session.id) },
-                    onPointerdown: (event: PointerEvent) => { event.stopPropagation() },
-                  }, [h(AppIcon, { name: 'refresh', size: 12 })]),
-              h('button', {
-                    type: 'button',
-                    class: 'terminal-window-tab__close',
-                    title: '关闭当前终端',
-                    role: 'button',
-                    tabindex: 0,
-                    'data-no-drag': 'true',
-                    onClick: (event: MouseEvent) => { event.stopPropagation(); removePaneSession(pane.id, session.id) },
-                    onPointerdown: (event: PointerEvent) => { event.stopPropagation() },
-                  }, [h(AppIcon, { name: 'close', size: 12 })]),
-            ])),
+            ...paneSessions(pane).map((session) => {
+              const sessionAiInfo = aiCliInfoForSession(selectedWorkspace.value, pane, session)
+              const sessionBrandKind = resolvedAiBrandKind(selectedWorkspace.value, sessionAiInfo)
+              return h('div', {
+                key: session.id,
+                role: 'button',
+                tabindex: 0,
+                'data-session-id': session.id,
+                'data-ai-cli-kind': sessionAiInfo.kind,
+                class: ['terminal-window-tab', {
+                  'terminal-window-tab--active': activePaneSession(pane)?.id === session.id,
+                  'terminal-window-tab--dragging': draggingSession.value?.sourceSessionId === session.id,
+                  'terminal-window-tab--supervised': sessionIsSupervised(session),
+                  'terminal-window-tab--ai-cli': sessionAiInfo.isAi,
+                }],
+                title: session.pathLabel,
+                onClick: (event: MouseEvent) => {
+                  event.stopPropagation()
+                  if (Date.now() < suppressSessionClickUntil.value) return
+                  activeRuntimePaneId.value = pane.id
+                  activatePaneSession(pane.id, session.id)
+                },
+                onContextmenu: (event: MouseEvent) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  suppressFloatingMenuCloseUntil = Date.now() + 320
+                  closeFloatingMenus()
+                  activePaneSessionMenu.value = { paneId: pane.id, sessionId: session.id }
+                  activePaneSessionMenuPosition.value = menuPositionFromEvent(event)
+                },
+                onPointerdown: (event: PointerEvent) => {
+                  if (event.button !== 0) return
+                  const target = event.target as HTMLElement | null
+                  if (target?.closest('[data-no-drag="true"]')) return
+                  beginSessionDrag(pane.id, session.id, event)
+                },
+              }, [
+                shouldShowAiSessionStyling(sessionAiInfo) && sessionBrandKind
+                  ? renderAiBrandIcon(sessionBrandKind, 'tab-leading', sessionAiInfo.iconName, 16)
+                  : h(AppIcon, { name: shouldShowAiSessionStyling(sessionAiInfo) ? sessionAiInfo.iconName : 'terminal', size: 14 }),
+                h('span', sessionDisplayName(selectedWorkspace.value, pane, session, sessionAiInfo)),
+                null,
+                h('small', sessionStatusLabel(session)),
+                h('button', {
+                  type: 'button',
+                  class: 'terminal-window-tab__reload',
+                  title: '重新加载当前终端',
+                  role: 'button',
+                  tabindex: 0,
+                  'data-no-drag': 'true',
+                  onClick: (event: MouseEvent) => { event.stopPropagation(); reloadPaneSession(pane.id, session.id) },
+                  onPointerdown: (event: PointerEvent) => { event.stopPropagation() },
+                }, [h(AppIcon, { name: 'refresh', size: 12 })]),
+                h('button', {
+                  type: 'button',
+                  class: 'terminal-window-tab__close',
+                  title: '关闭当前终端',
+                  role: 'button',
+                  tabindex: 0,
+                  'data-no-drag': 'true',
+                  onClick: (event: MouseEvent) => { event.stopPropagation(); removePaneSession(pane.id, session.id) },
+                  onPointerdown: (event: PointerEvent) => { event.stopPropagation() },
+                }, [h(AppIcon, { name: 'close', size: 12 })]),
+              ])
+            }),
             h('button', {
               type: 'button',
               class: 'terminal-window-tab terminal-window-tab--add',
@@ -9692,6 +11506,27 @@ function renderPaneTree(pane: PaneNode): VNode {
               onClick: (event: MouseEvent) => { event.stopPropagation(); createPaneSession(pane.id) },
             }, [h(AppIcon, { name: 'plus', size: 13 })]),
           ]),
+          isConfirmedAiCliInfo(activeAiInfo)
+            ? h('div', {
+                class: 'pane-ai-pill',
+                title: activeSession?.supervisorNote || `${activeAiInfo.label}：可在此查看历史或固定到辅助层。`,
+              }, [
+                h('span', { class: ['pane-ai-pill__badge', 'ai-tool-badge', `ai-tool-badge--${activeAiInfo.tone}`, { 'ai-tool-badge--icon-only': !aiCliBadgeText(activeAiInfo) }] }, [
+                  renderAiBrandIcon(activeAiInfo.kind, 'badge', activeAiInfo.iconName),
+                  aiCliBadgeText(activeAiInfo) ? h('span', aiCliBadgeText(activeAiInfo)) : null,
+                ]),
+                h('span', { class: 'pane-ai-pill__label' }, activeAiInfo.label),
+                h('button', {
+                  type: 'button',
+                  class: 'pane-ai-pill__action',
+                  'data-no-drag': 'true',
+                  onClick: (event: MouseEvent) => {
+                    event.stopPropagation()
+                    openAiHistoryDrawer.value = true
+                  },
+                }, '历史'),
+              ])
+            : null,
           h('div', { class: 'pane__actions' }, [
             h('button', {
               type: 'button',
@@ -9738,9 +11573,9 @@ function renderPaneTree(pane: PaneNode): VNode {
         h('div', { class: 'pane__body pane__body--terminal' }, [
           activeCommandPanelPaneId.value === pane.id ? renderCommandPanel(pane) : null,
           h(TerminalPane, {
-            key: `${activePaneSession(pane)?.id || pane.id}-${terminalReloadVersions.value[activePaneSession(pane)?.id || pane.id] ?? 0}`,
-            sessionId: activePaneSession(pane)?.id || pane.id,
-            sessionName: activePaneSession(pane)?.name || pane.name,
+            key: `${activeSession?.id || pane.id}-${terminalReloadVersions.value[activeSession?.id || pane.id] ?? 0}`,
+            sessionId: activeSession?.id || pane.id,
+            sessionName: activeSession?.name || pane.name,
             workingDirectory: terminalSessionWorkingDirectory(pane),
             shellLabel: terminalSessionShellLabel(pane),
             fontFamily: terminalFontFamily.value,
@@ -9804,6 +11639,8 @@ function splitLeafPane(targetPaneId: string, direction: SplitDirection) {
         pathLabel: workspaceRoot,
         terminalEntryId: null,
         status: 'idle',
+        aiCliKind: null,
+        lastAiCliKind: null,
       }],
       children: [],
     }
@@ -9990,6 +11827,8 @@ function paneSessions(pane: PaneNode): PaneTerminalSession[] {
       pathLabel: pane.pathLabel,
       terminalEntryId: pane.terminalEntryId,
       status: 'idle',
+      aiCliKind: null,
+      lastAiCliKind: null,
     },
   ]
 }

@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:6173",
-    "beforeDevCommand": "node scripts/ensure-vite-dev.mjs",
+    "beforeDevCommand": null,
     "beforeBuildCommand": "npm run build"
   },
   "app": {

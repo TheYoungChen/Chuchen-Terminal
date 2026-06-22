@@ -1,16 +1,18 @@
-export type AppSection = 'home' | 'workspace' | 'recent' | 'templates' | 'search' | 'settings'
+export type AppSection = 'home' | 'workspace' | 'recent' | 'templates' | 'providers' | 'usage' | 'search' | 'settings'
 export type WorkspaceView = 'overview' | 'detail' | 'runtime'
 export type LaunchMode = 'open-only' | 'prefill' | 'execute' | 'switch-or-create'
 export type SplitDirection = 'none' | 'horizontal' | 'vertical'
 export type TabLayoutMode = 'grid' | 'horizontal' | 'vertical'
 export type ShellType = 'pwsh7' | 'custom'
-export type ProviderKind = 'openai-compatible' | 'anthropic' | 'gemini' | 'custom'
-export type ProviderBindingMode = 'inherit' | 'explicit' | 'disabled'
+export type ProviderKind = 'codex' | 'claude-code' | 'gemini-cli' | 'deepseek-cli' | 'opencode' | 'custom-cli'
 export type ProviderToolTarget = 'claude' | 'codex' | 'gemini' | 'opencode' | 'generic'
-export type ProviderApiFormat = 'openai' | 'anthropic' | 'gemini' | 'custom'
+export type ProviderProfileSource = 'cli-config' | 'cc-switch' | 'oauth' | 'env' | 'script' | 'manual'
+export type ProviderConfigScope = 'global' | 'workspace' | 'project'
+export type ProviderProfileStatus = 'active' | 'available' | 'missing' | 'disabled'
 export type SupervisorMode = 'off' | 'watch' | 'auto-resume'
 export type SupervisorState = 'idle' | 'watching' | 'stalled' | 'needs-human' | 'completed'
 export type SessionAttentionState = 'fresh' | 'running' | 'waiting' | 'needs-input' | 'completed' | 'error' | 'stalled' | 'idle'
+export type AiCliKind = 'codex' | 'claude-code' | 'gemini-cli' | 'deepseek-cli' | 'opencode' | 'custom-cli' | 'generic-ai'
 
 export interface PaneTerminalSession {
   id: string
@@ -18,6 +20,8 @@ export interface PaneTerminalSession {
   pathLabel: string
   terminalEntryId: string | null
   status: 'idle' | 'running'
+  aiCliKind?: AiCliKind | null
+  lastAiCliKind?: AiCliKind | null
   hasUserCommand?: boolean
   lastCommandAt?: string | null
   lastOutputAt?: string | null
@@ -35,16 +39,70 @@ export interface ProviderProfile {
   workspaceId: string
   name: string
   providerKind: ProviderKind
-  baseUrl: string
-  apiKey: string
-  apiFormat: ProviderApiFormat
+  profileName: string
+  configPath: string
+  configScope: ProviderConfigScope
+  managedBy: ProviderProfileSource
+  authSource: string
+  switchCommand: string
   defaultModel: string
   toolTargets: ProviderToolTarget[]
+  status: ProviderProfileStatus
+  isActive?: boolean
+  lastDetectedAt?: string | null
   color?: string | null
   note?: string | null
   isDefault?: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface ProviderQuotaSnapshot {
+  usdRemaining?: number | null
+  requestsToday?: number | null
+  lastCheckedAt?: string | null
+}
+
+export interface ProviderUsageStats {
+  providerProfileId: string
+  summary: ProviderUsageSummary
+  trends: ProviderUsageTrendPoint[]
+  requestLogs: ProviderRequestLog[]
+}
+
+export interface ProviderUsageSummary {
+  totalRequests: number
+  totalCostUsd: number
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCacheReadTokens: number
+  totalCacheCreationTokens: number
+  cacheHitRate: number
+}
+
+export interface ProviderUsageTrendPoint {
+  timestamp: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  costUsd: number
+}
+
+export interface ProviderRequestLog {
+  id: string
+  providerProfileId: string
+  appType: 'claude' | 'codex' | 'gemini' | 'opencode'
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  costUsd: number
+  statusCode: number
+  durationMs: number
+  dataSource: string
+  createdAt: string
 }
 
 export interface TerminalEntry {
@@ -59,12 +117,7 @@ export interface TerminalEntry {
   favoriteCommands?: string[]
   status: 'idle' | 'running'
   launchMode: LaunchMode
-  providerBindingMode?: ProviderBindingMode
-  providerProfileId?: string | null
-  modelId?: string | null
   environmentVariablesText?: string | null
-  mcpPolicy?: 'inherit' | 'workspace' | 'none' | 'custom'
-  skillPolicy?: 'inherit' | 'workspace' | 'none' | 'custom'
   runtimeNote?: string | null
   tags: string[]
   note?: string | null
@@ -124,6 +177,8 @@ export interface WorkspaceCard {
   createdAt: string
   updatedAt: string
   providerProfiles?: ProviderProfile[]
+  providerQuotas?: ProviderQuotaSnapshot[]
+  providerUsageStats?: ProviderUsageStats[]
   tabs: WorkspaceTab[]
   terminalEntries: TerminalEntry[]
   snapshots?: WorkspaceSnapshot[]

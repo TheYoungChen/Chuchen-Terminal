@@ -93,6 +93,12 @@
       <path d="M7 15H6.2C5.54 15 5 14.46 5 13.8V6.2C5 5.54 5.54 5 6.2 5H12.8C13.46 5 14 5.54 14 6.2V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
     </template>
 
+    <template v-else-if="name === 'download'">
+      <path d="M12 4.5V14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      <path d="M8.3 10.8L12 14.5L15.7 10.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M5.5 18.5H18.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+    </template>
+
     <template v-else-if="name === 'pane'">
       <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.6" />
       <path d="M12 5V19" stroke="currentColor" stroke-width="1.6" />
@@ -110,6 +116,43 @@
       <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.6" />
       <path d="M8 10L11 12L8 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
       <path d="M13 14H16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+    </template>
+
+    <template v-else-if="name === 'codex'">
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+      <circle cx="12" cy="6.1" r="1.4" stroke="currentColor" stroke-width="1.4" />
+      <circle cx="17.4" cy="9.1" r="1.4" stroke="currentColor" stroke-width="1.4" />
+      <circle cx="17.4" cy="14.9" r="1.4" stroke="currentColor" stroke-width="1.4" />
+      <circle cx="12" cy="17.9" r="1.4" stroke="currentColor" stroke-width="1.4" />
+      <circle cx="6.6" cy="14.9" r="1.4" stroke="currentColor" stroke-width="1.4" />
+      <circle cx="6.6" cy="9.1" r="1.4" stroke="currentColor" stroke-width="1.4" />
+      <path d="M12 7.5V10.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      <path d="M15.8 10.2L13.6 11.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      <path d="M15.8 13.8L13.6 12.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      <path d="M12 16.5V13.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      <path d="M8.2 13.8L10.4 12.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      <path d="M8.2 10.2L10.4 11.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+    </template>
+
+    <template v-else-if="name === 'claude'">
+      <path d="M16.8 7.4C15.85 6.5 14.55 6 13.1 6H10.9C7.64 6 5 8.64 5 11.9V12.1C5 15.36 7.64 18 10.9 18H13.1C14.55 18 15.85 17.5 16.8 16.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M18.2 8.6C17.1 7.35 15.7 6.58 14.15 6.28" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      <path d="M18.2 15.4C17.1 16.65 15.7 17.42 14.15 17.72" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+    </template>
+
+    <template v-else-if="name === 'gemini'">
+      <path d="M12 4.8L13.9 10.1L19.2 12L13.9 13.9L12 19.2L10.1 13.9L4.8 12L10.1 10.1L12 4.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+      <path d="M17.2 5.2L17.9 7.1L19.8 7.8L17.9 8.5L17.2 10.4L16.5 8.5L14.6 7.8L16.5 7.1L17.2 5.2Z" fill="currentColor" />
+    </template>
+
+    <template v-else-if="name === 'opencode'">
+      <path d="M9.2 7.4L5 12L9.2 16.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M14.8 7.4L19 12L14.8 16.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M13.3 6L10.7 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+    </template>
+
+    <template v-else-if="name === 'sparkle'">
+      <path d="M12 5.5L13.5 10.5L18.5 12L13.5 13.5L12 18.5L10.5 13.5L5.5 12L10.5 10.5L12 5.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
     </template>
 
     <template v-else-if="name === 'more'">

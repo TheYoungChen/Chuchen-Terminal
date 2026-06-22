@@ -1,8 +1,12 @@
 ﻿import { workspaceMocks } from '../mocks/workspaces'
 import type {
+  AiCliKind,
   PaneNode,
   PaneTerminalSession,
+  ProviderConfigScope,
   ProviderProfile,
+  ProviderProfileSource,
+  ProviderProfileStatus,
   ProviderToolTarget,
   TerminalEntry,
   WorkspaceCard,
@@ -14,7 +18,7 @@ const STORAGE_KEY = 'chuchen-terminal.workspace-data.v1'
 let lastSavedPayload = ''
 
 type WorkspaceStorageRecord = {
-  version: 1
+  version: 2
   workspaces: WorkspaceCard[]
 }
 
@@ -48,7 +52,7 @@ export function saveWorkspaces(workspaces: WorkspaceCard[]) {
   }
 
   const payload: WorkspaceStorageRecord = {
-    version: 1,
+    version: 2,
     workspaces: toPersistedWorkspaces(workspaces),
   }
 
@@ -91,6 +95,8 @@ export function createWorkspaceRecord(input: {
     defaultSnapshotId: null,
     workspaceType: 'default',
     providerProfiles: [],
+    providerQuotas: [],
+    providerUsageStats: [],
     terminalEntries: [],
     tabs: [
       {
@@ -112,14 +118,19 @@ export function createProviderProfileRecord(input: {
   workspaceId: string
   name: string
   providerKind: ProviderProfile['providerKind']
-  baseUrl: string
-  apiKey: string
-  apiFormat: ProviderProfile['apiFormat']
+  profileName: string
+  configPath: string
+  configScope: ProviderConfigScope
+  managedBy: ProviderProfileSource
+  authSource: string
+  switchCommand: string
   defaultModel: string
   toolTargets: ProviderToolTarget[]
+  status?: ProviderProfileStatus
   color?: string | null
   note?: string | null
   isDefault?: boolean
+  isActive?: boolean
 }): ProviderProfile {
   const now = new Date().toISOString()
 
@@ -128,11 +139,17 @@ export function createProviderProfileRecord(input: {
     workspaceId: input.workspaceId,
     name: input.name,
     providerKind: input.providerKind,
-    baseUrl: input.baseUrl,
-    apiKey: input.apiKey,
-    apiFormat: input.apiFormat,
+    profileName: input.profileName,
+    configPath: input.configPath,
+    configScope: input.configScope,
+    managedBy: input.managedBy,
+    authSource: input.authSource,
+    switchCommand: input.switchCommand,
     defaultModel: input.defaultModel,
     toolTargets: input.toolTargets,
+    status: input.status ?? (input.isActive ? 'active' : 'available'),
+    isActive: Boolean(input.isActive),
+    lastDetectedAt: now,
     color: input.color ?? null,
     note: input.note ?? null,
     isDefault: Boolean(input.isDefault),
@@ -147,12 +164,7 @@ export function createTerminalEntryRecord(input: {
   workingDirectory: string
   defaultCommand: string
   launchMode: TerminalEntry['launchMode']
-  providerBindingMode?: TerminalEntry['providerBindingMode']
-  providerProfileId?: string | null
-  modelId?: string | null
   environmentVariablesText?: string | null
-  mcpPolicy?: TerminalEntry['mcpPolicy']
-  skillPolicy?: TerminalEntry['skillPolicy']
   tags: string[]
   note?: string | null
 }): TerminalEntry {
@@ -170,12 +182,7 @@ export function createTerminalEntryRecord(input: {
     favoriteCommands: [],
     status: 'idle' as const,
     launchMode: input.launchMode,
-    providerBindingMode: input.providerBindingMode ?? 'inherit',
-    providerProfileId: input.providerProfileId ?? null,
-    modelId: input.modelId ?? null,
     environmentVariablesText: input.environmentVariablesText ?? null,
-    mcpPolicy: input.mcpPolicy ?? 'inherit',
-    skillPolicy: input.skillPolicy ?? 'inherit',
     runtimeNote: null,
     tags: input.tags,
     note: input.note ?? null,
@@ -251,6 +258,63 @@ function sanitizeSessionName(name: string | undefined, fallback: string) {
   return value
 }
 
+function normalizeSearchText(value: string | undefined | null) {
+  return (value || '').trim().toLocaleLowerCase()
+}
+
+function inferAiCliKindFromText(...parts: Array<string | null | undefined>): AiCliKind | null {
+  const text = normalizeSearchText(parts.filter(Boolean).join(' '))
+  if (!text) return null
+  if (/(^|[\s>])(codex|cx)(?=$|[\s/:-])|openai codex|gpt-/.test(text)) return 'codex'
+  if (/(^|[\s>])(claude|cc)(?=$|[\s/:-])|claude code|anthropic|sonnet|opus/.test(text)) return 'claude-code'
+  if (/(^|[\s>])gemini(?=$|[\s/:-])|google ai|google-ai/.test(text)) return 'gemini-cli'
+  if (/(^|[\s>])deepseek(?=$|[\s/:-])|deep seek/.test(text)) return 'deepseek-cli'
+  if (/opencode|open code/.test(text)) return 'opencode'
+  if (/\b(ai\s*cli|agent|assistant|llm)\b/.test(text)) return 'generic-ai'
+  return null
+}
+
+function aiCliDisplayName(kind: AiCliKind | null | undefined) {
+  if (kind === 'codex') return 'Codex'
+  if (kind === 'claude-code') return 'Claude'
+  if (kind === 'gemini-cli') return 'Gemini'
+  if (kind === 'deepseek-cli') return 'DeepSeek'
+  if (kind === 'opencode') return 'OpenCode'
+  if (kind === 'generic-ai') return 'AI 会话'
+  return '终端'
+}
+
+function isGenericTerminalSessionName(name: string | null | undefined) {
+  const text = normalizeSearchText(name)
+  if (!text) return true
+  return text === 'powershell'
+    || text === 'powershell 7'
+    || text === 'pwsh'
+    || text === 'terminal'
+    || text === 'shell'
+    || text === 'cmd'
+    || text === 'command prompt'
+    || text === 'bash'
+    || text === 'zsh'
+    || /^pane\s*\d+$/.test(text)
+}
+
+function inferPaneAiCliKind(
+  workspace: WorkspaceCard,
+  tab: WorkspaceTab,
+  pane: PaneNode,
+  session: Partial<PaneTerminalSession> | undefined,
+  terminalEntries: TerminalEntry[],
+) {
+  const entry = terminalEntries.find((item) => item.id === (session?.terminalEntryId ?? pane.terminalEntryId))
+  const exact = inferAiCliKindFromText(
+    entry?.defaultCommand,
+    entry?.lastCommand,
+  )
+  if (exact && exact !== 'generic-ai') return exact
+  return exact
+}
+
 function ensureUniqueId(candidate: string | undefined, prefix: string, usedIds: Set<string>) {
   let nextId = (candidate || '').trim()
   if (!nextId || usedIds.has(nextId)) {
@@ -272,6 +336,25 @@ function toPersistedWorkspaces(workspaces: WorkspaceCard[]) {
     ...workspace,
     providerProfiles: (workspace.providerProfiles || []).map((profile) => ({
       ...normalizeProviderProfile(profile, workspace.id, workspace.createdAt),
+    })),
+    providerQuotas: (workspace.providerQuotas || []).map((quota) => ({
+      usdRemaining: quota.usdRemaining ?? null,
+      requestsToday: quota.requestsToday ?? null,
+      lastCheckedAt: quota.lastCheckedAt ?? null,
+    })),
+    providerUsageStats: (workspace.providerUsageStats || []).map((stats) => ({
+      providerProfileId: stats.providerProfileId,
+      summary: {
+        totalRequests: stats.summary.totalRequests,
+        totalCostUsd: stats.summary.totalCostUsd,
+        totalInputTokens: stats.summary.totalInputTokens,
+        totalOutputTokens: stats.summary.totalOutputTokens,
+        totalCacheReadTokens: stats.summary.totalCacheReadTokens,
+        totalCacheCreationTokens: stats.summary.totalCacheCreationTokens,
+        cacheHitRate: stats.summary.cacheHitRate,
+      },
+      trends: (stats.trends || []).map((point) => ({ ...point })),
+      requestLogs: (stats.requestLogs || []).map((log) => ({ ...log })),
     })),
     terminalEntries: workspace.terminalEntries.map((entry) => ({
       ...entry,
@@ -297,6 +380,7 @@ function stripRuntimePane(pane: PaneNode): PaneNode {
   const sessions = (pane.sessions || []).map((session) => ({
     ...session,
     status: 'idle' as const,
+    aiCliKind: null,
   }))
 
   return {
@@ -329,7 +413,12 @@ function normalizeWorkspace(workspace: WorkspaceCard, workspaceIndex: number): W
   const usedSessionIds = new Set<string>()
 
   const terminalEntries = (workspace.terminalEntries || []).map((entry) => normalizeTerminalEntry(entry, workspaceId, createdAt))
-  const tabs = (workspace.tabs || []).map((tab, tabIndex) => normalizeTab(tab, workspaceId, tabIndex, createdAt, usedTabIds, usedPaneIds, usedSessionIds))
+  const draftWorkspace: WorkspaceCard = {
+    ...(workspace as WorkspaceCard),
+    id: workspaceId,
+    providerProfiles: (workspace.providerProfiles || []).map((profile) => normalizeProviderProfile(profile, workspaceId, createdAt)),
+  }
+  const tabs = (workspace.tabs || []).map((tab, tabIndex) => normalizeTab(tab, draftWorkspace, tabIndex, createdAt, usedTabIds, usedPaneIds, usedSessionIds, terminalEntries))
   const snapshots = normalizeSnapshots(workspace.snapshots ?? [], workspaceId, createdAt)
   const defaultSnapshotId = workspace.defaultSnapshotId && snapshots.some((snapshot) => snapshot.id === workspace.defaultSnapshotId)
     ? workspace.defaultSnapshotId
@@ -347,7 +436,26 @@ function normalizeWorkspace(workspace: WorkspaceCard, workspaceIndex: number): W
     updatedAt,
     defaultSnapshotId,
     workspaceType: workspace.workspaceType ?? 'default',
-    providerProfiles: (workspace.providerProfiles || []).map((profile) => normalizeProviderProfile(profile, workspaceId, createdAt)),
+    providerProfiles: draftWorkspace.providerProfiles,
+    providerQuotas: (workspace.providerQuotas || []).map((quota) => ({
+      usdRemaining: quota.usdRemaining ?? null,
+      requestsToday: quota.requestsToday ?? null,
+      lastCheckedAt: quota.lastCheckedAt ?? null,
+    })),
+    providerUsageStats: (workspace.providerUsageStats || []).map((stats) => ({
+      providerProfileId: stats.providerProfileId,
+      summary: {
+        totalRequests: stats.summary?.totalRequests ?? 0,
+        totalCostUsd: stats.summary?.totalCostUsd ?? 0,
+        totalInputTokens: stats.summary?.totalInputTokens ?? 0,
+        totalOutputTokens: stats.summary?.totalOutputTokens ?? 0,
+        totalCacheReadTokens: stats.summary?.totalCacheReadTokens ?? 0,
+        totalCacheCreationTokens: stats.summary?.totalCacheCreationTokens ?? 0,
+        cacheHitRate: stats.summary?.cacheHitRate ?? 0,
+      },
+      trends: (stats.trends || []).map((point) => ({ ...point })),
+      requestLogs: (stats.requestLogs || []).map((log) => ({ ...log })),
+    })),
     terminalEntries,
     tabs,
     snapshots,
@@ -374,7 +482,23 @@ function normalizeSnapshot(
   const usedSessionIds = new Set<string>()
   const createdAt = snapshot.createdAt || fallbackDate
   const updatedAt = snapshot.updatedAt || createdAt
-  const tabsState = (snapshot.tabsState || []).map((tab, tabIndex) => normalizeTab(tab, workspaceId, tabIndex, createdAt, usedTabIds, usedPaneIds, usedSessionIds))
+  const snapshotWorkspace = {
+    id: workspaceId,
+    name: '',
+    description: '',
+    rootPath: '',
+    tags: [],
+    lastOpenedAt: createdAt,
+    createdAt,
+    updatedAt,
+    tabs: [],
+    terminalEntries: [],
+    providerProfiles: [],
+  } as WorkspaceCard
+  const snapshotTerminalEntries: TerminalEntry[] = []
+  const tabsState = (snapshot.tabsState || []).map((tab, tabIndex) =>
+    normalizeTab(tab, snapshotWorkspace, tabIndex, createdAt, usedTabIds, usedPaneIds, usedSessionIds, snapshotTerminalEntries),
+  )
   const validTabIds = new Set(tabsState.map((tab) => tab.id))
   const validPaneIds = new Set(tabsState.flatMap((tab) => flattenSnapshotPanes(tab.panes).map((pane) => pane.id)))
   const validSessionByPane = new Map<string, Set<string>>()
@@ -437,12 +561,7 @@ function normalizeTerminalEntry(entry: TerminalEntry, workspaceId: string, fallb
     favoriteCommands,
     status: (entry.status || 'idle') as TerminalEntry['status'],
     launchMode: entry.launchMode || 'open-only',
-    providerBindingMode: entry.providerBindingMode ?? 'inherit',
-    providerProfileId: entry.providerProfileId ?? null,
-    modelId: entry.modelId ?? null,
     environmentVariablesText: entry.environmentVariablesText ?? null,
-    mcpPolicy: entry.mcpPolicy ?? 'inherit',
-    skillPolicy: entry.skillPolicy ?? 'inherit',
     runtimeNote: entry.runtimeNote ?? null,
     tags: entry.tags || [],
     note: entry.note ?? null,
@@ -451,36 +570,110 @@ function normalizeTerminalEntry(entry: TerminalEntry, workspaceId: string, fallb
   }
 }
 
-function normalizeProviderProfile(profile: ProviderProfile, workspaceId: string, fallbackDate: string): ProviderProfile {
+type LegacyProviderSource = ProviderProfileSource | 'openai' | 'anthropic' | 'gemini' | 'custom'
+
+type LegacyProviderProfile = Omit<Partial<ProviderProfile>, 'providerKind' | 'managedBy'> & {
+  providerKind?: ProviderProfile['providerKind'] | 'openai-compatible' | 'anthropic' | 'gemini' | 'custom'
+  managedBy?: ProviderProfileSource
+  apiFormat?: LegacyProviderSource
+  baseUrl?: string
+  apiKey?: string
+}
+
+function normalizeProviderKind(kind: LegacyProviderProfile['providerKind']): ProviderProfile['providerKind'] {
+  if (kind === 'anthropic') return 'claude-code'
+  if (kind === 'gemini') return 'gemini-cli'
+  if (kind === 'openai-compatible') return 'codex'
+  if (kind === 'custom') return 'custom-cli'
+  if (kind === 'codex' || kind === 'claude-code' || kind === 'gemini-cli' || kind === 'opencode' || kind === 'custom-cli') return kind
+  return 'codex'
+}
+
+function normalizeProviderSource(source: LegacyProviderSource | undefined): ProviderProfileSource {
+  if (source === 'cc-switch' || source === 'oauth' || source === 'env' || source === 'script' || source === 'manual' || source === 'cli-config') return source
+  if (source === 'anthropic' || source === 'openai' || source === 'gemini') return 'cli-config'
+  return 'manual'
+}
+
+function normalizeProviderScope(scope: LegacyProviderProfile['configScope']): ProviderConfigScope {
+  if (scope === 'workspace' || scope === 'project' || scope === 'global') return scope
+  return 'global'
+}
+
+function normalizeProviderStatus(status: LegacyProviderProfile['status'], isActive?: boolean): ProviderProfileStatus {
+  if (status === 'active' || status === 'available' || status === 'missing' || status === 'disabled') return status
+  return isActive ? 'active' : 'available'
+}
+
+function normalizeProviderProfile(profile: LegacyProviderProfile, workspaceId: string, fallbackDate: string): ProviderProfile {
+  const providerKind = normalizeProviderKind(profile.providerKind)
+  const managedBy = normalizeProviderSource(profile.managedBy ?? profile.apiFormat)
+  const isActive = Boolean(profile.isActive || profile.isDefault)
+  const legacySource = profile.baseUrl?.trim() || ''
+  const legacyAuth = profile.apiKey?.trim() || ''
+  const migrationNote = legacySource || legacyAuth
+    ? '旧版 API URL/Key 字段已迁移为本地 CLI 档案记录，Chuchen 不再保存请求地址或密钥。'
+    : ''
+
   return {
     id: profile.id || createId('provider'),
     workspaceId: profile.workspaceId || workspaceId,
-    name: profile.name,
-    providerKind: profile.providerKind || 'openai-compatible',
-    baseUrl: profile.baseUrl || '',
-    apiKey: profile.apiKey || '',
-    apiFormat: profile.apiFormat || 'openai',
+    name: profile.name || '本地 CLI 配置',
+    providerKind,
+    profileName: profile.profileName || profile.name || 'default',
+    configPath: profile.configPath || legacySource || defaultConfigPathForProvider(providerKind),
+    configScope: normalizeProviderScope(profile.configScope),
+    managedBy,
+    authSource: profile.authSource || (legacyAuth ? '旧版密钥字段已清空' : defaultAuthSourceForProvider(providerKind, managedBy)),
+    switchCommand: profile.switchCommand || defaultSwitchCommandForProvider(providerKind, profile.profileName || profile.name || 'default'),
     defaultModel: profile.defaultModel || '',
     toolTargets: Array.from(new Set((profile.toolTargets || []).filter(Boolean))) as ProviderToolTarget[],
+    status: normalizeProviderStatus(profile.status, isActive),
+    isActive,
+    lastDetectedAt: profile.lastDetectedAt ?? null,
     color: profile.color ?? null,
-    note: profile.note ?? null,
+    note: profile.note || migrationNote || null,
     isDefault: Boolean(profile.isDefault),
     createdAt: profile.createdAt || fallbackDate,
     updatedAt: profile.updatedAt || profile.createdAt || fallbackDate,
   }
 }
 
+function defaultConfigPathForProvider(kind: ProviderProfile['providerKind']) {
+  if (kind === 'codex') return '~/.codex/config.toml'
+  if (kind === 'claude-code') return '~/.claude.json'
+  if (kind === 'gemini-cli') return '~/.gemini/settings.json'
+  if (kind === 'opencode') return '~/.config/opencode/opencode.json'
+  return '本地 CLI 配置文件'
+}
+
+function defaultAuthSourceForProvider(kind: ProviderProfile['providerKind'], source: ProviderProfileSource) {
+  if (source === 'oauth') return 'CLI OAuth 登录态'
+  if (kind === 'claude-code') return 'Claude Code 本地配置'
+  if (kind === 'gemini-cli') return 'Gemini CLI 登录态'
+  return 'CLI 本地配置'
+}
+
+function defaultSwitchCommandForProvider(kind: ProviderProfile['providerKind'], profileName: string) {
+  if (kind === 'codex') return `cc-switch codex use ${profileName}`
+  if (kind === 'claude-code') return `cc-switch claude use ${profileName}`
+  if (kind === 'gemini-cli') return `cc-switch gemini use ${profileName}`
+  if (kind === 'opencode') return `cc-switch opencode use ${profileName}`
+  return `cc-switch use ${profileName}`
+}
+
 function normalizeTab(
   tab: WorkspaceTab,
-  workspaceId: string,
+  workspace: WorkspaceCard,
   tabIndex: number,
   fallbackDate: string,
   usedTabIds: Set<string>,
   usedPaneIds: Set<string>,
   usedSessionIds: Set<string>,
+  terminalEntries: TerminalEntry[],
 ): WorkspaceTab {
   const tabId = ensureUniqueId(tab.id, 'tab', usedTabIds)
-  const normalizedPanes = (tab.panes || []).map((pane, paneIndex) => normalizePane(pane, tabId, paneIndex, usedPaneIds, usedSessionIds))
+  const normalizedPanes = (tab.panes || []).map((pane, paneIndex) => normalizePane(pane, { ...tab, id: tabId, workspaceId: workspace.id }, workspace, paneIndex, usedPaneIds, usedSessionIds, terminalEntries))
   const inferredPaneSequence = normalizedPanes.reduce((maxValue, pane) => {
     const match = /^Pane\s+(\d+)$/i.exec((pane.name || '').trim())
     if (!match) return maxValue
@@ -488,7 +681,7 @@ function normalizeTab(
   }, 0)
   return {
     id: tabId,
-    workspaceId: tab.workspaceId || workspaceId,
+    workspaceId: tab.workspaceId || workspace.id,
     name: tab.name,
     order: typeof tab.order === 'number' ? tab.order : tabIndex,
     layoutMode: tab.layoutMode || 'grid',
@@ -501,18 +694,26 @@ function normalizeTab(
 
 function normalizePane(
   pane: PaneNode,
-  tabId: string,
+  tab: WorkspaceTab,
+  workspace: WorkspaceCard,
   paneIndex: number,
   usedPaneIds: Set<string>,
   usedSessionIds: Set<string>,
+  terminalEntries: TerminalEntry[],
 ): PaneNode {
   const paneId = ensureUniqueId(pane.id, 'pane', usedPaneIds)
-  const sessions = normalizePaneSessions(pane, paneId, usedSessionIds)
+  const normalizedPane = {
+    ...pane,
+    id: paneId,
+    tabId: pane.tabId || tab.id,
+    name: pane.name,
+  }
+  const sessions = normalizePaneSessions(normalizedPane, paneId, usedSessionIds, workspace, tab, terminalEntries)
 
   return {
     id: paneId,
-    tabId: pane.tabId || tabId,
-    name: pane.name,
+    tabId: normalizedPane.tabId,
+    name: normalizedPane.name,
     pathLabel: pane.pathLabel || '',
     terminalEntryId: pane.terminalEntryId ?? null,
     splitDirection: pane.splitDirection || 'none',
@@ -523,14 +724,24 @@ function normalizePane(
       ? pane.activeSessionId
       : sessions[0]?.id ?? null,
     sessions,
-    children: pane.children?.map((child, childIndex) => normalizePane(child, tabId, childIndex, usedPaneIds, usedSessionIds)) || [],
+    children: pane.children?.map((child, childIndex) => normalizePane(child, tab, workspace, childIndex, usedPaneIds, usedSessionIds, terminalEntries)) || [],
   }
 }
 
-function normalizePaneSessions(pane: PaneNode, paneId: string, usedSessionIds: Set<string>): PaneTerminalSession[] {
+function normalizePaneSessions(
+  pane: PaneNode,
+  paneId: string,
+  usedSessionIds: Set<string>,
+  workspace: WorkspaceCard,
+  tab: WorkspaceTab,
+  terminalEntries: TerminalEntry[],
+): PaneTerminalSession[] {
   if (pane.sessions?.length) {
     return pane.sessions.map((session, index) => {
       const nextId = ensureUniqueId(session.id, 'session', usedSessionIds)
+      const inferredKind = session.lastAiCliKind
+        ?? session.aiCliKind
+        ?? inferPaneAiCliKind(workspace, tab, pane, session, terminalEntries)
 
       return {
         id: nextId,
@@ -538,6 +749,8 @@ function normalizePaneSessions(pane: PaneNode, paneId: string, usedSessionIds: S
         pathLabel: session.pathLabel || pane.pathLabel || '',
         terminalEntryId: session.terminalEntryId ?? pane.terminalEntryId ?? null,
         status: (session.status || 'idle') as PaneTerminalSession['status'],
+        aiCliKind: session.status === 'running' ? (session.aiCliKind ?? inferredKind ?? null) : null,
+        lastAiCliKind: inferredKind ?? null,
         hasUserCommand: Boolean(session.hasUserCommand),
         lastCommandAt: session.lastCommandAt ?? null,
         lastOutputAt: session.lastOutputAt ?? null,
@@ -559,6 +772,8 @@ function normalizePaneSessions(pane: PaneNode, paneId: string, usedSessionIds: S
       pathLabel: pane.pathLabel || '',
       terminalEntryId: pane.terminalEntryId ?? null,
       status: 'idle' as const,
+      aiCliKind: null,
+      lastAiCliKind: inferPaneAiCliKind(workspace, tab, pane, undefined, terminalEntries),
       hasUserCommand: false,
       lastCommandAt: null,
       lastOutputAt: null,

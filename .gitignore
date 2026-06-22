@@ -1,5 +1,7 @@
 ﻿# Local tool/cache directories
 .codex/
+.codex-cargo-target/
+.codex-preview-provider/
 .agents/
 .npm-cache/
 .tmp/
