@@ -12,6 +12,25 @@ CLAUDE.md
 /docs/*参考手册.md
 /docs/**/*学习总结*.md
 /docs/开源/
+/docs/archive/
+/docs/design/
+/docs/dev-handbook/
+/docs/development-progress/
+/docs/open-source/
+/docs/product-planning/
+/docs/skills/
+/docs/testing/
+/docs/toolkit-frontend/
+/docs/decisions.md
+/docs/hand-off.md
+/docs/ideas.md
+/docs/project-state.md
+/prompts/
+/_patches/
+/AGENTS.md
+/GIT_COMMIT_STANDARD.md
+/进度文档.md
+/ui-skill-routing-for-takeover-project.md
 
 # Local notes / personal scratch files
 resume.txt
