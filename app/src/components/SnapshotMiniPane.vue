@@ -16,13 +16,14 @@
     </template>
     <template v-else>
       <span class="snapshot-preview__pane-name">{{ pane.name }}</span>
-      <small class="snapshot-preview__pane-meta">{{ countPaneSessions(pane) }} 终端</small>
+      <small class="snapshot-preview__pane-meta">{{ t('snapshot.terminals', { count: countPaneSessions(pane) }) }}</small>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { PaneNode } from '../types/workspace'
 
 const props = defineProps<{
@@ -30,6 +31,7 @@ const props = defineProps<{
 }>()
 
 const hasChildren = computed(() => Boolean(props.pane.children?.length))
+const { t } = useI18n()
 
 function countPaneSessions(pane: PaneNode): number {
   const own = pane.sessions?.length ?? 0

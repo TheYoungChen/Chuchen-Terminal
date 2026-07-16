@@ -197,6 +197,7 @@ export const workspaceMocks: WorkspaceCard[] = [
     ],
     providerQuotas: [
       {
+        providerProfileId: 'provider-openai-main',
         usdRemaining: 37.85,
         requestsToday: 39,
         lastCheckedAt: NOW,

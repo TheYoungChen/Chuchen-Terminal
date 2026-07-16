@@ -4,7 +4,7 @@ export type LaunchMode = 'open-only' | 'prefill' | 'execute' | 'switch-or-create
 export type SplitDirection = 'none' | 'horizontal' | 'vertical'
 export type TabLayoutMode = 'grid' | 'horizontal' | 'vertical'
 export type ShellType = 'pwsh7' | 'custom'
-export type ProviderKind = 'codex' | 'claude-code' | 'gemini-cli' | 'deepseek-cli' | 'opencode' | 'custom-cli'
+export type ProviderKind = 'codex' | 'claude-code' | 'gemini-cli' | 'deepseek-cli' | 'opencode' | 'hermes' | 'custom-cli'
 export type ProviderToolTarget = 'claude' | 'codex' | 'gemini' | 'opencode' | 'generic'
 export type ProviderProfileSource = 'cli-config' | 'cc-switch' | 'oauth' | 'env' | 'script' | 'manual'
 export type ProviderConfigScope = 'global' | 'workspace' | 'project'
@@ -49,15 +49,22 @@ export interface ProviderProfile {
   toolTargets: ProviderToolTarget[]
   status: ProviderProfileStatus
   isActive?: boolean
+  /** 后端 detect 返回的稳定身份键；导入/刷新优先按此匹配，避免同名多档串档 */
+  identityKey?: string | null
   lastDetectedAt?: string | null
   color?: string | null
   note?: string | null
+  homepageUrl?: string | null
+  requestBaseUrl?: string | null
+  configPayload?: string | null
+  authPayload?: string | null
   isDefault?: boolean
   createdAt: string
   updatedAt: string
 }
 
 export interface ProviderQuotaSnapshot {
+  providerProfileId: string
   usdRemaining?: number | null
   requestsToday?: number | null
   lastCheckedAt?: string | null
@@ -89,20 +96,37 @@ export interface ProviderUsageTrendPoint {
   costUsd: number
 }
 
+export type ProviderUsageAppType = 'claude' | 'codex' | 'gemini' | 'opencode' | 'hermes'
+
 export interface ProviderRequestLog {
   id: string
   providerProfileId: string
-  appType: 'claude' | 'codex' | 'gemini' | 'opencode'
+  appType: ProviderUsageAppType
   model: string
   inputTokens: number
   outputTokens: number
   cacheReadTokens: number
   cacheCreationTokens: number
   costUsd: number
+  /** 官方分项计费（来自 query_managed_usage；无则仅用 costUsd） */
+  inputCostUsd?: number
+  outputCostUsd?: number
+  cacheReadCostUsd?: number
+  cacheCreationCostUsd?: number
+  /** 首 token 延迟（毫秒）；native/部分 proxy 可能缺省 */
+  firstTokenMs?: number | null
   statusCode: number
   durationMs: number
   dataSource: string
   createdAt: string
+  /**
+   * 后端 ManagedUsage 的 providerId，契约上等于 Profile.identityKey。
+   * 仅用于关联展示，禁止前端拆解/推断。
+   */
+  managedProviderId?: string
+  /** 后端返回的 providerName，未匹配到本地 Profile 时作展示回退 */
+  managedProviderName?: string
+  pricingModel?: string
 }
 
 export interface TerminalEntry {

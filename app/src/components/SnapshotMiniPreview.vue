@@ -9,7 +9,7 @@
       >
         <header class="snapshot-preview__tab-head">
           <strong>{{ tab.name }}</strong>
-          <small>{{ countLeafPanes(tab.panes) }} Pane</small>
+          <small>{{ t('snapshot.panes', { count: countLeafPanes(tab.panes) }) }}</small>
         </header>
         <div
           class="snapshot-preview__tab-canvas"
@@ -27,13 +27,14 @@
       </article>
     </div>
     <div v-if="hiddenTabCount > 0" class="snapshot-preview__more">
-      +{{ hiddenTabCount }} 个项目
+      {{ t('snapshot.moreProjects', { count: hiddenTabCount }) }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SnapshotMiniPane from './SnapshotMiniPane.vue'
 import type { PaneNode, WorkspaceTab } from '../types/workspace'
 
@@ -48,6 +49,7 @@ const props = withDefaults(defineProps<{
 
 const visibleTabs = computed(() => props.tabs.slice(0, props.compact ? 2 : 3))
 const hiddenTabCount = computed(() => Math.max(0, props.tabs.length - visibleTabs.value.length))
+const { t } = useI18n()
 
 function countLeafPanes(panes: PaneNode[]): number {
   return flattenLeafPanes(panes).length

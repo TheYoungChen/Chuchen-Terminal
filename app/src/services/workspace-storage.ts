@@ -4,6 +4,7 @@ import type {
   PaneNode,
   PaneTerminalSession,
   ProviderConfigScope,
+  ProviderQuotaSnapshot,
   ProviderProfile,
   ProviderProfileSource,
   ProviderProfileStatus,
@@ -15,7 +16,17 @@ import type {
 } from '../types/workspace'
 
 const STORAGE_KEY = 'chuchen-terminal.workspace-data.v1'
+const LOCALE_STORAGE_KEY = 'chuchen-terminal.locale'
 let lastSavedPayload = ''
+
+function currentLocale() {
+  if (typeof window === 'undefined' || !window.localStorage) return 'zh-CN'
+  return window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'en-US' ? 'en-US' : 'zh-CN'
+}
+
+function tr(zh: string, en: string) {
+  return currentLocale() === 'en-US' ? en : zh
+}
 
 type WorkspaceStorageRecord = {
   version: 2
@@ -102,7 +113,7 @@ export function createWorkspaceRecord(input: {
       {
         id: defaultTabId,
         workspaceId,
-        name: '默认标签页',
+        name: tr('默认标签页', 'Default tab'),
         order: 0,
         layoutMode: 'grid',
         paneSequence: 0,
@@ -112,6 +123,27 @@ export function createWorkspaceRecord(input: {
       },
     ],
   }
+}
+
+function normalizeProviderQuotaSnapshot(
+  quota: Partial<ProviderQuotaSnapshot> | undefined,
+  providerProfiles: ProviderProfile[],
+  quotaIndex: number,
+): ProviderQuotaSnapshot | null {
+  if (!quota) return null
+  const providerProfileId = quota.providerProfileId || providerProfiles[quotaIndex]?.id || ''
+  if (!providerProfileId) return null
+
+  return {
+    providerProfileId,
+    usdRemaining: quota.usdRemaining ?? null,
+    requestsToday: quota.requestsToday ?? null,
+    lastCheckedAt: quota.lastCheckedAt ?? null,
+  }
+}
+
+function isProviderQuotaSnapshot(quota: ProviderQuotaSnapshot | null): quota is ProviderQuotaSnapshot {
+  return Boolean(quota)
 }
 
 export function createProviderProfileRecord(input: {
@@ -127,8 +159,13 @@ export function createProviderProfileRecord(input: {
   defaultModel: string
   toolTargets: ProviderToolTarget[]
   status?: ProviderProfileStatus
+  identityKey?: string | null
   color?: string | null
   note?: string | null
+  homepageUrl?: string | null
+  requestBaseUrl?: string | null
+  configPayload?: string | null
+  authPayload?: string | null
   isDefault?: boolean
   isActive?: boolean
 }): ProviderProfile {
@@ -149,9 +186,14 @@ export function createProviderProfileRecord(input: {
     toolTargets: input.toolTargets,
     status: input.status ?? (input.isActive ? 'active' : 'available'),
     isActive: Boolean(input.isActive),
+    identityKey: input.identityKey?.trim() || null,
     lastDetectedAt: now,
     color: input.color ?? null,
     note: input.note ?? null,
+    homepageUrl: input.homepageUrl ?? null,
+    requestBaseUrl: input.requestBaseUrl ?? null,
+    configPayload: input.configPayload ?? null,
+    authPayload: input.authPayload ?? null,
     isDefault: Boolean(input.isDefault),
     createdAt: now,
     updatedAt: now,
@@ -226,7 +268,7 @@ export function relativeTimeLabel(iso: string) {
   const diffMs = Date.now() - date.getTime()
 
   if (!Number.isFinite(diffMs) || Number.isNaN(diffMs)) {
-    return '未知时间'
+    return tr('未知时间', 'Unknown time')
   }
 
   const minute = 60 * 1000
@@ -235,20 +277,20 @@ export function relativeTimeLabel(iso: string) {
 
   if (diffMs < hour) {
     const minutes = Math.max(1, Math.round(diffMs / minute))
-    return `${minutes} 分钟前`
+    return currentLocale() === 'en-US' ? `${minutes} min ago` : `${minutes} 分钟前`
   }
 
   if (diffMs < day) {
     const hours = Math.max(1, Math.round(diffMs / hour))
-    return `${hours} 小时前`
+    return currentLocale() === 'en-US' ? `${hours} hr ago` : `${hours} 小时前`
   }
 
   if (diffMs < day * 2) {
-    return '昨天'
+    return tr('昨天', 'Yesterday')
   }
 
   const days = Math.max(2, Math.round(diffMs / day))
-  return `${days} 天前`
+  return currentLocale() === 'en-US' ? `${days} days ago` : `${days} 天前`
 }
 
 
@@ -280,8 +322,8 @@ function aiCliDisplayName(kind: AiCliKind | null | undefined) {
   if (kind === 'gemini-cli') return 'Gemini'
   if (kind === 'deepseek-cli') return 'DeepSeek'
   if (kind === 'opencode') return 'OpenCode'
-  if (kind === 'generic-ai') return 'AI 会话'
-  return '终端'
+  if (kind === 'generic-ai') return tr('AI 会话', 'AI session')
+  return tr('终端', 'Terminal')
 }
 
 function isGenericTerminalSessionName(name: string | null | undefined) {
@@ -327,8 +369,107 @@ function ensureUniqueId(candidate: string | undefined, prefix: string, usedIds: 
   return nextId
 }
 
+function localizeSeededWorkspace(workspace: WorkspaceCard): WorkspaceCard {
+  if (workspace.id === 'demo-workspace' || workspace.id === 'memos') {
+    return {
+      ...workspace,
+      description: tr('本地项目工作区，包含前端、后端、AI 协作与临时终端。', 'Local project workspace with frontend, backend, AI collaboration, and temporary terminal sessions.'),
+      tags: workspace.tags.map((tag) =>
+        tag === '前端'
+          ? tr('前端', 'Frontend')
+          : tag === '后端'
+            ? tr('后端', 'Backend')
+            : tag === '常用'
+              ? tr('常用', 'Common')
+              : tag === '临时'
+                ? tr('临时', 'Temporary')
+                : tag,
+      ),
+      terminalEntries: workspace.terminalEntries.map((entry) => ({
+        ...entry,
+        name: entry.id === 'memos-frontend' || entry.name === '前端'
+          ? tr('前端', 'Frontend')
+          : entry.id === 'memos-backend' || entry.name === '后端'
+            ? tr('后端', 'Backend')
+            : entry.name,
+        tags: entry.tags.map((tag) =>
+          tag === '前端'
+            ? tr('前端', 'Frontend')
+            : tag === '后端'
+              ? tr('后端', 'Backend')
+              : tag === '常用'
+                ? tr('常用', 'Common')
+                : tag === '临时'
+                  ? tr('临时', 'Temporary')
+                  : tag,
+        ),
+        note: entry.note === '前端本地开发服务'
+          ? tr('前端本地开发服务', 'Frontend local development service')
+          : entry.note === '后端调试入口'
+            ? tr('后端调试入口', 'Backend debugging entry')
+            : entry.note === 'AI 协作终端条目' || entry.note === 'AI 协作终端配置'
+              ? tr('AI 协作终端条目', 'AI collaboration terminal entry')
+              : entry.note,
+      })),
+      tabs: workspace.tabs.map((tab) => ({
+        ...tab,
+        name: tab.name === '开发'
+          ? tr('开发', 'Development')
+          : tab.name === 'AI 协作'
+            ? tr('AI 协作', 'AI collaboration')
+            : tab.name === '临时操作'
+              ? tr('临时操作', 'Scratchpad')
+              : tab.name,
+        panes: tab.panes.map((pane) => ({
+          ...pane,
+          name: pane.name === '前端'
+            ? tr('前端', 'Frontend')
+            : pane.name === '后端'
+              ? tr('后端', 'Backend')
+              : pane.name,
+        })),
+      })),
+    }
+  }
+
+  if (workspace.id === 'demo-api-suite' || workspace.id === 'live') {
+    return {
+      ...workspace,
+      description: tr('较轻量的前后端联调工作区。', 'A lighter workspace for frontend/backend integration work.'),
+      tags: workspace.tags.map((tag) => (tag === '联调' ? tr('联调', 'Integration') : tag)),
+      terminalEntries: workspace.terminalEntries.map((entry) => ({
+        ...entry,
+        tags: entry.tags.map((tag) =>
+          tag === '前端'
+            ? tr('前端', 'Frontend')
+            : tag === '后端'
+              ? tr('后端', 'Backend')
+              : tag,
+        ),
+      })),
+      tabs: workspace.tabs.map((tab) => ({
+        ...tab,
+        name: tab.name === '开发'
+          ? tr('开发', 'Development')
+          : tab.name === '临时'
+            ? tr('临时', 'Temporary')
+            : tab.name,
+      })),
+    }
+  }
+
+  return workspace
+}
+
 function normalizeWorkspaces(workspaces: WorkspaceCard[]) {
-  return workspaces.map((workspace, workspaceIndex) => normalizeWorkspace(workspace, workspaceIndex))
+  return workspaces.map((workspace, workspaceIndex) => {
+    const normalized = localizeSeededWorkspace(normalizeWorkspace(workspace, workspaceIndex))
+    return {
+      ...normalized,
+      // 加载即收口：同 kind 只允许一个当前启用，修复 localStorage 里历史全绿数据
+      providerProfiles: normalizeActiveProviderProfiles(normalized.providerProfiles ?? []),
+    }
+  })
 }
 
 function toPersistedWorkspaces(workspaces: WorkspaceCard[]) {
@@ -337,11 +478,9 @@ function toPersistedWorkspaces(workspaces: WorkspaceCard[]) {
     providerProfiles: (workspace.providerProfiles || []).map((profile) => ({
       ...normalizeProviderProfile(profile, workspace.id, workspace.createdAt),
     })),
-    providerQuotas: (workspace.providerQuotas || []).map((quota) => ({
-      usdRemaining: quota.usdRemaining ?? null,
-      requestsToday: quota.requestsToday ?? null,
-      lastCheckedAt: quota.lastCheckedAt ?? null,
-    })),
+    providerQuotas: (workspace.providerQuotas || [])
+      .map((quota, index) => normalizeProviderQuotaSnapshot(quota, workspace.providerProfiles ?? [], index))
+      .filter(isProviderQuotaSnapshot),
     providerUsageStats: (workspace.providerUsageStats || []).map((stats) => ({
       providerProfileId: stats.providerProfileId,
       summary: {
@@ -437,11 +576,9 @@ function normalizeWorkspace(workspace: WorkspaceCard, workspaceIndex: number): W
     defaultSnapshotId,
     workspaceType: workspace.workspaceType ?? 'default',
     providerProfiles: draftWorkspace.providerProfiles,
-    providerQuotas: (workspace.providerQuotas || []).map((quota) => ({
-      usdRemaining: quota.usdRemaining ?? null,
-      requestsToday: quota.requestsToday ?? null,
-      lastCheckedAt: quota.lastCheckedAt ?? null,
-    })),
+    providerQuotas: (workspace.providerQuotas || [])
+      .map((quota, index) => normalizeProviderQuotaSnapshot(quota, draftWorkspace.providerProfiles ?? [], index))
+      .filter(isProviderQuotaSnapshot),
     providerUsageStats: (workspace.providerUsageStats || []).map((stats) => ({
       providerProfileId: stats.providerProfileId,
       summary: {
@@ -519,7 +656,7 @@ function normalizeSnapshot(
   return {
     id: ensureUniqueId(snapshot.id, `snapshot-${snapshotIndex + 1}`, usedSnapshotIds),
     workspaceId: snapshot.workspaceId || workspaceId,
-    name: snapshot.name || `布局快照 ${snapshotIndex + 1}`,
+    name: snapshot.name || tr(`布局快照 ${snapshotIndex + 1}`, `Layout snapshot ${snapshotIndex + 1}`),
     tabsState,
     panesState: tabsState.reduce<Record<string, PaneNode[]>>((result, tab) => {
       result[tab.id] = tab.panes
@@ -608,35 +745,73 @@ function normalizeProviderStatus(status: LegacyProviderProfile['status'], isActi
 function normalizeProviderProfile(profile: LegacyProviderProfile, workspaceId: string, fallbackDate: string): ProviderProfile {
   const providerKind = normalizeProviderKind(profile.providerKind)
   const managedBy = normalizeProviderSource(profile.managedBy ?? profile.apiFormat)
-  const isActive = Boolean(profile.isActive || profile.isDefault)
+  // isActive 与 isDefault 分离：默认档案 ≠ 当前启用
+  const isActive = Boolean(profile.isActive)
   const legacySource = profile.baseUrl?.trim() || ''
   const legacyAuth = profile.apiKey?.trim() || ''
   const migrationNote = legacySource || legacyAuth
-    ? '旧版 API URL/Key 字段已迁移为本地 CLI 档案记录，Chuchen 不再保存请求地址或密钥。'
+    ? tr('旧版 API URL/Key 字段已迁移为本地 CLI 档案记录，Chuchen 不再保存请求地址或密钥。', 'Legacy API URL/Key fields were migrated into local CLI profile records. Chuchen no longer stores request URLs or keys.')
     : ''
 
   return {
     id: profile.id || createId('provider'),
     workspaceId: profile.workspaceId || workspaceId,
-    name: profile.name || '本地 CLI 配置',
+    name: profile.name || tr('本地 CLI 配置', 'Local CLI config'),
     providerKind,
     profileName: profile.profileName || profile.name || 'default',
     configPath: profile.configPath || legacySource || defaultConfigPathForProvider(providerKind),
     configScope: normalizeProviderScope(profile.configScope),
     managedBy,
-    authSource: profile.authSource || (legacyAuth ? '旧版密钥字段已清空' : defaultAuthSourceForProvider(providerKind, managedBy)),
+    authSource: profile.authSource || (legacyAuth ? tr('旧版密钥字段已清空', 'Legacy secret fields were cleared') : defaultAuthSourceForProvider(providerKind, managedBy)),
     switchCommand: profile.switchCommand || defaultSwitchCommandForProvider(providerKind, profile.profileName || profile.name || 'default'),
     defaultModel: profile.defaultModel || '',
     toolTargets: Array.from(new Set((profile.toolTargets || []).filter(Boolean))) as ProviderToolTarget[],
     status: normalizeProviderStatus(profile.status, isActive),
     isActive,
+    identityKey: typeof (profile as ProviderProfile).identityKey === 'string'
+      ? ((profile as ProviderProfile).identityKey || '').trim() || null
+      : null,
     lastDetectedAt: profile.lastDetectedAt ?? null,
     color: profile.color ?? null,
     note: profile.note || migrationNote || null,
+    homepageUrl: profile.homepageUrl ?? null,
+    requestBaseUrl: profile.requestBaseUrl ?? null,
+    configPayload: profile.configPayload ?? null,
+    authPayload: profile.authPayload ?? null,
     isDefault: Boolean(profile.isDefault),
     createdAt: profile.createdAt || fallbackDate,
     updatedAt: profile.updatedAt || profile.createdAt || fallbackDate,
   }
+}
+
+/** 每个 providerKind 最多保留一个 isActive；其余强制 available */
+export function normalizeActiveProviderProfiles(profiles: ProviderProfile[]): ProviderProfile[] {
+  const activeByKind = new Set<string>()
+  return profiles.map((profile) => {
+    const blocked = profile.status === 'missing' || profile.status === 'disabled'
+    if (blocked) {
+      return {
+        ...profile,
+        isActive: false,
+        status: profile.status,
+      }
+    }
+
+    if (profile.isActive && !activeByKind.has(profile.providerKind)) {
+      activeByKind.add(profile.providerKind)
+      return {
+        ...profile,
+        isActive: true,
+        status: 'active',
+      }
+    }
+
+    return {
+      ...profile,
+      isActive: false,
+      status: profile.status === 'active' ? 'available' : profile.status,
+    }
+  })
 }
 
 function defaultConfigPathForProvider(kind: ProviderProfile['providerKind']) {
@@ -644,22 +819,20 @@ function defaultConfigPathForProvider(kind: ProviderProfile['providerKind']) {
   if (kind === 'claude-code') return '~/.claude.json'
   if (kind === 'gemini-cli') return '~/.gemini/settings.json'
   if (kind === 'opencode') return '~/.config/opencode/opencode.json'
-  return '本地 CLI 配置文件'
+  return tr('本地 CLI 配置文件', 'Local CLI config file')
 }
 
 function defaultAuthSourceForProvider(kind: ProviderProfile['providerKind'], source: ProviderProfileSource) {
-  if (source === 'oauth') return 'CLI OAuth 登录态'
-  if (kind === 'claude-code') return 'Claude Code 本地配置'
-  if (kind === 'gemini-cli') return 'Gemini CLI 登录态'
-  return 'CLI 本地配置'
+  if (source === 'oauth') return tr('CLI OAuth 登录态', 'CLI OAuth session')
+  if (kind === 'claude-code') return tr('Claude Code 本地配置', 'Claude Code local config')
+  if (kind === 'gemini-cli') return tr('Gemini CLI 登录态', 'Gemini CLI sign-in state')
+  return tr('CLI 本地配置', 'CLI local config')
 }
 
 function defaultSwitchCommandForProvider(kind: ProviderProfile['providerKind'], profileName: string) {
-  if (kind === 'codex') return `cc-switch codex use ${profileName}`
-  if (kind === 'claude-code') return `cc-switch claude use ${profileName}`
-  if (kind === 'gemini-cli') return `cc-switch gemini use ${profileName}`
-  if (kind === 'opencode') return `cc-switch opencode use ${profileName}`
-  return `cc-switch use ${profileName}`
+  void kind
+  void profileName
+  return ''
 }
 
 function normalizeTab(
@@ -768,7 +941,7 @@ function normalizePaneSessions(
   return [
     {
       id: ensureUniqueId(`${paneId}-session-main`, 'session', usedSessionIds),
-      name: sanitizeSessionName(pane.name, '终端'),
+      name: sanitizeSessionName(pane.name, tr('终端', 'Terminal')),
       pathLabel: pane.pathLabel || '',
       terminalEntryId: pane.terminalEntryId ?? null,
       status: 'idle' as const,

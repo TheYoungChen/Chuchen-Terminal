@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
+import { pickLocaleText } from './runtime-locale'
 
 export type TerminalSessionOpened = {
   sessionId: string
@@ -27,6 +28,7 @@ export type TerminalRuntimeOptions = {
   fontFamily: string
   fontSize: number
   bridgeReady: boolean
+  active?: boolean
   onCommandCommitted?: (sessionId: string, command: string) => void
   onSessionStateChange?: (sessionId: string, status: 'idle' | 'running') => void
   onOutputChunk?: (sessionId: string, chunk: string) => void
@@ -44,17 +46,19 @@ type RuntimeEntry = {
   container: HTMLDivElement | null
   bridgeReady: boolean
   sessionOpened: boolean
-  buffer: string
   options: TerminalRuntimeOptions
   inputBuffer: string
   fitRafId: number | null
+  fitTimer: number | null
   resizeDebounceTimer: number | null
   lastResizeCols: number
   lastResizeRows: number
   outputQueue: string[]
   outputFlushRafId: number | null
+  outputFlushTimer: number | null
   inputQueue: string[]
   inputFlushTimer: number | null
+  inputFlushInFlight: boolean
   openingSession: Promise<void> | null
 }
 
@@ -62,9 +66,12 @@ declare global {
   var __ctTerminalRuntimeStore: Map<string, RuntimeEntry> | undefined
 }
 
-const MAX_TERMINAL_BUFFER_LENGTH = 500_000
 const MAX_OUTPUT_QUEUE_LENGTH = 256_000
-const MAX_OUTPUT_FLUSH_CHARS = 64_000
+const MAX_VISIBLE_OUTPUT_FLUSH_CHARS = 64_000
+const MAX_BACKGROUND_OUTPUT_FLUSH_CHARS = 16_000
+const BACKGROUND_OUTPUT_FLUSH_DELAY_MS = 180
+const INPUT_FLUSH_DELAY_MS = 24
+const BACKGROUND_FIT_DELAY_MS = 120
 
 const runtimeStore = globalThis.__ctTerminalRuntimeStore ??= new Map<string, RuntimeEntry>()
 
@@ -111,28 +118,57 @@ function createTerminal(options: TerminalRuntimeOptions) {
   return { terminal, fitAddon }
 }
 
-function scheduleOutputFlush(entry: RuntimeEntry) {
-  if (entry.outputFlushRafId) return
-
-  entry.outputFlushRafId = window.requestAnimationFrame(() => {
-    try {
-      if (!entry.outputQueue.length) return
-      const chunk = takeOutputFlushChunk(entry)
-      entry.buffer = trimTerminalBuffer(`${entry.buffer}${chunk}`)
-      entry.terminal.write(chunk)
-    } finally {
-      entry.outputFlushRafId = null
-      if (entry.outputQueue.length) {
-        scheduleOutputFlush(entry)
-      }
-    }
-  })
+function terminalHostVisible(entry: RuntimeEntry) {
+  if (typeof document === 'undefined') return false
+  return Boolean(entry.host?.isConnected && document.contains(entry.host) && !document.hidden)
 }
 
-function trimTerminalBuffer(value: string) {
-  return value.length > MAX_TERMINAL_BUFFER_LENGTH
-    ? value.slice(-MAX_TERMINAL_BUFFER_LENGTH)
-    : value
+function clearOutputFlushHandles(entry: RuntimeEntry) {
+  if (entry.outputFlushRafId) {
+    cancelAnimationFrame(entry.outputFlushRafId)
+    entry.outputFlushRafId = null
+  }
+  if (entry.outputFlushTimer) {
+    window.clearTimeout(entry.outputFlushTimer)
+    entry.outputFlushTimer = null
+  }
+}
+
+function flushOutputQueue(entry: RuntimeEntry, visible: boolean) {
+  try {
+    if (!entry.outputQueue.length) return
+    const chunk = takeOutputFlushChunk(entry, visible ? MAX_VISIBLE_OUTPUT_FLUSH_CHARS : MAX_BACKGROUND_OUTPUT_FLUSH_CHARS)
+    entry.terminal.write(chunk)
+  } finally {
+    clearOutputFlushHandles(entry)
+    if (entry.outputQueue.length) {
+      scheduleOutputFlush(entry)
+    }
+  }
+}
+
+function scheduleOutputFlush(entry: RuntimeEntry) {
+  const visible = terminalHostVisible(entry)
+  if (visible) {
+    if (entry.outputFlushRafId) return
+    if (entry.outputFlushTimer) {
+      window.clearTimeout(entry.outputFlushTimer)
+      entry.outputFlushTimer = null
+    }
+    entry.outputFlushRafId = window.requestAnimationFrame(() => {
+      flushOutputQueue(entry, true)
+    })
+    return
+  }
+
+  if (entry.outputFlushTimer) return
+  if (entry.outputFlushRafId) {
+    cancelAnimationFrame(entry.outputFlushRafId)
+    entry.outputFlushRafId = null
+  }
+  entry.outputFlushTimer = window.setTimeout(() => {
+    flushOutputQueue(entry, false)
+  }, BACKGROUND_OUTPUT_FLUSH_DELAY_MS)
 }
 
 function outputQueueLength(entry: RuntimeEntry) {
@@ -162,8 +198,8 @@ function enqueueOutputChunk(entry: RuntimeEntry, chunk: string) {
   }
 }
 
-function takeOutputFlushChunk(entry: RuntimeEntry) {
-  let remaining = MAX_OUTPUT_FLUSH_CHARS
+function takeOutputFlushChunk(entry: RuntimeEntry, maxChars: number) {
+  let remaining = maxChars
   const chunks: string[] = []
 
   while (entry.outputQueue.length && remaining > 0) {
@@ -183,35 +219,65 @@ function takeOutputFlushChunk(entry: RuntimeEntry) {
   return chunks.join('')
 }
 
-function scheduleInputFlush(entry: RuntimeEntry) {
-  if (entry.inputFlushTimer || !entry.bridgeReady || !entry.sessionOpened || !entry.inputQueue.length) {
+async function flushInputQueue(entry: RuntimeEntry) {
+  if (entry.inputFlushInFlight || !entry.bridgeReady || !entry.sessionOpened || !entry.inputQueue.length) {
+    return
+  }
+  entry.inputFlushInFlight = true
+  const input = entry.inputQueue.join('')
+  entry.inputQueue = []
+  if (!input) {
+    entry.inputFlushInFlight = false
     return
   }
 
-  entry.inputFlushTimer = window.setTimeout(async () => {
-    const input = entry.inputQueue.join('')
-    entry.inputQueue = []
-    entry.inputFlushTimer = null
-
-    if (!input) return
-
-    try {
-      await invoke('write_terminal_input', {
-        sessionId: entry.options.sessionId,
-        input,
-      })
-    } catch {
-      entry.inputQueue = [input, ...entry.inputQueue]
+  try {
+    await invoke('write_terminal_input', {
+      sessionId: entry.options.sessionId,
+      input,
+    })
+  } catch {
+    entry.inputQueue = [input, ...entry.inputQueue]
+  } finally {
+    entry.inputFlushInFlight = false
+    if (entry.inputQueue.length) {
+      scheduleInputFlush(entry)
     }
-  }, 12)
+  }
+}
+
+function scheduleInputFlush(entry: RuntimeEntry, immediate = false) {
+  if (!entry.bridgeReady || !entry.sessionOpened || !entry.inputQueue.length) {
+    return
+  }
+
+  if (immediate) {
+    if (entry.inputFlushTimer) {
+      window.clearTimeout(entry.inputFlushTimer)
+      entry.inputFlushTimer = null
+    }
+    void flushInputQueue(entry)
+    return
+  }
+
+  if (entry.inputFlushTimer) return
+
+  entry.inputFlushTimer = window.setTimeout(async () => {
+    entry.inputFlushTimer = null
+    await flushInputQueue(entry)
+  }, INPUT_FLUSH_DELAY_MS)
 }
 
 function scheduleFit(entry: RuntimeEntry) {
   if (entry.fitRafId) {
     cancelAnimationFrame(entry.fitRafId)
   }
+  if (entry.fitTimer) {
+    window.clearTimeout(entry.fitTimer)
+    entry.fitTimer = null
+  }
 
-  entry.fitRafId = window.requestAnimationFrame(async () => {
+  const runFit = async () => {
     try {
       if (!entry.host || !entry.container) return
       const hostRect = entry.host.getBoundingClientRect()
@@ -235,13 +301,25 @@ function scheduleFit(entry: RuntimeEntry) {
             cols: nextCols,
             rows: nextRows,
           })
-        }, 48)
+        }, entry.options.active ? 48 : 120)
       }
     } catch {
     } finally {
       entry.fitRafId = null
+      entry.fitTimer = null
     }
-  })
+  }
+
+  if (entry.options.active) {
+    entry.fitRafId = window.requestAnimationFrame(() => {
+      void runFit()
+    })
+    return
+  }
+
+  entry.fitTimer = window.setTimeout(() => {
+    void runFit()
+  }, BACKGROUND_FIT_DELAY_MS)
 }
 
 async function bindEvents(entry: RuntimeEntry) {
@@ -267,6 +345,10 @@ async function bindEvents(entry: RuntimeEntry) {
       entry.sessionOpened = false
       entry.inputBuffer = ''
       entry.inputQueue = []
+      if (entry.inputFlushTimer) {
+        window.clearTimeout(entry.inputFlushTimer)
+        entry.inputFlushTimer = null
+      }
       entry.options.onSessionExit?.(entry.options.sessionId, event.payload.exitCode)
       entry.options.onSessionStateChange?.(entry.options.sessionId, 'idle')
     })
@@ -276,7 +358,7 @@ async function bindEvents(entry: RuntimeEntry) {
     entry.dataDisposable = entry.terminal.onData((data) => {
       if (!entry.bridgeReady || !entry.sessionOpened) return
       entry.inputQueue.push(data)
-      scheduleInputFlush(entry)
+      scheduleInputFlush(entry, data === '\r')
 
       if (data === '\r') {
         const command = entry.inputBuffer.trim()
@@ -322,14 +404,14 @@ async function ensureSession(entry: RuntimeEntry) {
       entry.terminal.scrollToBottom()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (message.includes('终端会话已存在')) {
+      if (message.includes('终端会话已存在') || message.toLowerCase().includes('terminal session already exists')) {
         entry.sessionOpened = true
         entry.options.onSessionStateChange?.(entry.options.sessionId, 'running')
         scheduleFit(entry)
         entry.terminal.scrollToBottom()
         return
       }
-      entry.terminal.writeln('\x1b[38;2;240;114;114m终端启动失败：' + message + '\x1b[0m')
+      entry.terminal.writeln(`\x1b[38;2;240;114;114m${pickLocaleText('终端启动失败：', 'Terminal startup failed: ')}${message}\x1b[0m`)
     } finally {
       entry.openingSession = null
     }
@@ -340,6 +422,7 @@ async function ensureSession(entry: RuntimeEntry) {
 function attachHost(entry: RuntimeEntry, host: HTMLDivElement) {
   if (entry.host === host && host.firstChild) {
     scheduleFit(entry)
+    scheduleOutputFlush(entry)
     return
   }
 
@@ -363,6 +446,7 @@ function attachHost(entry: RuntimeEntry, host: HTMLDivElement) {
   entry.resizeObserver = new ResizeObserver(() => scheduleFit(entry))
   entry.resizeObserver.observe(host)
   scheduleFit(entry)
+  scheduleOutputFlush(entry)
 }
 
 export async function mountTerminalRuntime(host: HTMLDivElement, options: TerminalRuntimeOptions) {
@@ -381,30 +465,50 @@ export async function mountTerminalRuntime(host: HTMLDivElement, options: Termin
       container: null,
       bridgeReady: options.bridgeReady,
       sessionOpened: false,
-      buffer: '',
       options: { ...options },
       inputBuffer: '',
       fitRafId: null,
+      fitTimer: null,
       resizeDebounceTimer: null,
       lastResizeCols: 0,
       lastResizeRows: 0,
       outputQueue: [],
       outputFlushRafId: null,
+      outputFlushTimer: null,
       inputQueue: [],
       inputFlushTimer: null,
+      inputFlushInFlight: false,
       openingSession: null,
     }
     runtimeStore.set(options.sessionId, entry)
   }
+  const currentEntry = entry
 
-  entry.options = { ...entry.options, ...options }
-  entry.bridgeReady = options.bridgeReady
-  await bindEvents(entry)
-  entry.terminal.options.fontFamily = options.fontFamily
-  entry.terminal.options.fontSize = options.fontSize
-  attachHost(entry, host)
-  await ensureSession(entry)
-  entry.terminal.focus()
+  currentEntry.options = { ...currentEntry.options, ...options }
+  currentEntry.bridgeReady = options.bridgeReady
+  await bindEvents(currentEntry)
+  currentEntry.terminal.options.fontFamily = options.fontFamily
+  currentEntry.terminal.options.fontSize = options.fontSize
+  attachHost(currentEntry, host)
+  await ensureSession(currentEntry)
+  if (currentEntry.options.active) {
+    currentEntry.terminal.focus()
+  }
+}
+
+export function updateTerminalRuntimeActivity(sessionId: string, active: boolean) {
+  const entry = runtimeStore.get(sessionId)
+  if (!entry) return
+  if (entry.options.active === active) return
+  entry.options = {
+    ...entry.options,
+    active,
+  }
+  scheduleFit(entry)
+  scheduleOutputFlush(entry)
+  if (active) {
+    entry.terminal.focus()
+  }
 }
 
 export function focusTerminalRuntime(sessionId: string) {
@@ -420,9 +524,17 @@ export function unmountTerminalRuntime(sessionId: string) {
     cancelAnimationFrame(entry.fitRafId)
     entry.fitRafId = null
   }
+  if (entry.fitTimer) {
+    window.clearTimeout(entry.fitTimer)
+    entry.fitTimer = null
+  }
   if (entry.outputFlushRafId) {
     cancelAnimationFrame(entry.outputFlushRafId)
     entry.outputFlushRafId = null
+  }
+  if (entry.outputFlushTimer) {
+    window.clearTimeout(entry.outputFlushTimer)
+    entry.outputFlushTimer = null
   }
   if (entry.inputFlushTimer) {
     window.clearTimeout(entry.inputFlushTimer)
@@ -446,10 +558,11 @@ export async function destroyTerminalRuntime(sessionId: string) {
     cancelAnimationFrame(entry.fitRafId)
     entry.fitRafId = null
   }
-  if (entry.outputFlushRafId) {
-    cancelAnimationFrame(entry.outputFlushRafId)
-    entry.outputFlushRafId = null
+  if (entry.fitTimer) {
+    window.clearTimeout(entry.fitTimer)
+    entry.fitTimer = null
   }
+  clearOutputFlushHandles(entry)
   if (entry.inputFlushTimer) {
     window.clearTimeout(entry.inputFlushTimer)
     entry.inputFlushTimer = null

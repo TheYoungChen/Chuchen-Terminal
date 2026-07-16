@@ -3,7 +3,7 @@
     <div ref="terminalHost" class="terminal-pane__host"></div>
     <div v-if="!runtimeBridgeReady" class="terminal-pane__bridge-badge">
       <span></span>
-      Tauri/Rust 桥接中
+      {{ t('terminal.bridgePending') }}
     </div>
   </div>
 </template>
@@ -11,7 +11,8 @@
 <script setup lang="ts">
 import '@xterm/xterm/css/xterm.css'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { focusTerminalRuntime, mountTerminalRuntime, unmountTerminalRuntime } from '../services/terminal-runtime'
+import { useI18n } from 'vue-i18n'
+import { focusTerminalRuntime, mountTerminalRuntime, unmountTerminalRuntime, updateTerminalRuntimeActivity } from '../services/terminal-runtime'
 
 const props = withDefaults(defineProps<{
   sessionId: string
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<{
   fontFamily?: string
   fontSize?: number
   bridgeReady?: boolean
+  active?: boolean
   onCommandCommitted?: (sessionId: string, command: string) => void
   onSessionStateChange?: (sessionId: string, status: 'idle' | 'running') => void
   onOutputChunk?: (sessionId: string, chunk: string) => void
@@ -34,6 +36,7 @@ const props = withDefaults(defineProps<{
 
 const terminalHost = ref<HTMLDivElement | null>(null)
 const runtimeBridgeReady = ref(props.bridgeReady || (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window))
+const { t } = useI18n()
 
 async function mountCurrentSession() {
   await nextTick()
@@ -47,6 +50,7 @@ async function mountCurrentSession() {
     fontFamily: props.fontFamily,
     fontSize: props.fontSize,
     bridgeReady: runtimeBridgeReady.value,
+    active: props.active,
     onCommandCommitted: props.onCommandCommitted,
     onSessionStateChange: props.onSessionStateChange,
     onOutputChunk: props.onOutputChunk,
@@ -77,6 +81,10 @@ watch(() => [props.fontFamily, props.fontSize] as const, async () => {
 watch(() => props.bridgeReady, async (value) => {
   runtimeBridgeReady.value = value || (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window)
   await mountCurrentSession()
+})
+
+watch(() => props.active, (value) => {
+  updateTerminalRuntimeActivity(props.sessionId, Boolean(value))
 })
 </script>
 

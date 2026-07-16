@@ -4,8 +4,8 @@
       <div class="titlebar__brand">
         <div class="titlebar__logo">CT</div>
         <div>
-          <strong>Chuchen-Terminal</strong>
-          <p>Windows-first 本地终端工作台</p>
+          <strong>{{ t('common.appName') }}</strong>
+          <p>{{ t('common.appSubtitle') }}</p>
         </div>
       </div>
       <div class="titlebar__meta titlebar__statusbar">
@@ -19,22 +19,22 @@
           <AppIcon :name="systemStatusRefreshing ? 'refresh' : 'recent'" :size="13" :class="{ 'is-spinning': systemStatusRefreshing }" />
           <span>{{ systemRefreshLabel }}</span>
         </button>
-        <span class="titlebar__status-pill"><AppIcon name="runtime" :size="13" /> <strong>CPU</strong> {{ systemStatus.cpu }}</span>
-        <span class="titlebar__status-pill"><AppIcon name="workspace" :size="13" /> <strong>内存</strong> {{ systemStatus.memory }}</span>
-        <span class="titlebar__status-pill"><AppIcon name="theme" :size="13" /> <strong>GPU</strong> {{ systemStatus.gpu }}</span>
+        <span class="titlebar__status-pill"><AppIcon name="runtime" :size="13" /> <strong>{{ t('titlebar.cpu') }}</strong> {{ systemStatusDisplayValue(systemStatus.cpu) }}</span>
+        <span class="titlebar__status-pill"><AppIcon name="workspace" :size="13" /> <strong>{{ t('titlebar.memory') }}</strong> {{ systemStatusDisplayValue(systemStatus.memory) }}</span>
+        <span class="titlebar__status-pill"><AppIcon name="theme" :size="13" /> <strong>{{ t('titlebar.gpu') }}</strong> {{ systemStatusDisplayValue(systemStatus.gpu) }}</span>
         <span v-if="attentionSessionCount" class="titlebar__status-pill titlebar__status-pill--attention">
           <AppIcon name="recent" :size="13" />
-          <strong>待处理</strong> {{ attentionSessionCount }}
+          <strong>{{ t('titlebar.pending') }}</strong> {{ attentionSessionCount }}
         </span>
         <button type="button" class="titlebar__status-action" @click="openThemePanel('system')">
           <AppIcon name="settings" :size="13" />
-          <span>系统</span>
+          <span>{{ t('titlebar.system') }}</span>
         </button>
       </div>
     </header>
 
-    <div class="layout" :class="{ 'layout--rail-collapsed': railCollapsed }">
-      <aside class="rail" :class="{ 'rail--collapsed': railCollapsed }">
+    <div class="layout" :class="{ 'layout--rail-collapsed': effectiveRailCollapsed, 'layout--immersive': immersiveWorkbenchActive }">
+      <aside class="rail" :class="{ 'rail--collapsed': effectiveRailCollapsed, 'rail--immersive': immersiveWorkbenchActive }">
         <div class="rail__group rail__group--top">
           <div
             v-for="item in primaryRailItems"
@@ -49,7 +49,7 @@
               @click="item.action()"
             >
               <AppIcon :name="item.icon" :size="18" />
-              <span v-if="!railCollapsed">{{ item.label }}</span>
+              <span v-if="!effectiveRailCollapsed">{{ item.label }}</span>
             </button>
 
             <div v-if="activeRailTooltipId === item.id" class="rail-tooltip">
@@ -80,7 +80,7 @@
               @click="item.action()"
             >
               <AppIcon :name="item.icon" :size="18" />
-              <span v-if="!railCollapsed">{{ item.label }}</span>
+              <span v-if="!effectiveRailCollapsed">{{ item.label }}</span>
             </button>
 
             <div v-if="activeRailTooltipId === item.id" class="rail-tooltip">
@@ -94,9 +94,9 @@
             </div>
           </div>
 
-          <button class="rail__collapse" :title="railCollapsed ? '展开菜单' : '收起菜单'" @click="toggleRailCollapsed()">
+          <button v-if="!immersiveWorkbenchActive" class="rail__collapse" :title="effectiveRailCollapsed ? t('rail.expand') : t('rail.collapse')" @click="toggleRailCollapsed()">
             <AppIcon name="chevron-right" :size="15" />
-            <span v-if="!railCollapsed">{{ railCollapsed ? '展开菜单' : '收起菜单' }}</span>
+            <span v-if="!effectiveRailCollapsed">{{ effectiveRailCollapsed ? t('rail.expand') : t('rail.collapse') }}</span>
           </button>
         </div>
       </aside>
@@ -122,15 +122,15 @@
               <div class="topbar__view-actions">
                 <button class="ghost-btn ghost-btn--small" @click="openTerminalEntriesModal = true">
                   <AppIcon name="terminal" :size="14" />
-                  <span>运行配置</span>
+                  <span>{{ t('common.actions.runConfigs') }}</span>
                 </button>
                 <button class="ghost-btn ghost-btn--small" @click="openHelpTopic('layout')">
                   <AppIcon name="info" :size="14" />
-                  <span>结构说明</span>
+                  <span>{{ t('common.actions.structureGuide') }}</span>
                 </button>
                 <button class="ghost-btn ghost-btn--small" @click="goWorkspaceOverview">
                   <AppIcon name="workspace" :size="14" />
-                  <span>返回卡片</span>
+                  <span>{{ t('common.actions.backToCards') }}</span>
                 </button>
               </div>
             </template>
@@ -140,40 +140,40 @@
         <section class="home-dashboard" v-if="appSection === 'home'">
           <section class="home-hero panel">
             <div class="home-hero__copy">
-              <h2>欢迎回来</h2>
-              <p>从最近项目、环境状态和系统资源开始，快速进入终端工作台。</p>
+              <h2>{{ t('home.welcome') }}</h2>
+              <p>{{ t('home.intro') }}</p>
             </div>
             <div class="home-hero__meta">
-              <span>最近使用：{{ recentHomeWorkspaces[0]?.name || '暂无' }}</span>
-              <span>默认 Shell：PowerShell 7</span>
-              <span>桌面壳：Tauri 2 已接入</span>
+              <span>{{ t('home.recentUsed', { name: recentHomeWorkspaces[0]?.name || t('common.none') }) }}</span>
+              <span>{{ t('home.defaultShell') }}</span>
+              <span>{{ t('home.desktopShell') }}</span>
             </div>
             <div class="home-hero__stats">
               <div class="home-stat">
                 <strong>{{ totalWorkspaceCount }}</strong>
-                <span>工作区</span>
+                <span>{{ t('home.workspaceCount') }}</span>
               </div>
               <div class="home-stat">
                 <strong>{{ totalPaneCount }}</strong>
-                <span>终端 Pane</span>
+                <span>{{ t('home.paneCount') }}</span>
               </div>
               <div class="home-stat home-stat--running">
                 <strong>{{ totalRunningCount }}</strong>
-                <span>运行中</span>
+                <span>{{ t('home.runningCount') }}</span>
               </div>
             </div>
             <div class="home-hero__quick">
               <button class="ghost-btn ghost-btn--primary" @click="openWorkspaceCreateModal()">
                 <AppIcon name="workspace" :size="15" />
-                <span>新建工作区</span>
+                <span>{{ t('home.newWorkspace') }}</span>
               </button>
               <button class="ghost-btn" @click="openQuickSearch()">
                 <AppIcon name="search" :size="15" />
-                <span>搜索</span>
+                <span>{{ t('home.search') }}</span>
               </button>
               <button class="ghost-btn" @click="openThemePanel('theme')">
                 <AppIcon name="theme" :size="15" />
-                <span>主题</span>
+                <span>{{ t('home.theme') }}</span>
               </button>
             </div>
           </section>
@@ -182,12 +182,12 @@
             <article class="home-card home-card--recent">
               <div class="home-card__header">
                 <div>
-                  <h3>最近工作区</h3>
-                  <p>优先展示最近进入的项目容器。</p>
+                  <h3>{{ t('home.recentTitle') }}</h3>
+                  <p>{{ t('home.recentDesc') }}</p>
                 </div>
                 <button class="ghost-btn ghost-btn--small" @click="goWorkspaceOverview">
                   <AppIcon name="workspace" :size="14" />
-                  <span>全部</span>
+                  <span>{{ t('home.openAll') }}</span>
                 </button>
               </div>
               <div class="home-recent-list">
@@ -202,7 +202,7 @@
                     <strong>{{ workspace.name }}</strong>
                     <span>{{ workspace.rootPath }}</span>
                   </div>
-                  <small>{{ workspace.tabs.length }} 项目 · {{ totalPanes(workspace) }} Pane · {{ totalWorkspaceSessions(workspace) }} 终端</small>
+                  <small>{{ t('workspace.projects', { count: workspace.tabs.length }) }} · {{ t('snapshot.panes', { count: totalPanes(workspace) }) }} · {{ t('snapshot.terminals', { count: totalWorkspaceSessions(workspace) }) }}</small>
                 </button>
               </div>
             </article>
@@ -210,25 +210,25 @@
             <article class="home-card home-card--env">
               <div class="home-card__header">
                 <div>
-                  <h3>环境与资源</h3>
-                  <p>把本地环境、项目依赖和系统资源集中在一块展示。</p>
+                  <h3>{{ t('home.envTitle') }}</h3>
+                  <p>{{ t('home.envDesc') }}</p>
                 </div>
                 <button type="button" class="ghost-btn ghost-btn--small" @click="openThemePanel('system')">
                   <AppIcon name="settings" :size="14" />
-                  <span>系统</span>
+                  <span>{{ t('home.system') }}</span>
                 </button>
               </div>
               <div class="home-check-list">
                 <div v-for="item in visibleEnvironmentChecks" :key="item.name" class="home-check-item" :class="`home-check-item--${item.status}`">
                   <span class="home-env-icon" :class="{ 'home-env-icon--mono': item.monochrome }">
-                    <img v-if="item.iconSrc" :src="item.iconSrc" :alt="`${item.name} 图标`" />
+                    <img v-if="item.iconSrc" :src="item.iconSrc" :alt="`${item.name} icon`" />
                     <span v-else>{{ item.icon }}</span>
                   </span>
                   <div>
                     <strong>{{ item.name }}</strong>
-                    <small>{{ item.note }}</small>
+                    <small>{{ environmentItemNoteLabel(item.note) }}</small>
                   </div>
-                  <span class="home-check-badge">{{ item.value }}</span>
+                  <span class="home-check-badge">{{ environmentItemValueLabel(item.value) }}</span>
                 </div>
               </div>
             </article>
@@ -239,10 +239,10 @@
           <aside class="workspace-overview__list panel">
             <div class="workspace-overview__list-head">
               <div>
-                <h2>工作区总览</h2>
-                <span>{{ workspaces.length }} 个工作区 · {{ openedWorkspaces.length }} 个已打开</span>
+                <h2>{{ t('workspace.overviewTitle') }}</h2>
+                <span>{{ t('workspace.overviewSummary', { total: workspaces.length, opened: openedWorkspaces.length }) }}</span>
               </div>
-              <button class="icon-btn" title="新建工作区" @click="openWorkspaceCreateModal()">
+              <button class="icon-btn" :title="t('workspace.createWorkspace')" @click="openWorkspaceCreateModal()">
                 <AppIcon name="plus" :size="15" />
               </button>
             </div>
@@ -262,13 +262,13 @@
                   <strong>{{ workspace.name }}</strong>
                   <span>{{ workspace.rootPath }}</span>
                 </div>
-                <small>{{ runningCount(workspace) }} 运行 · {{ workspace.tabs.length }} 项目 · {{ totalPanes(workspace) }} 终端 · {{ workspaceGitBranchLabel(workspace) }}</small>
+                <small>{{ t('workspace.running', { count: runningCount(workspace) }) }} · {{ t('workspace.projects', { count: workspace.tabs.length }) }} · {{ t('workspace.terminals', { count: totalPanes(workspace) }) }} · {{ workspaceGitBranchLabel(workspace) }}</small>
               </button>
               <div class="workspace-overview__item-actions">
                 <button
                   type="button"
                   class="icon-btn icon-btn--mini workspace-overview__item-action workspace-overview__item-action--edit"
-                  title="编辑工作区"
+                  :title="t('workspace.editWorkspace')"
                   @click.stop="openWorkspaceEditModal(workspace.id)"
                 >
                   <AppIcon name="edit" :size="13" />
@@ -276,7 +276,7 @@
                 <button
                   type="button"
                   class="icon-btn icon-btn--mini workspace-overview__item-action workspace-overview__item-action--delete"
-                  title="删除工作区"
+                  :title="t('workspace.removeWorkspace')"
                   @click.stop="removeWorkspace(workspace.id)"
                 >
                   <AppIcon name="trash" :size="13" />
@@ -289,18 +289,18 @@
           <section class="workspace-carousel panel">
             <div class="workspace-carousel__header">
               <div>
-                <h2>工作区轮播</h2>
-                <span>通过左侧列表或箭头快速定位工作区。</span>
+                <h2>{{ t('workspace.carouselTitle') }}</h2>
+                <span>{{ t('workspace.carouselHint') }}</span>
               </div>
               <div class="workspace-carousel__actions">
                 <span class="meta-badge meta-badge--soft">{{ overviewWorkspaceIndex + 1 }} / {{ workspaces.length || 1 }}</span>
                 <button class="ghost-btn ghost-btn--small" @click="openQuickSearch()">
                   <AppIcon name="search" :size="14" />
-                  <span>搜索</span>
+                  <span>{{ t('home.search') }}</span>
                 </button>
                 <button class="ghost-btn ghost-btn--small ghost-btn--primary" @click="openWorkspaceCreateModal()">
                   <AppIcon name="workspace" :size="14" />
-                  <span>新建</span>
+                  <span>{{ t('workspace.create') }}</span>
                 </button>
               </div>
             </div>
@@ -324,25 +324,25 @@
                 <div class="workspace-carousel__card-top">
                   <div>
                     <h3>{{ activeOverviewWorkspace.name }}</h3>
-                    <p>{{ activeOverviewWorkspace.description || '暂无描述' }}</p>
+                    <p>{{ activeOverviewWorkspace.description || t('workspace.noDescription') }}</p>
                   </div>
                   <span class="meta-badge">{{ relativeTimeLabel(activeOverviewWorkspace.lastOpenedAt) }}</span>
                 </div>
                 <div class="path-row workspace-carousel__path">{{ activeOverviewWorkspace.rootPath }}</div>
                 <div class="workspace-carousel__metrics">
-                  <span>{{ activeOverviewWorkspace.tabs.length }} 项目</span>
-                  <span>{{ totalPanes(activeOverviewWorkspace) }} 终端</span>
-                  <span class="meta-running">运行中 {{ runningCount(activeOverviewWorkspace) }}</span>
+                  <span>{{ t('workspace.projects', { count: activeOverviewWorkspace.tabs.length }) }}</span>
+                  <span>{{ t('workspace.terminals', { count: totalPanes(activeOverviewWorkspace) }) }}</span>
+                  <span class="meta-running">{{ t('workspace.running', { count: runningCount(activeOverviewWorkspace) }) }}</span>
                   <span>{{ workspaceGitBranchLabel(activeOverviewWorkspace) }}</span>
                 </div>
                 <div class="workspace-card__tags">
                   <span v-for="tag in activeOverviewWorkspace.tags" :key="tag" class="tag-chip">{{ tag }}</span>
-                  <span v-if="!activeOverviewWorkspace.tags.length" class="tag-chip tag-chip--soft">未设置标签</span>
+                  <span v-if="!activeOverviewWorkspace.tags.length" class="tag-chip tag-chip--soft">{{ t('workspace.tagsEmpty') }}</span>
                 </div>
                 <div class="workspace-carousel__preview">
                   <div v-for="tab in activeOverviewWorkspace.tabs.slice(0, 3)" :key="tab.id" class="workspace-carousel__tab-row">
                     <strong>{{ tab.name }}</strong>
-                    <span>{{ countLeafPanes(tab.panes) }} Pane · {{ countPaneSessions(tab.panes) }} 终端</span>
+                    <span>{{ t('snapshot.panes', { count: countLeafPanes(tab.panes) }) }} · {{ t('snapshot.terminals', { count: countPaneSessions(tab.panes) }) }}</span>
                     <div class="mini-runtime-panes">
                       <span
                         v-for="pane in flattenLeafPanes(tab.panes).slice(0, 4)"
@@ -355,9 +355,9 @@
                   </div>
                 </div>
                 <div class="workspace-carousel__buttons">
-                  <button type="button" class="card-action-btn card-action-btn--primary" @click="openWorkspace(activeOverviewWorkspace.id)">打开工作区</button>
-                  <button type="button" class="card-action-btn" @click="openWorkspaceEditModal(activeOverviewWorkspace.id)">编辑工作区</button>
-                  <button type="button" class="card-action-btn card-action-btn--danger" @click="removeWorkspace(activeOverviewWorkspace.id)">删除工作区</button>
+                  <button type="button" class="card-action-btn card-action-btn--primary" @click="openWorkspace(activeOverviewWorkspace.id)">{{ t('workspace.openWorkspace') }}</button>
+                  <button type="button" class="card-action-btn" @click="openWorkspaceEditModal(activeOverviewWorkspace.id)">{{ t('workspace.editWorkspace') }}</button>
+                  <button type="button" class="card-action-btn card-action-btn--danger" @click="removeWorkspace(activeOverviewWorkspace.id)">{{ t('workspace.removeWorkspace') }}</button>
                 </div>
               </article>
               </transition>
@@ -384,9 +384,20 @@
             </div>
           </section>
         </section>
-        <section v-else-if="isWorkspaceWorkbench && selectedWorkspace" class="workbench-shell" :style="workbenchShellStyle">
-          <aside class="workbench-sidebar">
+        <section v-else-if="isWorkspaceWorkbench && selectedWorkspace" class="workbench-shell" :class="workbenchShellClasses" :style="workbenchShellStyle">
+          <aside class="workbench-sidebar" :class="{ 'workbench-sidebar--collapsed': workbenchExplorerCollapsed }">
             <section class="explorer-shell">
+              <div class="explorer-shell__bar">
+                <span class="explorer-shell__bar-title">{{ tr('Explorer', 'Explorer') }}</span>
+                <button
+                  type="button"
+                  class="explorer-shell__collapse-btn"
+                  :title="tr('收起 Explorer', 'Hide Explorer')"
+                  @click="toggleWorkbenchExplorerCollapsed()"
+                >
+                  <AppIcon name="chevron-right" :size="13" class="explorer-shell__collapse-icon" />
+                </button>
+              </div>
               <div class="explorer-list">
                 <article
                   v-for="workspace in openedWorkspaces"
@@ -412,8 +423,8 @@
                         </div>
                         <div class="explorer-workspace__stats">
                           <span><AppIcon name="recent" :size="12" />{{ relativeTimeLabel(workspace.lastOpenedAt) }}</span>
-                          <span><AppIcon name="tab" :size="12" />{{ workspace.tabs.length }} 项目</span>
-                          <span><AppIcon name="pane" :size="12" />{{ totalPanes(workspace) }} 终端</span>
+                          <span><AppIcon name="tab" :size="12" />{{ t('workspace.projects', { count: workspace.tabs.length }) }}</span>
+                          <span><AppIcon name="pane" :size="12" />{{ t('workspace.terminals', { count: totalPanes(workspace) }) }}</span>
                         </div>
                         <div class="explorer-workspace__branch">
                           <AppIcon name="copy" :size="12" />
@@ -423,7 +434,7 @@
                     </button>
 
                     <div class="explorer-workspace__menu-wrap">
-                      <button class="icon-btn icon-btn--mini" title="工作区操作" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleWorkspaceMenu(workspace.id, $event)">
+                      <button class="icon-btn icon-btn--mini" :title="t('common.actions.moreActions')" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleWorkspaceMenu(workspace.id, $event)">
                         <AppIcon name="more" :size="14" />
                       </button>
                       <PopoverMenu :open="activeWorkspaceMenu === workspace.id" :items="workspaceMenuItems(workspace)" :position="activeWorkspaceMenuPosition" />
@@ -444,7 +455,7 @@
                         <button
                           type="button"
                           class="explorer-project__toggle"
-                          :title="isTreeTabCollapsed(tab.id) ? '展开项目' : '收起项目'"
+                          :title="isTreeTabCollapsed(tab.id) ? t('workspace.expandAll') : t('workspace.collapseAll')"
                           @click.stop="toggleTreeTab(tab.id)"
                         >
                           <AppIcon
@@ -473,8 +484,8 @@
                               </span>
                             </div>
                             <div class="explorer-project__stats">
-                              <span>{{ countPaneSessions(tab.panes) }} 个终端</span>
-                              <span>{{ tabRunningCount(workspace, tab) }} 运行中</span>
+                              <span>{{ t('snapshot.terminals', { count: countPaneSessions(tab.panes) }) }}</span>
+                              <span>{{ t('workspace.running', { count: tabRunningCount(workspace, tab) }) }}</span>
                             </div>
                           </div>
                         </button>
@@ -482,7 +493,7 @@
                           <button
                             type="button"
                             class="icon-btn icon-btn--mini explorer-project__action"
-                            title="重命名项目"
+                            :title="t('common.actions.edit')"
                             @pointerdown="handleMenuTriggerPointerDown"
                             @click.stop="openExplorerTabRename(workspace.id, tab.id)"
                           >
@@ -491,7 +502,7 @@
                           <button
                             type="button"
                             class="icon-btn icon-btn--mini explorer-project__action"
-                            title="项目操作"
+                            :title="t('common.actions.moreActions')"
                             @pointerdown="handleMenuTriggerPointerDown"
                             @click.stop="toggleExplorerProjectMenu(workspace.id, tab.id, $event)"
                           >
@@ -539,36 +550,99 @@
                             </div>
                           </button>
                         </li>
-                        <li v-if="!explorerSessionItems(workspace, tab).length" class="tree-empty tree-empty--compact">当前项目还没有终端。</li>
+                        <li v-if="!explorerSessionItems(workspace, tab).length" class="tree-empty tree-empty--compact">{{ t('workspace.readyDesc') }}</li>
                       </ul>
                     </article>
 
                     <button type="button" class="explorer-list-action explorer-list-action--project" @click="createTab()">
                       <AppIcon name="tab" :size="14" />
-                      <span>新建项目</span>
+                      <span>{{ t('common.actions.newProject') }}</span>
                     </button>
                   </div>
                 </article>
 
                 <button type="button" class="explorer-list-action explorer-list-action--workspace" @click="openWorkspaceCreateModal()">
                   <AppIcon name="workspace" :size="14" />
-                  <span>新建工作区</span>
+                  <span>{{ t('common.actions.newWorkspace') }}</span>
                 </button>
               </div>
             </section>
           </aside>
 
           <div
+            v-if="!workbenchExplorerCollapsed && !immersiveWorkbenchActive"
             class="workbench-resizer"
-            title="拖拽调整 Explorer 宽度"
+            :title="tr('拖拽调整 Explorer 宽度', 'Drag to resize Explorer width')"
             @pointerdown="startWorkbenchResize"
           ></div>
 
           <section class="workbench-main">
-            <div class="runtime-header runtime-header--workbench">
+            <button
+              v-if="workbenchExplorerCollapsed && !immersiveWorkbenchActive"
+              type="button"
+              class="explorer-reveal"
+              :title="tr('显示 Explorer', 'Show Explorer')"
+              @click="toggleWorkbenchExplorerCollapsed()"
+            >
+              <AppIcon name="chevron-right" :size="13" />
+            </button>
+
+            <div
+              v-if="immersiveWorkbenchActive"
+              class="immersive-bar"
+            >
+              <button
+                type="button"
+                class="immersive-bar__btn immersive-bar__btn--explorer"
+                :class="{ 'is-active': !workbenchExplorerCollapsed }"
+                :title="workbenchExplorerCollapsed ? tr('显示 Explorer (Ctrl+B)', 'Show Explorer (Ctrl+B)') : tr('收起 Explorer (Ctrl+B)', 'Hide Explorer (Ctrl+B)')"
+                :aria-pressed="!workbenchExplorerCollapsed"
+                @click="toggleWorkbenchExplorerCollapsed()"
+              >
+                <AppIcon name="workspace" :size="14" />
+              </button>
+
+              <div class="immersive-bar__tabs runtime-tabs runtime-tabs--embedded">
+                <button
+                  v-for="tab in selectedWorkspace.tabs"
+                  :key="tab.id"
+                  class="tab immersive-tab"
+                  :class="{ 'tab--active': activeRuntimeTabId === tab.id }"
+                  :title="runtimeTabLabel(tab)"
+                  @click="openProjectWorkspace(selectedWorkspace.id, tab.id)"
+                  @contextmenu.prevent.stop="toggleRuntimeTabMenu(tab.id, $event)"
+                >
+                  <span>{{ runtimeTabLabel(tab) }}</span>
+                  <small v-if="countPaneSessions(tab.panes)" class="tab-badge">{{ countPaneSessions(tab.panes) }}</small>
+                </button>
+                <PopoverMenu :open="Boolean(activeRuntimeTabMenuId)" :items="runtimeTabMenuItems" :position="activeRuntimeTabMenuPosition" />
+              </div>
+
+              <button
+                type="button"
+                class="immersive-bar__btn immersive-bar__btn--exit"
+                :title="tr('退出沉浸模式', 'Exit immersive mode')"
+                :aria-pressed="immersiveWorkbenchActive"
+                @click="toggleWorkbenchImmersive()"
+              >
+                <AppIcon name="detail" :size="14" />
+              </button>
+            </div>
+
+            <div v-else class="runtime-header runtime-header--workbench">
               <div class="runtime-header__workspace runtime-header__workspace--compact">
+                <button
+                  type="button"
+                  class="explorer-toggle-inline"
+                  :class="{ 'explorer-toggle-inline--open': !workbenchExplorerCollapsed }"
+                  :title="workbenchExplorerCollapsed ? tr('显示 Explorer (Ctrl+B)', 'Show Explorer (Ctrl+B)') : tr('收起 Explorer (Ctrl+B)', 'Hide Explorer (Ctrl+B)')"
+                  :aria-pressed="!workbenchExplorerCollapsed"
+                  @click="toggleWorkbenchExplorerCollapsed()"
+                >
+                  <AppIcon name="workspace" :size="14" />
+                </button>
                 <strong>{{ selectedWorkspace.name }}</strong>
-                <span>{{ activeRuntimeTab?.name || '未选择项目' }}</span>
+                <span>{{ activeRuntimeTab?.name || tr('未选择项目', 'No project selected') }}</span>
               </div>
 
               <div class="runtime-tabs runtime-tabs--embedded">
@@ -584,11 +658,25 @@
                   <span>{{ runtimeTabLabel(tab) }}</span>
                   <small class="tab-badge">{{ countPaneSessions(tab.panes) }}</small>
                 </button>
-                <button type="button" class="tab tab--create" title="新建项目" @click="createTab()">
+                <button type="button" class="tab tab--create" :title="t('common.actions.newProject')" @click="createTab()">
                   <AppIcon name="plus" :size="14" />
                 </button>
                 <PopoverMenu :open="Boolean(activeRuntimeTabMenuId)" :items="runtimeTabMenuItems" :position="activeRuntimeTabMenuPosition" />
                 
+              </div>
+
+              <div class="runtime-header__utility-strip">
+                <button
+                  type="button"
+                  class="ghost-btn ghost-btn--small runtime-header__control"
+                  :class="{ 'ghost-btn--active': immersiveWorkbenchActive }"
+                  :title="immersiveWorkbenchActive ? tr('退出沉浸模式', 'Exit immersive mode') : tr('进入沉浸模式', 'Enter immersive mode')"
+                  :aria-pressed="immersiveWorkbenchActive"
+                  @click="toggleWorkbenchImmersive()"
+                >
+                  <AppIcon name="detail" :size="14" />
+                  <span>{{ tr('沉浸模式', 'Immersive') }}</span>
+                </button>
               </div>
 
               <div class="runtime-header__ai-actions">
@@ -599,7 +687,7 @@
                   @click="openAiHistoryDrawer = true"
                 >
                   <AppIcon name="recent" :size="14" />
-                  <span>AI 历史</span>
+                  <span>{{ t('ai.history') }}</span>
                   <small>{{ currentWorkspaceAiCliSessions.length }}</small>
                 </button>
                 <button
@@ -610,7 +698,7 @@
                   @click="toggleAiAssistantVisibility()"
                 >
                   <AppIcon name="bolt" :size="14" />
-                  <span>辅助层</span>
+                  <span>{{ t('ai.assist') }}</span>
                 </button>
               </div>
             </div>
@@ -628,11 +716,11 @@
                     <div class="terminal-ready-state__icon">
                       <AppIcon name="terminal" :size="28" />
                     </div>
-                    <strong>准备就绪</strong>
-                    <span>当前项目还没有终端，可先在左侧切换项目，或创建一个新的终端窗口。</span>
+                    <strong>{{ t('workspace.readyTitle') }}</strong>
+                    <span>{{ t('workspace.readyDesc') }}</span>
                     <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary" @click="createPane()">
                       <AppIcon name="pane" :size="14" />
-                      <span>新建终端</span>
+                      <span>{{ t('common.actions.newTerminal') }}</span>
                     </button>
                   </div>
                 </div>
@@ -641,13 +729,13 @@
 
             <div class="runtime-footer">
               <div class="runtime-footer__meta">
-                <div>当前工作区：{{ selectedWorkspace.name }}</div>
-                <div>当前项目：{{ activeRuntimeTab?.name || '未选择' }}</div>
-                <div>终端数：{{ countPaneSessions(activeRuntimeTab?.panes || []) }}</div>
-                <div v-if="defaultWorkspaceSnapshot">最近现场：{{ defaultWorkspaceSnapshot.name }}</div>
+                <div>{{ t('workspace.currentWorkspace', { name: selectedWorkspace.name }) }}</div>
+                <div>{{ t('workspace.currentProject', { name: activeRuntimeTab?.name || t('common.none') }) }}</div>
+                <div>{{ t('workspace.terminalCount', { count: countPaneSessions(activeRuntimeTab?.panes || []) }) }}</div>
+                <div v-if="defaultWorkspaceSnapshot">{{ t('workspace.recentSnapshot', { name: defaultWorkspaceSnapshot.name }) }}</div>
               </div>
               <div class="runtime-footer__actions">
-                <div class="restore-strategy" role="group" aria-label="恢复策略">
+                <div class="restore-strategy" role="group" :aria-label="t('workspace.splitStrategy')">
                   <button
                     v-for="option in restoreCommandStrategyOptions"
                     :key="option.value"
@@ -662,7 +750,7 @@
                 </div>
                 <button type="button" class="ghost-btn ghost-btn--small" @click="saveCurrentWorkspaceSnapshot()">
                   <AppIcon name="copy" :size="14" />
-                  <span>保存现场</span>
+                  <span>{{ t('common.actions.saveSnapshot') }}</span>
                 </button>
                 <button
                   type="button"
@@ -671,11 +759,11 @@
                   @click="saveActiveTabAsWorkflowTemplate()"
                 >
                   <AppIcon name="template" :size="14" />
-                  <span>保存为模板</span>
+                  <span>{{ t('common.actions.saveAsTemplate') }}</span>
                 </button>
                 <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary" :disabled="!defaultWorkspaceSnapshot" @click="restoreDefaultWorkspaceSnapshot()">
                   <AppIcon name="refresh" :size="14" />
-                  <span>恢复现场</span>
+                  <span>{{ t('common.actions.restoreSnapshot') }}</span>
                 </button>
               </div>
             </div>
@@ -686,7 +774,7 @@
             <div class="side-card side-card--summary">
               <div class="summary-hero">
                 <div class="summary-hero__head">
-                  <span class="meta-badge meta-badge--soft summary-badge">工作区</span>
+                  <span class="meta-badge meta-badge--soft summary-badge">{{ t('workspace.detailTitle') }}</span>
                   <h3>{{ selectedWorkspace.name }}</h3>
                   <div class="summary-path">
                     <AppIcon name="folder" :size="15" />
@@ -695,7 +783,7 @@
                 </div>
                 <div class="summary-metrics">
                   <div class="summary-metric">
-                    <span class="summary-metric__label"><AppIcon name="recent" :size="14" />最近使用</span>
+                    <span class="summary-metric__label"><AppIcon name="recent" :size="14" />{{ t('workspace.recentUsed') }}</span>
                     <strong>{{ relativeTimeLabel(selectedWorkspace.lastOpenedAt) }}</strong>
                   </div>
                   <div class="summary-metric">
@@ -714,19 +802,19 @@
               <div class="side-actions">
                 <button class="ghost-btn ghost-btn--small" @click="openTerminalEntriesModal = true">
                   <AppIcon name="terminal" :size="14" />
-                  <span>运行配置</span>
+                  <span>{{ t('topbar.runConfigs') }}</span>
                 </button>
-                <button class="ghost-btn ghost-btn--small" @click="openWorkspaceEditModal(selectedWorkspace.id)">编辑工作区</button>
-                <button class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeWorkspace(selectedWorkspace.id)">删除工作区</button>
+                <button class="ghost-btn ghost-btn--small" @click="openWorkspaceEditModal(selectedWorkspace.id)">{{ t('workspace.editWorkspace') }}</button>
+                <button class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeWorkspace(selectedWorkspace.id)">{{ t('workspace.removeWorkspace') }}</button>
               </div>
             </div>
 
             <div class="side-card">
               <div class="side-card__header side-card__header--tree">
-                <h3>层级结构</h3>
+                <h3>{{ t('workspace.hierarchy') }}</h3>
                 <div class="tree-actions">
-                  <button class="ghost-btn ghost-btn--small" @click="expandAllTreeTabs()">全部展开</button>
-                  <button class="ghost-btn ghost-btn--small" @click="collapseAllTreeTabs()">全部收起</button>
+                  <button class="ghost-btn ghost-btn--small" @click="expandAllTreeTabs()">{{ t('workspace.expandAll') }}</button>
+                  <button class="ghost-btn ghost-btn--small" @click="collapseAllTreeTabs()">{{ t('workspace.collapseAll') }}</button>
                 </div>
               </div>
               <ul class="tree-list">
@@ -735,7 +823,7 @@
                     <AppIcon class="tree-node__chevron" :class="{ 'tree-node__chevron--open': !isTreeTabCollapsed(tab.id) }" name="chevron-right" :size="12" />
                     <AppIcon name="tab" :size="15" />
                     <strong>{{ tab.name }}</strong>
-                    <span class="tree-meta">{{ countLeafPanes(tab.panes) }} 个 Pane</span>
+                    <span class="tree-meta">{{ t('workspace.panesCount', { count: countLeafPanes(tab.panes) }) }}</span>
                   </button>
                   <ul v-if="countLeafPanes(tab.panes) && !isTreeTabCollapsed(tab.id)" class="tree-list tree-list--nested">
                     <li
@@ -748,11 +836,11 @@
                         <AppIcon name="pane" :size="15" />
                         <span>{{ pane.name }}</span>
                         <span class="status-dot" :class="{ 'status-dot--running': paneHasRunningSession(pane) }"></span>
-                        <span class="tree-status">{{ paneHasRunningSession(pane) ? '运行中' : '待命' }}</span>
+                        <span class="tree-status">{{ paneHasRunningSession(pane) ? t('ai.states.running') : t('workspace.standby') }}</span>
                       </button>
                     </li>
                   </ul>
-                  <div v-else-if="!isTreeTabCollapsed(tab.id)" class="empty-inline">当前 Tab 暂无 Pane。</div>
+                  <div v-else-if="!isTreeTabCollapsed(tab.id)" class="empty-inline">{{ t('workspace.noPaneInTab') }}</div>
                 </li>
               </ul>
             </div>
@@ -765,10 +853,10 @@
                 <div class="tab-block__title">
                   <AppIcon name="tab" :size="16" />
                   <h3>{{ tab.name }}</h3>
-                  <span class="tab-label">{{ countLeafPanes(tab.panes) }} 个 Pane · {{ countPaneSessions(tab.panes) }} 个终端</span>
+                  <span class="tab-label">{{ t('workspace.panesCount', { count: countLeafPanes(tab.panes) }) }} · {{ t('snapshot.terminals', { count: countPaneSessions(tab.panes) }) }}</span>
                 </div>
                 <div class="tab-block__actions">
-                  <button class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeTab(tab.id)">删除 Tab</button>
+                  <button class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeTab(tab.id)">{{ t('workspace.deleteTab') }}</button>
                 </div>
               </div>
 
@@ -785,33 +873,33 @@
                       <AppIcon name="pane" :size="15" />
                       <strong>{{ pane.name }}</strong>
                       <span class="status-badge" :class="{ 'status-badge--running': paneHasRunningSession(pane) }">
-                        {{ paneHasRunningSession(pane) ? '运行中' : '待命' }}
+                        {{ paneHasRunningSession(pane) ? t('ai.states.running') : t('workspace.standby') }}
                       </span>
                     </div>
                     <span class="pane-line__path">{{ entryById(pane.terminalEntryId)?.workingDirectory || pane.pathLabel }}</span>
                   </div>
                   <div class="pane-line__meta">
                     <span class="meta-inline">
-                      <span class="meta-inline__label">默认命令</span>
-                      <code class="meta-inline__value">{{ entryById(pane.terminalEntryId)?.defaultCommand || '未设置' }}</code>
+                      <span class="meta-inline__label">{{ t('workspace.defaultCommand') }}</span>
+                      <code class="meta-inline__value">{{ entryById(pane.terminalEntryId)?.defaultCommand || t('workspace.notSet') }}</code>
                     </span>
                     <span class="meta-inline">
-                      <span class="meta-inline__label">最后命令</span>
-                      <code class="meta-inline__value meta-inline__value--muted">{{ entryById(pane.terminalEntryId)?.lastCommand || '无' }}</code>
+                      <span class="meta-inline__label">{{ t('workspace.lastCommand') }}</span>
+                      <code class="meta-inline__value meta-inline__value--muted">{{ entryById(pane.terminalEntryId)?.lastCommand || t('workspace.noneValue') }}</code>
                     </span>
                     <span class="meta-inline">
-                      <span class="meta-inline__label">启动模式</span>
+                      <span class="meta-inline__label">{{ t('workspace.launchMode') }}</span>
                       <span class="meta-inline__value meta-inline__value--accent">{{ launchModeLabel(entryById(pane.terminalEntryId)?.launchMode) }}</span>
                     </span>
                     <span v-if="entryById(pane.terminalEntryId)?.tags?.length" class="meta-inline meta-inline--tags">
-                      <span class="meta-inline__label">标签</span>
+                      <span class="meta-inline__label">{{ t('workspace.tags') }}</span>
                       <span class="meta-inline__value meta-inline__value--muted">{{ entryById(pane.terminalEntryId)?.tags.join(' · ') }}</span>
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div v-else class="empty-inline empty-inline--block">当前 Tab 暂无 Pane，可在运行态中新增。</div>
+              <div v-else class="empty-inline empty-inline--block">{{ t('workspace.noPaneInTab') }}</div>
             </article>
 
           </div>
@@ -820,39 +908,39 @@
         <section class="runtime-layout" v-else-if="appSection === 'workspace' && workspaceView === 'runtime' && selectedWorkspace">
           <div class="runtime-header">
             <div>
-              <h2>运行态</h2>
-              <p>工作区 > Tab > Pane > 终端实例。统一管理项目视图、分屏布局与终端会话。</p>
+              <h2>{{ t('workspace.runtimeTitle') }}</h2>
+              <p>{{ t('workspace.runtimeIntro') }}</p>
             </div>
             <div class="runtime-header__actions">
               <div class="layout-toggle-group">
                 <button class="ghost-btn ghost-btn--small" :class="{ 'ghost-btn--active': activeRuntimeTab?.layoutMode === 'grid' }" @click="setActiveTabLayout('grid')">
                   <AppIcon name="workspace" :size="14" />
-                  <span>网格</span>
+                  <span>{{ t('workspace.layoutGrid') }}</span>
                 </button>
                 <button class="ghost-btn ghost-btn--small" :class="{ 'ghost-btn--active': activeRuntimeTab?.layoutMode === 'horizontal' }" @click="setActiveTabLayout('horizontal')">
                   <AppIcon name="copy" :size="14" />
-                  <span>横向</span>
+                  <span>{{ t('workspace.layoutHorizontal') }}</span>
                 </button>
                 <button class="ghost-btn ghost-btn--small" :class="{ 'ghost-btn--active': activeRuntimeTab?.layoutMode === 'vertical' }" @click="setActiveTabLayout('vertical')">
                   <AppIcon name="pane" :size="14" />
-                  <span>纵向</span>
+                  <span>{{ t('workspace.layoutVertical') }}</span>
                 </button>
               </div>
               <button class="ghost-btn" @click="createTab()">
                 <AppIcon name="tab" :size="15" />
-                <span>新建标签页</span>
+                <span>{{ t('workspace.newTab') }}</span>
               </button>
               <button class="ghost-btn" @click="createPane()">
                 <AppIcon name="pane" :size="15" />
-                <span>新增分屏 Pane</span>
+                <span>{{ t('workspace.newPane') }}</span>
               </button>
               <button class="ghost-btn" :disabled="!activeRuntimeTab || !countLeafPanes(activeRuntimeTab?.panes || [])" @click="saveActiveTabAsWorkflowTemplate()">
                 <AppIcon name="copy" :size="15" />
-                <span>保存当前项目为模板</span>
+                <span>{{ t('workspace.saveAsTemplate') }}</span>
               </button>
               <button class="ghost-btn" @click="openHelpDrawer = true">
                 <AppIcon name="info" :size="15" />
-                <span>布局说明</span>
+                <span>{{ t('workspace.layoutGuide') }}</span>
               </button>
             </div>
           </div>
@@ -885,17 +973,17 @@
                   <span>{{ entryById(pane.terminalEntryId)?.workingDirectory || pane.pathLabel }}</span>
                 </div>
                 <div class="pane__actions">
-                  <button class="icon-btn" title="打开目录" @click="openPaneDirectory(pane)">
+                  <button class="icon-btn" :title="t('common.actions.openDirectory')" @click="openPaneDirectory(pane)">
                     <AppIcon name="folder" :size="15" />
                   </button>
-                  <button class="icon-btn" title="复制路径" @click="copyPanePath(pane)">
+                  <button class="icon-btn" :title="t('common.actions.copyPath')" @click="copyPanePath(pane)">
                     <AppIcon name="copy" :size="15" />
                   </button>
-                  <button class="icon-btn" title="拆分到右侧" @click="splitLeafPane(pane.id, 'horizontal')">
+                  <button class="icon-btn" :title="t('common.actions.splitRight')" @click="splitLeafPane(pane.id, 'horizontal')">
                     <AppIcon name="pane" :size="15" />
                   </button>
                   <div class="pane__more-wrap">
-                    <button class="icon-btn" title="更多操作" @click.stop="togglePaneMenu(pane.id)">
+                    <button class="icon-btn" :title="t('common.actions.moreActions')" @click.stop="togglePaneMenu(pane.id)">
                       <AppIcon name="more" :size="15" />
                     </button>
                     <PopoverMenu :open="activePaneMenu === pane.id" :items="paneMenuItems(pane)" />
@@ -906,7 +994,7 @@
                 <div class="pane__statusbar">
                   <div class="pane__status-meta">
                     <span class="status-badge" :class="{ 'status-badge--running': paneHasRunningSession(pane) }">
-                      {{ paneHasRunningSession(pane) ? '运行中' : '待命' }}
+                      {{ paneHasRunningSession(pane) ? t('ai.states.running') : t('workspace.standby') }}
                     </span>
                     <span>{{ splitLabel(pane.splitDirection) }}</span>
                   </div>
@@ -914,7 +1002,7 @@
                     <span v-for="tag in entryById(pane.terminalEntryId)?.tags || []" :key="`${pane.id}-${tag}`" class="tag-chip tag-chip--soft">{{ tag }}</span>
                   </div>
                   <div class="pane__binding">
-                    <span>运行配置</span>
+                    <span>{{ t('common.actions.runConfigs') }}</span>
                     <div class="pane__binding-wrap">
                     <button
                       type="button"
@@ -922,7 +1010,7 @@
                       :class="{ 'binding-trigger--active': !!pane.terminalEntryId }"
                       @click.stop="togglePaneBindingMenu(pane.id)"
                     >
-                      <span>{{ entryById(pane.terminalEntryId)?.name || '未绑定运行配置' }}</span>
+                      <span>{{ entryById(pane.terminalEntryId)?.name || t('workspace.unboundConfig') }}</span>
                       <AppIcon name="chevron-right" :size="14" />
                     </button>
                     <PopoverMenu :open="activePaneBindingMenu === pane.id" :items="paneBindingItems(pane)" />
@@ -934,24 +1022,24 @@
                 <div class="terminal-config-card" :style="terminalPreviewStyle">
                   <div class="terminal-config-card__head">
                     <div>
-                      <strong>运行配置</strong>
-                      <span>{{ entryById(pane.terminalEntryId)?.name || '当前 Pane 未绑定运行配置' }}</span>
+                      <strong>{{ t('common.actions.runConfigs') }}</strong>
+                      <span>{{ entryById(pane.terminalEntryId)?.name || t('workspace.unboundConfigLong') }}</span>
                     </div>
-                    <button type="button" class="icon-btn icon-btn--bolt" title="快捷命令" @click.stop="activeCommandPanelPaneId = activeCommandPanelPaneId === pane.id ? null : pane.id">
+                    <button type="button" class="icon-btn icon-btn--bolt" :title="t('common.actions.quickCommands')" @click.stop="activeCommandPanelPaneId = activeCommandPanelPaneId === pane.id ? null : pane.id">
                       <AppIcon name="bolt" :size="15" />
                     </button>
                   </div>
                   <div v-if="activeCommandPanelPaneId === pane.id" class="command-panel">
                     <div class="command-panel__section">
-                      <span class="command-panel__title">默认命令</span>
-                      <code>{{ entryById(pane.terminalEntryId)?.defaultCommand || '未配置' }}</code>
+                      <span class="command-panel__title">{{ t('workspace.defaultCommand') }}</span>
+                      <code>{{ entryById(pane.terminalEntryId)?.defaultCommand || t('workspace.notConfigured') }}</code>
                     </div>
                     <div class="command-panel__section">
-                      <span class="command-panel__title">最后命令</span>
-                      <code>{{ entryById(pane.terminalEntryId)?.lastCommand || '未记录' }}</code>
+                      <span class="command-panel__title">{{ t('workspace.lastCommand') }}</span>
+                      <code>{{ entryById(pane.terminalEntryId)?.lastCommand || t('workspace.notRecorded') }}</code>
                     </div>
                     <div class="command-panel__section" v-if="recentCommandsByPane[pane.id]?.length">
-                      <span class="command-panel__title">最近命令</span>
+                      <span class="command-panel__title">{{ tr('最近命令', 'Recent commands') }}</span>
                       <button v-for="command in recentCommandsByPane[pane.id]" :key="`${pane.id}-${command}`" type="button" class="command-chip" @click.stop="insertPaneText(pane, command)">
                         <span>{{ command }}</span>
                       </button>
@@ -960,72 +1048,72 @@
                 </div>
                 <div class="terminal-lines" :style="terminalPreviewStyle">
                   <div>
-                    <span class="terminal-key"># 绑定运行配置</span>
-                    <span class="terminal-value terminal-value--accent">{{ entryById(pane.terminalEntryId)?.name || '未绑定' }}</span>
+                    <span class="terminal-key"># {{ t('common.actions.runConfigs') }}</span>
+                    <span class="terminal-value terminal-value--accent">{{ entryById(pane.terminalEntryId)?.name || t('workspace.unboundConfig') }}</span>
                   </div>
                   <div>
-                    <span class="terminal-key"># 默认命令</span>
-                    <span class="terminal-value">{{ entryById(pane.terminalEntryId)?.defaultCommand || '未设置' }}</span>
+                    <span class="terminal-key"># {{ t('workspace.defaultCommand') }}</span>
+                    <span class="terminal-value">{{ entryById(pane.terminalEntryId)?.defaultCommand || t('workspace.notSet') }}</span>
                   </div>
                   <div>
-                    <span class="terminal-key"># 最后命令</span>
-                    <span class="terminal-value terminal-value--muted">{{ entryById(pane.terminalEntryId)?.lastCommand || '无' }}</span>
+                    <span class="terminal-key"># {{ t('workspace.lastCommand') }}</span>
+                    <span class="terminal-value terminal-value--muted">{{ entryById(pane.terminalEntryId)?.lastCommand || t('workspace.noneValue') }}</span>
                   </div>
                   <div>
-                    <span class="terminal-key"># 启动模式</span>
+                    <span class="terminal-key"># {{ t('workspace.launchMode') }}</span>
                     <span class="terminal-value terminal-value--accent">{{ launchModeLabel(entryById(pane.terminalEntryId)?.launchMode) }}</span>
                   </div>
                   <div class="terminal-space"></div>
                   <div v-if="pane.terminalEntryId" class="terminal-hint">
                     <AppIcon name="info" :size="14" />
-                    <span>当前 Pane 已绑定运行配置，可复用该配置的目录、命令与环境变量。</span>
+                    <span>{{ t('workspace.boundConfigHint') }}</span>
                   </div>
                   <div v-else class="terminal-hint">
                     <AppIcon name="info" :size="14" />
-                    <span>当前 Pane 还未绑定运行配置，可先绑定一个运行配置，或直接使用闪电按钮查看快捷命令。</span>
+                    <span>{{ t('workspace.unboundConfigHint') }}</span>
                   </div>
                 </div>
               </div>
             </section>
 
             <section v-if="!countLeafPanes(activeRuntimeTab?.panes || [])" class="pane pane--empty">
-              <div class="pane__body">当前 Tab 暂无 Pane，可使用“新增分屏 Pane”创建。</div>
+              <div class="pane__body">{{ t('workspace.noPaneRuntime') }}</div>
             </section>
           </div>
 
           <div class="runtime-footer">
-            <div>当前工作区：{{ selectedWorkspace.name }}</div>
-            <div>当前 Tab：{{ activeRuntimeTab?.name || '未选择' }}</div>
-            <div>Pane 数：{{ countLeafPanes(activeRuntimeTab?.panes || []) }}</div>
+            <div>{{ t('workspace.currentWorkspace', { name: selectedWorkspace.name }) }}</div>
+            <div>{{ t('workspace.currentTab', { name: activeRuntimeTab?.name || t('common.none') }) }}</div>
+            <div>{{ t('workspace.paneCount', { count: countLeafPanes(activeRuntimeTab?.panes || []) }) }}</div>
           </div>
         </section>
 
         <section class="p45-page p45-page--recent" v-else-if="appSection === 'recent'">
           <header class="p45-hero p45-hero--recent panel">
             <div class="p45-hero__copy">
-              <h2>最近</h2>
-              <p>汇总最近工作区、项目、终端、命令和布局快照，减少重复查找。</p>
+              <h2>{{ t('recent.title') }}</h2>
+              <p>{{ t('recent.intro') }}</p>
             </div>
             <div class="p45-hero__stats">
               <div class="p45-stat-card">
                 <span class="p45-stat-card__icon"><AppIcon name="recent" :size="14" /></span>
                 <div class="p45-stat-card__body">
                   <strong>{{ recentFilters[0]?.count ?? 0 }}</strong>
-                  <small>记录</small>
+                  <small>{{ t('recent.records') }}</small>
                 </div>
               </div>
               <div class="p45-stat-card">
                 <span class="p45-stat-card__icon"><AppIcon name="bolt" :size="14" /></span>
                 <div class="p45-stat-card__body">
                   <strong>{{ recentFilters.find((item) => item.id === 'command')?.count ?? 0 }}</strong>
-                  <small>历史命令</small>
+                  <small>{{ t('recent.commandHistory') }}</small>
                 </div>
               </div>
               <div class="p45-stat-card">
                 <span class="p45-stat-card__icon"><AppIcon name="copy" :size="14" /></span>
                 <div class="p45-stat-card__body">
                   <strong>{{ recentFilters.find((item) => item.id === 'snapshot')?.count ?? 0 }}</strong>
-                  <small>现场</small>
+                  <small>{{ t('recent.snapshots') }}</small>
                 </div>
               </div>
             </div>
@@ -1056,7 +1144,7 @@
               >
                 <span class="filter-dropdown__label">
                   <span class="filter-dropdown__icon"><AppIcon name="workspace" :size="13" /></span>
-                  <span>工作区</span>
+                  <span>{{ t('recent.workspaceFilter') }}</span>
                 </span>
                 <span class="filter-dropdown__value">{{ recentWorkspaceFilterLabel }}</span>
                 <AppIcon name="chevron-down" :size="14" />
@@ -1087,7 +1175,7 @@
               @click="openRecentRecycleBinModal = true"
             >
               <AppIcon name="trash" :size="13" />
-              <span>回收站 {{ hiddenRecentItemCount }}</span>
+              <span>{{ t('recent.recycleBin', { count: hiddenRecentItemCount }) }}</span>
             </button>
           </div>
 
@@ -1097,8 +1185,8 @@
                 <AppIcon name="bolt" :size="16" />
               </div>
               <div class="p45-hint-card__body">
-                <strong>这里是历史命令回顾区</strong>
-                <p>点击整行会回到命令原本所在的终端；`复制命令` 适合复用，`回填当前输入框` 只会把命令写回你当前选中的终端输入框，不会自动发送。</p>
+                <strong>{{ t('recent.commandHintTitle') }}</strong>
+                <p>{{ t('recent.commandHintDesc') }}</p>
               </div>
             </div>
             <article
@@ -1117,13 +1205,13 @@
                 <span class="p45-row__snapshot-info">
                   <span class="p45-row__icon p45-row__icon--snapshot"><AppIcon :name="item.icon" :size="15" /></span>
                   <span class="p45-row__snapshot-copy">
-                    <span v-if="recentItemIsPinned(item.id)" class="p45-row__pin-label"><AppIcon name="star" :size="11" />已置顶</span>
+                    <span v-if="recentItemIsPinned(item.id)" class="p45-row__pin-label"><AppIcon name="star" :size="11" />{{ t('recent.pinned') }}</span>
                     <strong>{{ item.title }}</strong>
                     <small>{{ item.description }}</small>
                     <em>{{ item.meta }}</em>
                     <span class="p45-row__snapshot-metrics">
-                      <span class="meta-badge meta-badge--soft">{{ item.previewTabs.length }} 项目</span>
-                      <span class="meta-badge meta-badge--soft">{{ item.previewTabs.reduce((count, tab) => count + countPaneSessions(tab.panes), 0) }} 终端</span>
+                      <span class="meta-badge meta-badge--soft">{{ t('recent.bestWorkspace', { count: item.previewTabs.length }) }}</span>
+                      <span class="meta-badge meta-badge--soft">{{ t('recent.bestSessions', { count: item.previewTabs.reduce((count, tab) => count + countPaneSessions(tab.panes), 0) }) }}</span>
                     </span>
                   </span>
                 </span>
@@ -1138,48 +1226,48 @@
                 <span class="p45-row__actions p45-row__actions--snapshot">
                   <button type="button" class="ghost-btn ghost-btn--small" @click.stop="togglePinRecentItem(item.id)">
                     <AppIcon :name="recentItemIsPinned(item.id) ? 'star' : 'recent'" :size="13" />
-                    <span>{{ recentItemIsPinned(item.id) ? '取消置顶' : '置顶' }}</span>
+                    <span>{{ recentItemIsPinned(item.id) ? t('recent.unpin') : t('recent.pin') }}</span>
                   </button>
                   <span class="meta-badge meta-badge--soft">{{ item.badge }}</span>
                   <button type="button" class="ghost-btn ghost-btn--danger ghost-btn--small" @click.stop="removeWorkspaceSnapshot(item.workspaceId || '', item.snapshotId || '')">
                     <AppIcon name="trash" :size="13" />
-                    <span>删除现场</span>
+                    <span>{{ t('recent.deleteSnapshot') }}</span>
                   </button>
                 </span>
               </template>
               <template v-else>
                 <span class="p45-row__icon"><AppIcon :name="item.icon" :size="15" /></span>
                 <span class="p45-row__body">
-                  <span v-if="recentItemIsPinned(item.id)" class="p45-row__pin-label"><AppIcon name="star" :size="11" />已置顶</span>
+                  <span v-if="recentItemIsPinned(item.id)" class="p45-row__pin-label"><AppIcon name="star" :size="11" />{{ t('recent.pinned') }}</span>
                   <strong>{{ item.title }}</strong>
                   <small>{{ item.description }}</small>
                   <em>{{ item.meta }}</em>
                   <span v-if="item.command && item.sourceSessionLabel" class="p45-row__meta-badges">
-                    <span class="meta-badge meta-badge--soft">来源 {{ item.sourceSessionLabel }}</span>
+                    <span class="meta-badge meta-badge--soft">{{ t('recent.source', { label: item.sourceSessionLabel }) }}</span>
                   </span>
                 </span>
                 <span class="p45-row__actions">
                   <button type="button" class="ghost-btn ghost-btn--small" @click.stop="togglePinRecentItem(item.id)">
                     <AppIcon :name="recentItemIsPinned(item.id) ? 'star' : 'recent'" :size="13" />
-                    <span>{{ recentItemIsPinned(item.id) ? '取消置顶' : '置顶' }}</span>
+                    <span>{{ recentItemIsPinned(item.id) ? t('recent.unpin') : t('recent.pin') }}</span>
                   </button>
                   <span class="meta-badge meta-badge--soft">{{ item.badge }}</span>
                   <button v-if="item.type !== 'workspace'" type="button" class="ghost-btn ghost-btn--small" @click.stop="hideRecentItem(item.id)">
                     <AppIcon name="close" :size="13" />
-                    <span>移除</span>
+                    <span>{{ t('recent.remove') }}</span>
                   </button>
-                  <button v-if="item.command" type="button" class="ghost-btn ghost-btn--small" @click.stop="copyCommandText(item.command || '')">
-                    <AppIcon name="copy" :size="13" />
-                    <span>复制命令</span>
-                  </button>
+                    <button v-if="item.command" type="button" class="ghost-btn ghost-btn--small" @click.stop="copyCommandText(item.command || '')">
+                      <AppIcon name="copy" :size="13" />
+                      <span>{{ t('search.copyCommand') }}</span>
+                    </button>
                   <button v-if="item.command" type="button" class="ghost-btn ghost-btn--small" @click.stop="openRecentCommandTarget(item.workspaceId, item.entryId, item.command)">
                     <AppIcon name="recent" :size="13" />
-                    <span>回到来源终端</span>
+                    <span>{{ t('recent.backToSource') }}</span>
                   </button>
-                  <button v-if="item.command" type="button" class="ghost-btn ghost-btn--small" @click.stop="insertRecentCommand(item)">
-                    <AppIcon name="terminal" :size="13" />
-                    <span>回填当前输入框</span>
-                  </button>
+                    <button v-if="item.command" type="button" class="ghost-btn ghost-btn--small" @click.stop="insertRecentCommand(item)">
+                      <AppIcon name="terminal" :size="13" />
+                      <span>{{ t('search.insertCurrentInput') }}</span>
+                    </button>
                 </span>
               </template>
             </article>
@@ -1187,8 +1275,8 @@
             <div v-if="!filteredRecentItems.length" class="empty-state">
               <div class="empty-state__icon"><AppIcon name="recent" :size="18" /></div>
               <div class="empty-state__body">
-                <strong>暂无匹配的最近记录</strong>
-                <p>{{ recentFilter === 'command' ? '当前没有可回顾的历史命令。先在终端里执行过命令后，这里才会出现可复制、可回填的历史记录。' : '切换筛选条件，或先打开工作区、创建终端和保存现场。' }}</p>
+                <strong>{{ t('recent.noItemsTitle') }}</strong>
+                <p>{{ recentFilter === 'command' ? t('recent.noCommandsDesc') : t('recent.noItemsDesc') }}</p>
               </div>
             </div>
           </section>
@@ -1197,9 +1285,9 @@
         <section class="p45-page p45-page--templates" v-else-if="appSection === 'templates'">
           <header class="p45-hero p45-hero--templates panel">
             <div class="p45-hero__copy">
-              <h2>模板</h2>
-              <p>系统默认提供 AI CLI、前端、后端和全栈模板；需要保存当前项目时，请回到工作区底部操作栏使用“保存为模板”。</p>
-              <small v-if="templateApplyTargetWorkspace" class="p45-hero__hint">默认应用目标：{{ templateApplyTargetWorkspace.name }} · {{ templateApplyTargetWorkspace.rootPath }}</small>
+              <h2>{{ t('templates.title') }}</h2>
+              <p>{{ t('templates.intro') }}</p>
+              <small v-if="templateApplyTargetWorkspace" class="p45-hero__hint">{{ t('templates.defaultTarget', { name: templateApplyTargetWorkspace.name, path: templateApplyTargetWorkspace.rootPath }) }}</small>
             </div>
           </header>
 
@@ -1227,7 +1315,7 @@
                 :class="{ 'segmented-control__item--active': templateTagFilter === tag }"
                 @click="templateTagFilter = tag"
               >
-                <span>{{ tag === 'all' ? '全部标签' : tag }}</span>
+                <span>{{ tag === 'all' ? t('templates.allTags') : tag }}</span>
               </button>
             </div>
           </div>
@@ -1236,17 +1324,17 @@
             <article v-for="template in filteredWorkflowTemplates" :key="template.id" class="workflow-template-card panel">
               <div class="workflow-template-card__head" :class="{ 'workflow-template-card__head--system': template.kind === 'system', 'workflow-template-card__head--user': template.kind === 'user' }">
                 <div>
-                  <span class="meta-badge" :class="{ 'meta-badge--soft': template.kind === 'user' }">{{ template.kind === 'system' ? '系统模板' : '我的模板' }}</span>
+                  <span class="meta-badge" :class="{ 'meta-badge--soft': template.kind === 'user' }">{{ template.kind === 'system' ? t('templates.systemTemplate') : t('templates.userTemplate') }}</span>
                   <h3>{{ template.name }}</h3>
                   <p>{{ template.description }}</p>
                 </div>
-                <span class="workflow-template-card__count">{{ template.panes.length }} 终端</span>
+                <span class="workflow-template-card__count">{{ t('templates.terminals', { count: template.panes.length }) }}</span>
               </div>
               <div class="workflow-template-card__panes">
                 <div v-for="pane in template.panes" :key="`${template.id}-${pane.name}`" class="template-pane-line">
                   <AppIcon name="terminal" :size="14" />
                   <span>{{ pane.name }}</span>
-                  <code>{{ pane.defaultCommand || '不自动执行命令' }}</code>
+                  <code>{{ pane.defaultCommand || t('templates.noAutoCommand') }}</code>
                 </div>
               </div>
               <div class="workflow-template-card__tags">
@@ -1255,19 +1343,19 @@
               <div class="workflow-template-card__actions">
                 <button type="button" class="ghost-btn ghost-btn--primary ghost-btn--small" @click="applyWorkflowTemplate(template)">
                   <AppIcon name="plus" :size="13" />
-                  <span>使用模板</span>
+                  <span>{{ t('templates.apply') }}</span>
                 </button>
                 <button type="button" class="ghost-btn ghost-btn--small" @click="duplicateWorkflowTemplate(template.id)">
                   <AppIcon name="copy" :size="13" />
-                  <span>复制模板</span>
+                  <span>{{ t('templates.duplicate') }}</span>
                 </button>
                 <button v-if="template.kind === 'user'" type="button" class="ghost-btn ghost-btn--small" @click="openWorkflowTemplateEditModal(template.id)">
                   <AppIcon name="edit" :size="13" />
-                  <span>编辑</span>
+                  <span>{{ t('templates.edit') }}</span>
                 </button>
                 <button v-if="template.kind === 'user'" type="button" class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeWorkflowTemplate(template.id)">
                   <AppIcon name="trash" :size="13" />
-                  <span>删除</span>
+                  <span>{{ t('templates.delete') }}</span>
                 </button>
               </div>
             </article>
@@ -1275,272 +1363,472 @@
         </section>
 
         <section class="p45-page p45-page--providers" v-else-if="appSection === 'providers'">
-          <header class="p45-hero panel p45-hero--providers">
+          <header class="p45-hero p45-hero--providers">
             <div class="p45-hero__copy">
-              <h2>Provider</h2>
-              <p>像 CC Switch 一样管理本机 Codex、Claude Code、Gemini CLI 等 CLI 的本地配置档案；这里只读扫描和登记，不在终端运行配置里注入 URL / Key。</p>
+              <h2>{{ t('provider.title') }}</h2>
             </div>
             <div class="p45-hero__actions">
-              <button type="button" class="ghost-btn" :disabled="providerDetectionRunning" @click="seedCliProviderProfiles()">
-                <AppIcon :name="providerDetectionRunning ? 'refresh' : 'download'" :size="14" :class="{ 'is-spinning': providerDetectionRunning }" />
-                <span>{{ providerDetectionRunning ? '扫描中' : '扫描本机配置' }}</span>
+              <button type="button" class="ghost-btn" :disabled="providerDetectionRunning" @click="syncNativeProviderProfiles({ explicit: true })">
+                <AppIcon :name="providerDetectionRunning && providerSyncMode === 'native' ? 'refresh' : 'search'" :size="14" :class="{ 'is-spinning': providerDetectionRunning && providerSyncMode === 'native' }" />
+                <span>{{ providerDetectionRunning && providerSyncMode === 'native' ? tr('同步中', 'Syncing') : tr('同步本机配置', 'Sync Local') }}</span>
               </button>
-              <button type="button" class="ghost-btn ghost-btn--primary" @click="openProviderCreateModal()">
-                <AppIcon name="plus" :size="14" />
-                <span>新建配置档案</span>
+              <button type="button" class="ghost-btn" :disabled="providerDetectionRunning" @click="importCcSwitchProviderProfiles()">
+                <AppIcon :name="providerDetectionRunning && providerSyncMode === 'cc-switch' ? 'refresh' : 'download'" :size="14" :class="{ 'is-spinning': providerDetectionRunning && providerSyncMode === 'cc-switch' }" />
+                <span>{{ providerDetectionRunning && providerSyncMode === 'cc-switch' ? tr('导入中', 'Importing') : tr('从 CC Switch 导入', 'Import CC Switch') }}</span>
+              </button>
+              <button type="button" class="ghost-btn" @click="openModelPricingModal()">
+                <AppIcon name="dollar" :size="14" />
+                <span>{{ tr('模型价格', 'Model Pricing') }}</span>
+              </button>
+              <button type="button" class="ghost-btn ghost-btn--primary ghost-btn--small" @click="openProviderCreateModal()">
+                <AppIcon name="plus" :size="13" />
+                <span>{{ t('provider.newProfile') }}</span>
               </button>
             </div>
           </header>
-          <div v-if="providerDetectionSummary" class="provider-scan-banner panel">
-            <AppIcon name="info" :size="14" />
-            <span>{{ providerDetectionSummary }}</span>
+
+          <!-- 固定高度状态条：未扫描/扫描中/完成后都不改变布局高度 -->
+          <div class="provider-status-rail" aria-live="polite">
+            <div class="provider-status-rail__row">
+              <AppIcon :name="providerDetectionRunning ? 'refresh' : 'info'" :size="12" :class="{ 'is-spinning': providerDetectionRunning }" />
+              <span class="provider-status-rail__text">{{ providerStatusRailText }}</span>
+            </div>
+            <p class="provider-metrics-scope-note" :title="providerMetricsScopeHint">
+              <span v-if="managedUsageLive">
+                {{ tr('卡片副指标 = 当前周期', 'Card secondary metrics = current period') }}
+                <strong>{{ providerMetricsScopeShort }}</strong>
+                · {{ tr('今日按自然日；副指标非全历史', 'Today is calendar day; secondary is not all-time') }}
+              </span>
+              <span v-else>
+                {{ tr('副指标暂用本地缓存；同步或进入 Usage 后改为当前周期', 'Secondary metrics use cache until sync / Usage load') }}
+              </span>
+            </p>
           </div>
 
-          <section class="provider-page-layout">
-            <aside class="provider-sidebar panel">
-              <div class="provider-sidebar__head">
-                <strong>CLI 工具</strong>
-                <span>{{ filteredWorkspaceProviders.length }} / {{ selectedWorkspaceProviders.length }}</span>
-              </div>
-              <div class="provider-tool-filter">
-                <button
-                  v-for="tool in providerToolFilters"
-                  :key="tool.id"
-                  type="button"
-                  class="provider-tool-filter__item"
-                  :class="{ 'provider-tool-filter__item--active': activeProviderToolFilter === tool.id }"
-                  @click="activeProviderToolFilter = tool.id"
-                >
-                  <span>{{ tool.label }}</span>
-                  <small>{{ tool.count }}</small>
-                </button>
-              </div>
-              <div class="provider-search-field">
-                <AppIcon name="search" :size="13" />
-                <input v-model.trim="providerSearchQuery" type="text" placeholder="搜索配置档案" />
-              </div>
-              <div v-if="filteredWorkspaceProviders.length" class="provider-card-list">
-                <button
-                  v-for="provider in filteredWorkspaceProviders"
-                  :key="provider.id"
-                  type="button"
-                  class="provider-switch-card"
-                  :class="{ 'provider-switch-card--active': activeProviderStatsId === provider.id, 'provider-switch-card--current': provider.isActive }"
-                  @click="activeProviderStatsId = provider.id"
-                >
-                  <span class="provider-switch-card__icon" :style="{ background: provider.color || providerKindColor(provider.providerKind) }">
-                    {{ providerKindShortLabel(provider.providerKind) }}
-                  </span>
-                  <span class="provider-switch-card__body">
-                    <strong>{{ provider.name }}</strong>
-                    <small>{{ provider.profileName }} · {{ providerSourceLabel(provider.managedBy) }}</small>
-                    <em>{{ provider.configPath }}</em>
-                  </span>
-                  <span class="provider-switch-card__badges">
-                    <span v-if="provider.isActive" class="meta-badge meta-badge--soft">当前</span>
-                    <span v-else class="meta-badge meta-badge--soft">{{ providerStatusLabel(provider.status) }}</span>
-                  </span>
-                </button>
-              </div>
-              <div v-else class="empty-state empty-state--panel">
-                <div class="empty-state__icon"><AppIcon name="settings" :size="18" /></div>
-                <div class="empty-state__body">
-                  <strong>还没有配置档案</strong>
-                  <p>导入当前 CLI 配置，或手动登记 Codex / Claude / Gemini 的本地配置文件。</p>
-                </div>
-              </div>
-            </aside>
+          <!-- Filters bar: kind tabs + search -->
+          <div class="provider-filters-bar">
+            <div class="provider-kind-tabs">
+              <button
+                v-for="tool in providerToolFilters"
+                :key="tool.id"
+                type="button"
+                class="provider-kind-tab"
+                :class="{ 'provider-kind-tab--active': activeProviderToolFilter === tool.id }"
+                @click="activeProviderToolFilter = tool.id"
+              >
+                {{ tool.label }}<span v-if="tool.count > 0">{{ tool.count }}</span>
+              </button>
+            </div>
+            <div class="provider-search-field">
+              <AppIcon name="search" :size="13" />
+              <input v-model.trim="providerSearchQuery" type="text" :placeholder="t('provider.searchPlaceholder')" />
+            </div>
+          </div>
 
-            <section class="provider-main">
-              <article v-if="activeProviderProfile" class="provider-hero-card panel">
-                <div class="provider-hero-card__head">
-                  <div class="provider-title-block">
-                    <span class="provider-title-block__icon" :style="{ background: activeProviderProfile.color || providerKindColor(activeProviderProfile.providerKind) }">
-                      {{ providerKindShortLabel(activeProviderProfile.providerKind) }}
-                    </span>
-                    <div>
-                      <span class="provider-title-block__eyebrow">{{ providerKindLabel(activeProviderProfile.providerKind) }}</span>
-                    <h3>{{ activeProviderProfile.name }}</h3>
-                      <p>{{ activeProviderProfile.configPath }}</p>
+          <!-- Full-width card list -->
+          <div class="provider-card-list">
+            <template v-if="filteredProviderCards.length">
+              <div
+                v-for="card in filteredProviderCards"
+                :key="card.provider.id"
+                class="provider-row-card"
+                :class="{ 'provider-row-card--active': Boolean(card.provider.isActive) }"
+              >
+                <div class="provider-row-card__main">
+                  <span
+                    class="provider-row-card__icon"
+                    v-html="providerKindSvgIcon(card.provider.providerKind)"
+                  />
+
+                  <!-- 左栏：图标+主信息固定宽度，不把指标顶到屏最右 -->
+                  <div class="provider-row-card__info">
+                    <div class="provider-row-card__line1">
+                      <strong class="provider-row-card__name" :title="card.provider.name">{{ card.provider.name }}</strong>
+                      <span class="provider-row-card__kind-tag">{{ providerKindLabel(card.provider.providerKind) }}</span>
+                    </div>
+                    <div class="provider-row-card__line2">
+                      <span
+                        v-if="card.provider.isActive || card.provider.status === 'missing' || card.provider.status === 'disabled'"
+                        class="provider-status-badge"
+                        :class="card.provider.isActive ? 'provider-status-badge--active' : card.provider.status === 'missing' ? 'provider-status-badge--warn' : 'provider-status-badge--disabled'"
+                      ><span class="provider-status-dot"></span>{{ card.provider.isActive ? t('provider.statusActive') : providerStatusLabel(card.provider.status) }}</span>
+                      <span v-if="card.url" class="provider-row-card__url-inline" :title="card.provider.homepageUrl ?? card.provider.requestBaseUrl ?? undefined">{{ card.url }}</span>
+                      <span v-if="card.provider.defaultModel" class="provider-row-card__model-tag">{{ card.provider.defaultModel }}</span>
                     </div>
                   </div>
-                  <div class="provider-hero-card__meta">
-                    <span class="meta-badge" :class="{ 'meta-badge--soft': activeProviderProfile.status !== 'active' }">{{ providerStatusLabel(activeProviderProfile.status) }}</span>
-                    <span class="meta-badge meta-badge--soft">{{ providerSourceLabel(activeProviderProfile.managedBy) }}</span>
-                  </div>
-                </div>
-                <div class="provider-hero-card__stats">
-                  <div class="provider-stat-chip">
-                    <span>Profile</span>
-                    <strong>{{ activeProviderProfile.profileName || 'default' }}</strong>
-                  </div>
-                  <div class="provider-stat-chip">
-                    <span>模型备注</span>
-                    <strong>{{ activeProviderProfile.defaultModel || '未设置' }}</strong>
-                  </div>
-                  <div class="provider-stat-chip">
-                    <span>适用 CLI</span>
-                    <strong>{{ activeProviderProfile.toolTargets.map(providerToolTargetLabel).join(' · ') || providerKindLabel(activeProviderProfile.providerKind) }}</strong>
-                  </div>
-                  <div class="provider-stat-chip">
-                    <span>认证来源</span>
-                    <strong>{{ activeProviderProfile.authSource || 'CLI 本地配置' }}</strong>
-                  </div>
-                </div>
-                <div class="provider-config-preview">
-                  <span>切换命令</span>
-                  <code>{{ activeProviderProfile.switchCommand || providerFallbackSwitchCommand(activeProviderProfile) }}</code>
-                </div>
-                <div class="provider-safety-note">
-                  <AppIcon name="info" :size="14" />
-                  <span>启用只更新 Chuchen-Terminal 内的当前档案标记，并提供可复制命令；不会改写你的 Codex / Claude / Gemini 真实配置文件。</span>
-                </div>
-                <p v-if="activeProviderProfile.note" class="provider-note">{{ activeProviderProfile.note }}</p>
-              </article>
 
-              <div v-if="activeProviderProfile" class="provider-action-row">
-                <button type="button" class="ghost-btn ghost-btn--primary" :disabled="!providerCanBeActivated(activeProviderProfile)" @click="activateProviderProfile(activeProviderProfile.id)">
-                  <AppIcon name="terminal" :size="14" />
-                  <span>{{ providerCanBeActivated(activeProviderProfile) ? '设为当前档案' : '配置未检测到' }}</span>
-                </button>
-                <button type="button" class="ghost-btn" @click="openProviderEditModal(activeProviderProfile.id)">
-                  <AppIcon name="edit" :size="14" />
-                  <span>编辑</span>
-                </button>
-                <button type="button" class="ghost-btn" @click="duplicateProviderProfile(activeProviderProfile.id)">
-                  <AppIcon name="copy" :size="14" />
-                  <span>复制</span>
-                </button>
-                <button type="button" class="ghost-btn" @click="copyProviderSwitchCommand(activeProviderProfile)">
-                  <AppIcon name="copy" :size="14" />
-                  <span>复制切换命令</span>
-                </button>
-                <button type="button" class="ghost-btn ghost-btn--danger" @click="removeProviderProfile(activeProviderProfile.id)">
-                  <AppIcon name="trash" :size="14" />
-                  <span>删除</span>
-                </button>
+                  <!-- 紧凑指标组：紧跟主信息 -->
+                  <div class="provider-row-card__metrics" :title="providerMetricsScopeHint">
+                    <div class="provider-metric">
+                      <span class="provider-metric__label">
+                        <AppIcon name="activity" :size="11" />{{ tr('今日请求', 'Req Today') }}
+                      </span>
+                      <span class="provider-metric__value" :class="card.metrics.todayRequests > 0 ? 'provider-metric__value--accent' : ''">{{ card.metrics.todayRequests.toLocaleString(currentLocale) }}</span>
+                      <span class="provider-metric__sub">
+                        <span class="provider-metric__scope">{{ providerMetricsScopeShort }}</span>
+                        {{ card.metrics.totalRequests.toLocaleString(currentLocale) }}
+                      </span>
+                    </div>
+                    <div class="provider-metric">
+                      <span class="provider-metric__label">
+                        <AppIcon name="dollar" :size="11" />{{ tr('今日成本', 'Cost Today') }}
+                      </span>
+                      <span class="provider-metric__value" :class="card.metrics.todayCostUsd > 0 ? 'provider-metric__value--cost' : ''">${{ card.metrics.todayCostUsd.toFixed(2) }}</span>
+                      <span class="provider-metric__sub">
+                        <span class="provider-metric__scope">{{ providerMetricsScopeShort }}</span>
+                        ${{ card.metrics.totalCostUsd.toFixed(2) }}
+                      </span>
+                    </div>
+                    <div class="provider-metric">
+                      <span class="provider-metric__label">
+                        <AppIcon name="bolt" :size="11" />{{ tr('缓存率', 'Cache Hit') }}
+                      </span>
+                      <span
+                        class="provider-metric__value"
+                        :class="card.metrics.cacheHitRate >= 0.5 ? 'provider-metric__value--positive' : card.metrics.cacheHitRate > 0 ? 'provider-metric__value--amber' : ''"
+                      >{{ Math.round(card.metrics.cacheHitRate * 1000) / 10 }}%</span>
+                      <span class="provider-metric__sub">{{ providerMetricsScopeShort }}</span>
+                    </div>
+                    <div class="provider-metric">
+                      <span class="provider-metric__label">
+                        <AppIcon name="coin" :size="11" />{{ tr('余额', 'Balance') }}
+                      </span>
+                      <span
+                        class="provider-metric__value"
+                        :class="card.metrics.balance === null ? '' : card.metrics.balance > 0.01 ? 'provider-metric__value--positive' : card.metrics.balance < -0.001 ? 'provider-metric__value--negative' : 'provider-metric__value--zero'"
+                      >{{ formatProviderRemainingBalance(card.metrics.balance) }}</span>
+                    </div>
+                  </div>
+
+                  <div class="provider-row-card__spacer" aria-hidden="true" />
+
+                  <div class="provider-row-card__actions">
+                    <button
+                      type="button"
+                      class="prov-act-btn prov-act-btn--primary"
+                      :disabled="!providerCanBeActivated(card.provider) || activatingProviderId === card.provider.id"
+                      :title="providerActivationLabel(card.provider)"
+                      @click.stop="activateProviderProfile(card.provider.id)"
+                    >
+                      <AppIcon
+                        :name="activatingProviderId === card.provider.id ? 'refresh' : 'terminal'"
+                        :size="16"
+                        :class="{ 'is-spinning': activatingProviderId === card.provider.id }"
+                      />
+                    </button>
+                    <button type="button" class="prov-act-btn" :title="t('common.actions.edit')" @click.stop="openProviderEditModal(card.provider.id)">
+                      <AppIcon name="edit" :size="16" />
+                    </button>
+                    <button type="button" class="prov-act-btn" :title="t('provider.viewUsage')" @click.stop="openProviderUsageFilter(card.provider.id)">
+                      <AppIcon name="activity" :size="16" />
+                    </button>
+                    <button type="button" class="prov-act-btn" :title="t('common.actions.duplicate')" @click.stop="duplicateProviderProfile(card.provider.id)">
+                      <AppIcon name="copy" :size="16" />
+                    </button>
+                    <button type="button" class="prov-act-btn prov-act-btn--danger" :title="t('common.actions.delete')" @click.stop="removeProviderProfile(card.provider.id)">
+                      <AppIcon name="trash" :size="16" />
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              <article v-if="activeProviderProfile" class="provider-detail-grid">
-                <div class="provider-detail-tile panel">
-                  <span>配置作用域</span>
-                  <strong>{{ providerScopeLabel(activeProviderProfile.configScope) }}</strong>
-                </div>
-                <div class="provider-detail-tile panel">
-                  <span>最近检测</span>
-                  <strong>{{ activeProviderProfile.lastDetectedAt ? formatUsageDate(activeProviderProfile.lastDetectedAt) : '未检测' }}</strong>
-                </div>
-                <div class="provider-detail-tile panel">
-                  <span>统计请求</span>
-                  <strong>{{ activeProviderQuota?.requestsToday ?? activeUsageSummary.totalRequests }}</strong>
-                </div>
-                <div class="provider-detail-tile panel">
-                  <span>累计成本</span>
-                  <strong>${{ activeUsageSummary.totalCostUsd.toFixed(2) }}</strong>
-                </div>
-              </article>
-
-              <article v-if="activeProviderProfile" class="provider-request-preview panel">
-                <div class="provider-request-preview__head">
-                  <strong>最近请求</strong>
-                  <button type="button" class="ghost-btn ghost-btn--small" @click="appSection = 'usage'">
-                    <AppIcon name="refresh" :size="14" />
-                    <span>查看统计</span>
-                  </button>
-                </div>
-                <div class="provider-request-preview__list">
-                  <div v-for="log in activeUsageLogs.slice(0, 3)" :key="log.id" class="provider-request-preview__item">
-                    <span>{{ log.appType }}</span>
-                    <strong>{{ log.model }}</strong>
-                    <code>${{ log.costUsd.toFixed(4) }}</code>
-                  </div>
-                  <div v-if="!activeUsageLogs.length" class="provider-request-preview__empty">
-                    暂无请求记录
-                  </div>
-                </div>
-              </article>
-            </section>
-          </section>
+            </template>
+            <div v-else class="provider-card-list__empty">
+              <AppIcon name="settings" :size="22" />
+              <strong>{{ t('provider.noProfilesTitle') }}</strong>
+              <p>{{ tr('扫描本地工具，或手动新建档案。', 'Scan local tools, or create a profile manually.') }}</p>
+            </div>
+          </div>
         </section>
 
         <section class="p45-page p45-page--usage" v-else-if="appSection === 'usage'">
-          <header class="p45-hero panel p45-hero--usage">
-            <div class="p45-hero__copy">
-              <h2>使用统计</h2>
-              <p>{{ activeProviderProfile ? `${providerKindLabel(activeProviderProfile.providerKind)} · ${activeProviderProfile.name}` : '参考 CC Switch 的展示方式，先提供总览、趋势图和请求日志三块核心能力。' }}</p>
+          <header class="p45-hero p45-hero--usage">
+            <div class="usage-page-header">
+              <div class="usage-page-header__title">
+                <h2>{{ t('usage.title') }}</h2>
+                <p class="usage-hero-context">
+                  <template v-if="activeProviderProfile">
+                    {{ providerKindLabel(activeProviderProfile.providerKind) }} · {{ activeProviderProfile.name }}
+                  </template>
+                  <template v-else>{{ tr('当前工作区 · 所有 Provider', 'Current workspace · All providers') }}</template>
+                  <template v-if="managedUsageUpdatedAt">
+                    · {{ tr('更新于', 'Updated') }} {{ formatUsageDate(managedUsageUpdatedAt.includes('T') ? managedUsageUpdatedAt : new Date(Number(managedUsageUpdatedAt) * 1000 || Date.now()).toISOString()) }}
+                  </template>
+                  <template v-else-if="managedUsageLoadError">
+                    · {{ tr('实时数据读取失败，显示本地缓存', 'Live fetch failed, showing local cache') }}
+                  </template>
+                </p>
+              </div>
+              <div class="usage-page-header__controls">
+                <div class="usage-period-tabs">
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === '1h' }" @click="usagePeriodFilter = '1h'">1h</button>
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === 'today' }" @click="usagePeriodFilter = 'today'">{{ t('usage.today') }}</button>
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === '7d' }" @click="usagePeriodFilter = '7d'">7d</button>
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === '30d' }" @click="usagePeriodFilter = '30d'">30d</button>
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === 'month' }" @click="usagePeriodFilter = 'month'">{{ tr('本月', 'Month') }}</button>
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === '90d' }" @click="usagePeriodFilter = '90d'">90d</button>
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === 'all' }" @click="usagePeriodFilter = 'all'">{{ t('common.all') }}</button>
+                  <button type="button" class="usage-period-tab" :class="{ 'usage-period-tab--active': usagePeriodFilter === 'custom' }" @click="usagePeriodFilter = 'custom'">{{ tr('自定义', 'Custom') }}</button>
+                </div>
+                <button type="button" class="ghost-btn" @click="openModelPricingModal()">
+                  <AppIcon name="dollar" :size="14" />
+                  <span>{{ tr('模型价格', 'Model Pricing') }}</span>
+                </button>
+                <button type="button" class="ghost-btn" :disabled="providerUsageRefreshRunning || usageManualRefreshRunning" @click="refreshProviderUsageStats()">
+                  <AppIcon name="refresh" :size="14" :class="{ 'is-spinning': providerUsageRefreshRunning || usageManualRefreshRunning }" />
+                  <span>{{ (providerUsageRefreshRunning || usageManualRefreshRunning) ? tr('刷新中', 'Refreshing') : tr('刷新', 'Refresh') }}</span>
+                </button>
+              </div>
+              <div v-if="usagePeriodFilter === 'custom'" class="usage-custom-range">
+                <label>
+                  <span>{{ tr('开始', 'Start') }}</span>
+                  <input v-model="usageCustomStartAt" type="datetime-local" />
+                </label>
+                <label>
+                  <span>{{ tr('结束', 'End') }}</span>
+                  <input v-model="usageCustomEndAt" type="datetime-local" />
+                </label>
+              </div>
+              <p class="usage-bucket-hint">
+                {{ tr(
+                  `趋势按时间范围自动聚合（当前：${usageEffectiveBucket}）`,
+                  `Trend auto-buckets by range (now: ${usageEffectiveBucket})`,
+                ) }}
+              </p>
             </div>
           </header>
 
           <section class="usage-dashboard">
-            <article class="usage-hero panel">
-              <div class="usage-hero__left">
-                <span class="usage-hero__eyebrow">真实消耗 Tokens</span>
-                <strong>{{ formatLargeNumber(activeUsageSummary.totalInputTokens + activeUsageSummary.totalOutputTokens + activeUsageSummary.totalCacheReadTokens + activeUsageSummary.totalCacheCreationTokens) }}</strong>
-                <small>≈ {{ formatCompactWan(activeUsageSummary.totalInputTokens + activeUsageSummary.totalOutputTokens + activeUsageSummary.totalCacheReadTokens + activeUsageSummary.totalCacheCreationTokens) }} tokens</small>
+            <!-- KPI tiles row: 4 key metrics -->
+            <div class="usage-kpi-row">
+              <div class="usage-kpi-tile usage-kpi-tile--tokens">
+                <span class="usage-kpi-tile__label">
+                  <AppIcon name="activity" :size="11" />{{ tr('实际 Tokens', 'Real Tokens') }}
+                </span>
+                <span class="usage-kpi-tile__value">{{ formatCompactWan(activeUsageSummary.totalInputTokens + activeUsageSummary.totalOutputTokens + activeUsageSummary.totalCacheReadTokens + activeUsageSummary.totalCacheCreationTokens) }}</span>
+                <span class="usage-kpi-tile__sub">
+                  {{ tr('输入', 'In') }} {{ formatCompactWan(activeUsageSummary.totalInputTokens) }}
+                  · {{ tr('输出', 'Out') }} {{ formatCompactWan(activeUsageSummary.totalOutputTokens) }}
+                </span>
               </div>
-              <div class="usage-hero__right">
-                <div class="usage-kpi-grid">
-                  <div class="usage-kpi-card">
-                    <span>总请求数</span>
-                    <strong>{{ activeUsageSummary.totalRequests }}</strong>
-                  </div>
-                  <div class="usage-kpi-card">
-                    <span>总成本</span>
-                    <strong>${{ activeUsageSummary.totalCostUsd.toFixed(4) }}</strong>
-                  </div>
-                  <div class="usage-kpi-card">
-                    <span>输入</span>
-                    <strong>{{ formatCompactWan(activeUsageSummary.totalInputTokens) }}</strong>
-                  </div>
-                  <div class="usage-kpi-card">
-                    <span>输出</span>
-                    <strong>{{ formatCompactWan(activeUsageSummary.totalOutputTokens) }}</strong>
-                  </div>
-                  <div class="usage-kpi-card">
-                    <span>缓存命中</span>
-                    <strong>{{ formatCompactWan(activeUsageSummary.totalCacheReadTokens) }}</strong>
-                  </div>
-                  <div class="usage-kpi-card">
-                    <span>命中率</span>
-                    <strong>{{ Math.round(activeUsageSummary.cacheHitRate * 1000) / 10 }}%</strong>
-                  </div>
+              <div class="usage-kpi-tile usage-kpi-tile--requests">
+                <span class="usage-kpi-tile__label">
+                  <AppIcon name="tab" :size="11" />{{ t('usage.totalRequests') }}
+                </span>
+                <span class="usage-kpi-tile__value">{{ activeUsageSummary.totalRequests.toLocaleString(currentLocale) }}</span>
+                <span class="usage-kpi-tile__sub">{{ tr('次请求', 'requests') }}</span>
+              </div>
+              <div class="usage-kpi-tile usage-kpi-tile--cost">
+                <span class="usage-kpi-tile__label">
+                  <AppIcon name="dollar" :size="11" />{{ t('usage.totalCost') }}
+                </span>
+                <span class="usage-kpi-tile__value">${{ activeUsageSummary.totalCostUsd.toFixed(2) }}</span>
+                <span class="usage-kpi-tile__sub">${{ activeUsageSummary.totalCostUsd.toFixed(4) }} {{ tr('精确', 'precise') }}</span>
+              </div>
+              <div class="usage-kpi-tile usage-kpi-tile--cache">
+                <span class="usage-kpi-tile__label">
+                  <AppIcon name="bolt" :size="11" />{{ t('usage.hitRate') }}
+                </span>
+                <span class="usage-kpi-tile__value">{{ Math.round(activeUsageSummary.cacheHitRate * 1000) / 10 }}%</span>
+                <div class="usage-kpi-hit-bar">
+                  <div class="usage-kpi-hit-bar__fill" :style="{ width: `${Math.min(100, activeUsageSummary.cacheHitRate * 100).toFixed(1)}%` }" />
                 </div>
               </div>
-            </article>
+            </div>
 
             <article class="usage-chart-card panel">
               <div class="usage-chart-card__head">
-                <div>
-                  <strong>趋势图</strong>
-                  <span>输入 / 输出 / 缓存 / 成本</span>
+                <div class="usage-chart-card__title-row">
+                  <strong>{{ t('usage.chartTitle') }}</strong>
+                  <div class="usage-provider-filter">
+                    <button
+                      type="button"
+                      class="usage-scope-tab"
+                      :class="{ 'usage-scope-tab--active': usageSelectedProviderIds.length === 0 }"
+                      @click="clearUsageProviderSelection()"
+                    >{{ tr('全部 Provider', 'All Providers') }}</button>
+                    <div class="usage-provider-picker">
+                      <button
+                        ref="usageProviderPickerTriggerRef"
+                        type="button"
+                        class="usage-provider-picker__trigger"
+                        :class="{ 'usage-provider-picker__trigger--open': usageProviderPickerOpen }"
+                        @click.stop="toggleUsageProviderPicker()"
+                      >
+                        <AppIcon name="search" :size="13" />
+                        <span>{{ usageSelectedProviderIds.length ? tr(`已选 ${usageSelectedProviderIds.length}`, `${usageSelectedProviderIds.length} selected`) : tr('筛选 Provider', 'Filter Providers') }}</span>
+                        <AppIcon name="chevron-down" :size="12" />
+                      </button>
+                      <Teleport to="body">
+                        <div
+                          v-if="usageProviderPickerOpen"
+                          class="usage-provider-picker__panel usage-provider-picker__panel--fixed"
+                          :style="usageProviderPickerStyle"
+                          @click.stop
+                          @pointerdown.stop
+                          @mousedown.stop
+                        >
+                          <input
+                            v-model.trim="usageProviderPickerQuery"
+                            class="usage-provider-picker__search"
+                            type="search"
+                            :placeholder="tr('搜索名称 / 模型', 'Search name / model')"
+                            @click.stop
+                            @pointerdown.stop
+                            @mousedown.stop
+                          />
+                          <div class="usage-provider-picker__actions">
+                            <button type="button" class="ghost-btn ghost-btn--small" @click="clearUsageProviderSelection()">{{ tr('清空', 'Clear') }}</button>
+                            <button type="button" class="ghost-btn ghost-btn--small" @click="closeUsageProviderPicker()">{{ tr('完成', 'Done') }}</button>
+                          </div>
+                          <div class="usage-provider-picker__scroll">
+                            <div
+                              v-for="group in usageProviderPickerGroups"
+                              :key="group.id"
+                              class="usage-provider-picker__group"
+                            >
+                              <div class="usage-provider-picker__group-title">{{ group.label }}</div>
+                              <label
+                                v-for="item in group.items"
+                                :key="item.id"
+                                class="usage-provider-picker__item"
+                              >
+                                <input
+                                  type="checkbox"
+                                  :checked="usageSelectedProviderIds.includes(item.id)"
+                                  @change="toggleUsageProviderSelection(item.id)"
+                                />
+                                <span class="usage-provider-picker__icon" v-html="providerKindSvgIcon(item.providerKind)" />
+                                <span class="usage-provider-picker__meta">
+                                  <strong>{{ item.name }}</strong>
+                                  <small>{{ item.model || '—' }} · {{ item.source }}</small>
+                                </span>
+                              </label>
+                              <div v-if="!group.items.length" class="usage-provider-picker__empty">{{ tr('无匹配', 'No match') }}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </Teleport>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="usageSelectedProviderChips.length" class="usage-provider-chips">
+                  <button
+                    v-for="chip in usageSelectedProviderChips"
+                    :key="chip.id"
+                    type="button"
+                    class="usage-provider-chip"
+                    :title="tr('移除筛选', 'Remove filter')"
+                    @click="toggleUsageProviderSelection(chip.id)"
+                  >
+                    <span class="usage-provider-chip__icon" v-html="providerKindSvgIcon(chip.providerKind)" />
+                    <span>{{ chip.name }}</span>
+                    <span class="usage-provider-chip__x">×</span>
+                  </button>
                 </div>
               </div>
-              <div class="usage-chart-shell">
-                <svg v-if="usageTrendChartData.length" class="usage-trend-svg" viewBox="0 0 1000 360" preserveAspectRatio="none" aria-label="Provider 使用趋势图">
-                  <g class="usage-trend-grid">
-                    <line x1="40" y1="40" x2="960" y2="40" />
-                    <line x1="40" y1="120" x2="960" y2="120" />
-                    <line x1="40" y1="200" x2="960" y2="200" />
-                    <line x1="40" y1="280" x2="960" y2="280" />
-                  </g>
-                  <path class="usage-trend-line usage-trend-line--input" :d="usageTrendInputPath" fill="none" />
-                  <path class="usage-trend-line usage-trend-line--output" :d="usageTrendOutputPath" fill="none" />
-                  <path class="usage-trend-line usage-trend-line--cache" :d="usageTrendCachePath" fill="none" />
-                  <path class="usage-trend-line usage-trend-line--cost" :d="usageTrendCostPath" fill="none" />
-                  <g class="usage-trend-labels">
-                    <text v-for="point in usageTrendLabelPoints" :key="`usage-label-${point.label}`" :x="point.x" y="334">{{ point.label }}</text>
-                  </g>
-                </svg>
+              <div ref="usageChartShellRef" class="usage-chart-shell">
+                <template v-if="usageTrendChartData.length">
+                  <div
+                    v-if="chartHoverIndex !== null && usageTrendChartData[chartHoverIndex]"
+                    ref="usageChartTooltipRef"
+                    class="usage-chart-tooltip"
+                    :style="usageChartTooltipStyle"
+                  >
+                    <strong>{{ formatUsageTrendTooltipTime(usageTrendChartData[chartHoverIndex].timestamp) }}</strong>
+                    <span class="usage-chart-tooltip__row usage-chart-tooltip__row--input">
+                      {{ tr('输入', 'In') }} {{ formatCompactWan(usageTrendChartData[chartHoverIndex].inputTokens) }}
+                    </span>
+                    <span class="usage-chart-tooltip__row usage-chart-tooltip__row--output">
+                      {{ tr('输出', 'Out') }} {{ formatCompactWan(usageTrendChartData[chartHoverIndex].outputTokens) }}
+                    </span>
+                    <span class="usage-chart-tooltip__row usage-chart-tooltip__row--cache-create">
+                      {{ tr('缓存创建', 'Cache Create') }} {{ formatCompactWan(usageTrendChartData[chartHoverIndex].cacheCreationTokens ?? 0) }}
+                    </span>
+                    <span class="usage-chart-tooltip__row usage-chart-tooltip__row--cache">
+                      {{ tr('缓存命中', 'Cache Hit') }} {{ formatCompactWan(usageTrendChartData[chartHoverIndex].cacheReadTokens) }}
+                    </span>
+                    <span class="usage-chart-tooltip__row usage-chart-tooltip__row--cost">
+                      {{ tr('成本', 'Cost') }} ${{ usageTrendChartData[chartHoverIndex].costUsd.toFixed(4) }}
+                    </span>
+                  </div>
+                  <svg
+                    class="usage-trend-svg"
+                    viewBox="0 0 1000 330"
+                    preserveAspectRatio="xMidYMid meet"
+                    :aria-label="tr('Provider 使用趋势图', 'Provider usage trend chart')"
+                    @mousemove="onUsageChartMouseMove"
+                    @mouseleave="chartHoverIndex = null"
+                  >
+                    <defs>
+                      <linearGradient id="gradInput" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stop-color="#3b82f6" stop-opacity="0.16"/>
+                        <stop offset="95%" stop-color="#3b82f6" stop-opacity="0"/>
+                      </linearGradient>
+                      <linearGradient id="gradOutput" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stop-color="#22c55e" stop-opacity="0.14"/>
+                        <stop offset="95%" stop-color="#22c55e" stop-opacity="0"/>
+                      </linearGradient>
+                      <linearGradient id="gradCache" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stop-color="#a855f7" stop-opacity="0.14"/>
+                        <stop offset="95%" stop-color="#a855f7" stop-opacity="0"/>
+                      </linearGradient>
+                    </defs>
+                    <g class="usage-trend-y-labels">
+                      <text v-for="lbl in usageTrendYLabels" :key="`yl-${lbl.y}`" x="48" :y="lbl.y + 4" text-anchor="end">{{ lbl.label }}</text>
+                    </g>
+                    <g class="usage-trend-y-labels usage-trend-y-labels--right">
+                      <text v-for="lbl in usageTrendCostYLabels" :key="`yr-${lbl.y}`" x="958" :y="lbl.y + 4" text-anchor="start">{{ lbl.label }}</text>
+                    </g>
+                    <g class="usage-trend-grid">
+                      <line x1="56" y1="52" x2="940" y2="52" />
+                      <line x1="56" y1="110" x2="940" y2="110" />
+                      <line x1="56" y1="168" x2="940" y2="168" />
+                      <line x1="56" y1="226" x2="940" y2="226" />
+                      <line x1="56" y1="284" x2="940" y2="284" />
+                    </g>
+                    <path :d="usageTrendCacheArea" fill="url(#gradCache)" />
+                    <path :d="usageTrendInputArea" fill="url(#gradInput)" />
+                    <path :d="usageTrendOutputArea" fill="url(#gradOutput)" />
+                    <path class="usage-trend-line usage-trend-line--cache" :class="{ 'usage-trend-line--flat': !usageTrendHasSignal }" :d="usageTrendCachePath" fill="none" />
+                    <path class="usage-trend-line usage-trend-line--input" :class="{ 'usage-trend-line--flat': !usageTrendHasSignal }" :d="usageTrendInputPath" fill="none" />
+                    <path class="usage-trend-line usage-trend-line--output" :class="{ 'usage-trend-line--flat': !usageTrendHasSignal }" :d="usageTrendOutputPath" fill="none" />
+                    <path class="usage-trend-line usage-trend-line--cost" :class="{ 'usage-trend-line--flat': !usageTrendHasSignal }" :d="usageTrendCostPath" fill="none" />
+                    <line
+                      v-if="chartHoverIndex !== null && usageTrendLabelPoints[chartHoverIndex]"
+                      class="usage-trend-hover-line"
+                      :x1="usageTrendLabelPoints[chartHoverIndex].x"
+                      y1="48"
+                      :x2="usageTrendLabelPoints[chartHoverIndex].x"
+                      y2="286"
+                    />
+                    <template v-if="chartHoverIndex !== null && usageTrendChartData[chartHoverIndex]">
+                      <circle :cx="usageTrendLabelPoints[chartHoverIndex]?.x" :cy="chartYForToken(usageTrendChartData[chartHoverIndex].cacheReadTokens)" r="3.5" class="usage-trend-dot usage-trend-dot--cache" />
+                      <circle :cx="usageTrendLabelPoints[chartHoverIndex]?.x" :cy="chartYForToken(usageTrendChartData[chartHoverIndex].inputTokens)" r="3.5" class="usage-trend-dot usage-trend-dot--input" />
+                      <circle :cx="usageTrendLabelPoints[chartHoverIndex]?.x" :cy="chartYForToken(usageTrendChartData[chartHoverIndex].outputTokens)" r="3.5" class="usage-trend-dot usage-trend-dot--output" />
+                      <circle :cx="usageTrendLabelPoints[chartHoverIndex]?.x" :cy="chartYForCost(usageTrendChartData[chartHoverIndex].costUsd)" r="3.5" class="usage-trend-dot usage-trend-dot--cost" />
+                    </template>
+                    <g class="usage-trend-labels">
+                      <text v-for="point in usageTrendLabelPoints.filter(p => p.show)" :key="`usage-label-${point.label}-${point.x}`" :x="point.x" y="308">{{ point.label }}</text>
+                    </g>
+                  </svg>
+                  <!-- 唯一图例：底部居中 -->
+                  <div class="usage-chart-legend-row">
+                    <span class="usage-chart-legend-item usage-chart-legend-item--input">{{ t('usage.input') }}</span>
+                    <span class="usage-chart-legend-item usage-chart-legend-item--output">{{ t('usage.output') }}</span>
+                    <span class="usage-chart-legend-item usage-chart-legend-item--cache">{{ tr('缓存命中', 'Cache Hit') }}</span>
+                    <span class="usage-chart-legend-item usage-chart-legend-item--cost">{{ t('usage.totalCost') }}</span>
+                  </div>
+                  <p v-if="!usageTrendHasSignal" class="usage-chart-zero-hint">
+                    {{ tr(
+                      '当前范围有时间点，但 Token / 成本均为 0：可能是筛选过窄、未匹配到档案，或后端未读到对应用量源。成本为 0 不一定是缺模型价格——Token 不依赖价格也能画线。',
+                      'Buckets exist but all Token / cost values are 0: filter may be too narrow, profiles unmatched, or backend sources empty. Cost=0 is not only a pricing issue — token lines do not need model prices.',
+                    ) }}
+                  </p>
+                </template>
                 <div v-else class="usage-empty-state">
                   <AppIcon name="activity" :size="20" />
-                  <strong>暂无趋势数据</strong>
-                  <span>扫描到的 CLI 配置还没有可导入的请求统计，或当前处于浏览器预览模式。</span>
-                </div>
-                <div class="usage-chart-legend">
-                  <span class="usage-chart-legend__item usage-chart-legend__item--input">输入</span>
-                  <span class="usage-chart-legend__item usage-chart-legend__item--output">输出</span>
-                  <span class="usage-chart-legend__item usage-chart-legend__item--cache">缓存命中</span>
-                  <span class="usage-chart-legend__item usage-chart-legend__item--cost">成本</span>
+                  <strong>{{ t('usage.noTrendTitle') }}</strong>
+                  <span>{{ t('usage.noTrendDesc') }}</span>
                 </div>
               </div>
             </article>
@@ -1548,66 +1836,164 @@
             <article class="usage-log-card panel">
               <div class="usage-log-card__head">
                 <div class="segmented-control segmented-control--secondary">
-                  <button type="button" class="segmented-control__item segmented-control__item--active">
-                    <span>请求日志</span>
+                  <button type="button" class="segmented-control__item" :class="{ 'segmented-control__item--active': usageView === 'requestLogs' }" @click="usageView = 'requestLogs'">
+                    <span>{{ t('usage.requestLogs') }}</span>
                   </button>
-                  <button type="button" class="segmented-control__item" disabled>
-                    <span>Provider 统计</span>
+                  <button type="button" class="segmented-control__item" :class="{ 'segmented-control__item--active': usageView === 'providerStats' }" @click="usageView = 'providerStats'">
+                    <span>{{ t('usage.providerStats') }}</span>
                   </button>
-                  <button type="button" class="segmented-control__item" disabled>
-                    <span>模型统计</span>
+                  <button type="button" class="segmented-control__item" :class="{ 'segmented-control__item--active': usageView === 'modelStats' }" @click="usageView = 'modelStats'">
+                    <span>{{ t('usage.modelStats') }}</span>
                   </button>
                 </div>
+                <div class="usage-log-toolbar">
+                  <button type="button" class="usage-log-filter" :class="{ 'usage-log-filter--active': usageAppFilter === 'all' }" @click="usageAppFilter = 'all'">{{ t('usage.allApps') }}</button>
+                  <button type="button" class="usage-log-filter" :class="{ 'usage-log-filter--active': usageAppFilter === 'codex' }" @click="usageAppFilter = 'codex'">Codex</button>
+                  <button type="button" class="usage-log-filter" :class="{ 'usage-log-filter--active': usageAppFilter === 'claude' }" @click="usageAppFilter = 'claude'">Claude</button>
+                  <button type="button" class="usage-log-filter" :class="{ 'usage-log-filter--active': usageAppFilter === 'gemini' }" @click="usageAppFilter = 'gemini'">Gemini</button>
+                  <button type="button" class="usage-log-filter" :class="{ 'usage-log-filter--active': usageAppFilter === 'hermes' }" @click="usageAppFilter = 'hermes'">Hermes</button>
+                  <!-- OpenCode Usage 后端暂缓：禁用并标注，避免像可用筛选项 -->
+                  <button
+                    type="button"
+                    class="usage-log-filter usage-log-filter--unavailable"
+                    disabled
+                    :title="tr('OpenCode Usage 暂未接入，后端独立阶段处理', 'OpenCode Usage is not available yet; backend support is deferred')"
+                  >
+                    OpenCode
+                    <span class="usage-log-filter__badge">{{ tr('未接入', 'N/A') }}</span>
+                  </button>
+                  <div class="usage-toolbar-divider" />
+                  <input
+                    v-model.trim="usageSearchQuery"
+                    class="usage-log-search"
+                    type="search"
+                    :placeholder="usageView === 'modelStats' ? t('usage.searchModel') : t('usage.searchProvider')"
+                  />
+                </div>
               </div>
-
-              <div class="usage-log-toolbar">
-                <div class="usage-log-filter">全部应用</div>
-                <div class="usage-log-filter">全部</div>
-                <div class="usage-log-search">搜索供应商...</div>
-                <div class="usage-log-search">搜索模型...</div>
-                <div class="usage-log-filter">今天</div>
-              </div>
-
               <div class="usage-log-table-wrap">
                 <table class="usage-log-table">
-                  <thead>
+                  <thead v-if="usageView === 'requestLogs'">
                     <tr>
-                      <th>时间</th>
-                      <th>供应商</th>
-                      <th>计费模型</th>
-                      <th>输入</th>
-                      <th>输出</th>
-                      <th>总成本</th>
-                      <th>用时/首字</th>
-                      <th>状态</th>
-                      <th>来源</th>
+                      <th>{{ t('usage.time') }}</th>
+                      <th>{{ t('usage.provider') }}</th>
+                      <th>{{ t('usage.billingModel') }}</th>
+                      <th>{{ t('usage.input') }}</th>
+                      <th>{{ t('usage.output') }}</th>
+                      <th>{{ tr('缓存', 'Cache') }}</th>
+                      <th>{{ t('usage.totalCostColumn') }}</th>
+                      <th>{{ tr('首 token', 'TTFT') }}</th>
+                      <th>{{ t('usage.duration') }}</th>
+                      <th>{{ t('usage.status') }}</th>
+                      <th>{{ t('usage.source') }}</th>
                     </tr>
                   </thead>
-                  <tbody v-if="activeUsageLogs.length">
+                  <thead v-else-if="usageView === 'providerStats'">
+                    <tr>
+                      <th>{{ t('usage.provider') }}</th>
+                      <th>{{ t('usage.totalRequests') }}</th>
+                      <th>{{ t('usage.input') }}</th>
+                      <th>{{ t('usage.output') }}</th>
+                      <th>{{ t('usage.totalCostColumn') }}</th>
+                      <th>{{ t('usage.hitRate') }}</th>
+                      <th>{{ tr('模型数', 'Models') }}</th>
+                      <th>{{ t('usage.source') }}</th>
+                      <th>{{ t('usage.time') }}</th>
+                    </tr>
+                  </thead>
+                  <thead v-else>
+                    <tr>
+                      <th>{{ t('usage.billingModel') }}</th>
+                      <th>{{ t('usage.totalRequests') }}</th>
+                      <th>{{ t('usage.provider') }}</th>
+                      <th>{{ t('usage.input') }}</th>
+                      <th>{{ t('usage.output') }}</th>
+                      <th>{{ t('usage.totalCostColumn') }}</th>
+                      <th>{{ t('usage.source') }}</th>
+                      <th>{{ t('usage.time') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody v-if="usageView === 'requestLogs' && activeUsageLogs.length">
                     <tr v-for="log in activeUsageLogs" :key="log.id">
                       <td>{{ formatUsageDate(log.createdAt) }}</td>
-                      <td>{{ providerNameById(log.providerProfileId) }}</td>
-                      <td>{{ log.model }}</td>
-                      <td>{{ log.inputTokens.toLocaleString('zh-CN') }}</td>
-                      <td>{{ log.outputTokens.toLocaleString('zh-CN') }}</td>
-                      <td>${{ log.costUsd.toFixed(4) }}</td>
-                      <td>{{ (log.durationMs / 1000).toFixed(1) }}s</td>
-                      <td>{{ log.statusCode }}</td>
+                      <td class="usage-provider-cell">
+                        <span class="usage-provider-icon" v-html="providerKindSvgIcon(usageLogProviderKind(log))" />
+                        <span :title="log.managedProviderId || undefined">{{ usageLogProviderName(log) }}</span>
+                      </td>
+                      <td>{{ log.model || log.pricingModel || '—' }}</td>
+                      <td>{{ log.inputTokens.toLocaleString(currentLocale) }}</td>
+                      <td>{{ log.outputTokens.toLocaleString(currentLocale) }}</td>
+                      <td :title="tr('读缓存 / 写缓存', 'Cache read / write')">
+                        {{ (log.cacheReadTokens ?? 0).toLocaleString(currentLocale) }}
+                        <span class="usage-token-sep">/</span>
+                        {{ (log.cacheCreationTokens ?? 0).toLocaleString(currentLocale) }}
+                      </td>
+                      <td :title="usageLogCostBreakdownTitle(log)">${{ log.costUsd.toFixed(4) }}</td>
+                      <td>{{ formatFirstTokenMs(log.firstTokenMs) }}</td>
+                      <td>{{ formatDurationMs(log.durationMs) }}</td>
+                      <td>{{ log.statusCode || '—' }}</td>
                       <td>{{ log.dataSource }}</td>
+                    </tr>
+                  </tbody>
+                  <tbody v-else-if="usageView === 'providerStats' && providerUsageRows.length">
+                    <tr v-for="row in providerUsageRows" :key="row.providerProfileId">
+                      <td>{{ row.providerName }}</td>
+                      <td>{{ row.totalRequests }}</td>
+                      <td>{{ row.totalInputTokens.toLocaleString(currentLocale) }}</td>
+                      <td>{{ row.totalOutputTokens.toLocaleString(currentLocale) }}</td>
+                      <td>${{ row.totalCostUsd.toFixed(4) }}</td>
+                      <td>{{ Math.round(row.cacheHitRate * 1000) / 10 }}%</td>
+                      <td>{{ row.models.size }}</td>
+                      <td>{{ Array.from(row.appTypes).join(' · ') }}</td>
+                      <td>{{ formatUsageDate(row.lastActivityAt) }}</td>
+                    </tr>
+                  </tbody>
+                  <tbody v-else-if="usageView === 'modelStats' && modelUsageRows.length">
+                    <tr v-for="row in modelUsageRows" :key="row.model">
+                      <td>{{ row.model }}</td>
+                      <td>{{ row.totalRequests }}</td>
+                      <td>{{ Array.from(row.providerNames).join(' · ') }}</td>
+                      <td>{{ row.totalInputTokens.toLocaleString(currentLocale) }}</td>
+                      <td>{{ row.totalOutputTokens.toLocaleString(currentLocale) }}</td>
+                      <td>${{ row.totalCostUsd.toFixed(4) }}</td>
+                      <td>{{ Array.from(row.appTypes).join(' · ') }}</td>
+                      <td>{{ formatUsageDate(row.lastActivityAt) }}</td>
                     </tr>
                   </tbody>
                   <tbody v-else>
                     <tr>
-                      <td colspan="9">
+                      <td :colspan="usageView === 'requestLogs' ? 11 : usageView === 'modelStats' ? 8 : 9">
                         <div class="usage-empty-state usage-empty-state--table">
                           <AppIcon name="terminal" :size="18" />
-                          <strong>暂无请求日志</strong>
-                          <span>Provider 只负责读取和管理本地 AI CLI 配置；统计数据来自可识别的 CLI 会话或 CC Switch 数据库。</span>
+                          <strong>{{ usageView === 'requestLogs' ? t('usage.noLogsTitle') : tr('暂无聚合数据', 'No aggregate data') }}</strong>
+                          <span>{{ usageView === 'requestLogs' ? t('usage.noLogsDesc') : tr('当前筛选条件下没有可聚合的 Provider / 模型使用数据。', 'No Provider or model usage data matched the current filters.') }}</span>
                         </div>
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <div v-if="usageView === 'requestLogs' && activeUsageLogs.length" class="usage-log-footer">
+                <span class="usage-log-footer__meta">
+                  {{ tr(
+                    `当前展示 ${activeUsageLogs.length} 条明细${managedUsageTotal ? ` / 共 ${managedUsageTotal}` : ''}`,
+                    `Showing ${activeUsageLogs.length} detail rows${managedUsageTotal ? ` / total ${managedUsageTotal}` : ''}`,
+                  ) }}
+                  · {{ tr(
+                    '「加载更多」只追加请求明细，不会重算 KPI / 趋势 / 排行',
+                    '“Load more” only appends detail logs; KPI / trends / ranking stay from full aggregates',
+                  ) }}
+                </span>
+                <button
+                  v-if="usageHasMoreRequestLogs"
+                  type="button"
+                  class="ghost-btn ghost-btn--small"
+                  :disabled="managedUsageInFlight || providerUsageRefreshRunning"
+                  @click="loadMoreUsageRequestLogs()"
+                >
+                  <AppIcon name="refresh" :size="13" :class="{ 'is-spinning': managedUsageInFlight }" />
+                  <span>{{ tr(`加载更多明细 +${usageRequestLogPageSize}`, `Load more details +${usageRequestLogPageSize}`) }}</span>
+                </button>
               </div>
             </article>
           </section>
@@ -1617,11 +2003,11 @@
           <section class="app-search-panel panel">
             <label class="app-search-input">
               <AppIcon name="search" :size="16" />
-              <input data-app-search-input v-model.trim="appSearchQuery" type="search" placeholder="搜索工作区、项目、终端、路径、配置、最近命令..." @keydown="handleSearchInputKeydown" />
+              <input data-app-search-input v-model.trim="appSearchQuery" type="search" :placeholder="t('search.placeholder')" @keydown="handleSearchInputKeydown" />
             </label>
             <div v-if="pageSearchResults.length" class="app-search-meta">
-              <span>当前选中 {{ Math.max(activeSearchResultIndex() + 1, 1) }} / {{ pageSearchResults.length }}</span>
-              <span :class="{ 'app-search-meta__hint--active': searchLoopHint }">{{ searchLoopHint || '↑ ↓ 切换 · Enter 打开' }}</span>
+              <span>{{ t('search.selectedResult', { current: Math.max(activeSearchResultIndex() + 1, 1), total: pageSearchResults.length }) }}</span>
+              <span :class="{ 'app-search-meta__hint--active': searchLoopHint }">{{ searchLoopHint || t('search.keyboardHint') }}</span>
             </div>
             <transition name="search-loop-hint">
               <div v-if="searchLoopHint" class="search-loop-hint" role="status">
@@ -1659,11 +2045,11 @@
                     <span class="meta-badge meta-badge--soft">{{ result.actionLabel }}</span>
                     <button v-if="result.command" type="button" class="ghost-btn ghost-btn--small" @click.stop="copyCommandText(result.command || '')">
                       <AppIcon name="copy" :size="13" />
-                      <span>复制命令</span>
+                      <span>{{ t('search.copyCommand') }}</span>
                     </button>
                     <button v-if="result.command" type="button" class="ghost-btn ghost-btn--small" @click.stop="insertCommandToActivePane(result.command || '')">
                       <AppIcon name="terminal" :size="13" />
-                      <span>回填当前输入框</span>
+                      <span>{{ t('search.insertCurrentInput') }}</span>
                     </button>
                   </span>
                 </button>
@@ -1673,8 +2059,8 @@
             <div v-else class="empty-state">
               <div class="empty-state__icon"><AppIcon name="search" :size="18" /></div>
               <div class="empty-state__body">
-                <strong>没有找到匹配结果</strong>
-                <p>当前搜索不会扫描电脑磁盘文件，只检索 Chuchen-Terminal 已保存的数据。</p>
+                <strong>{{ t('search.noResultsTitle') }}</strong>
+                <p>{{ t('search.noResultsDesc') }}</p>
               </div>
             </div>
           </section>
@@ -1683,8 +2069,8 @@
         <section class="p45-page p45-page--settings" v-else-if="appSection === 'settings'">
           <header class="p45-hero panel">
             <div class="p45-hero__copy">
-              <h2>设置</h2>
-              <p>集中管理外观、终端、系统检测、通知、任务监督和数据能力。</p>
+              <h2>{{ t('settings.title') }}</h2>
+              <p>{{ t('settings.intro') }}</p>
             </div>
           </header>
 
@@ -1738,16 +2124,16 @@
                 <div v-if="group.id === 'appearance'" class="settings-actions">
                   <button type="button" class="ghost-btn ghost-btn--primary" @click="openThemePanel('theme')">
                     <AppIcon name="theme" :size="14" />
-                    <span>打开主题面板</span>
+                    <span>{{ t('settings.actions.openThemePanel') }}</span>
                   </button>
                   <button type="button" class="ghost-btn" @click="toggleRailCollapsed()">
                     <AppIcon name="workspace" :size="14" />
-                    <span>{{ railCollapsed ? '默认展开 Rail' : '默认收起 Rail' }}</span>
+                    <span>{{ railCollapsed ? t('settings.actions.railExpand') : t('settings.actions.railCollapse') }}</span>
                   </button>
                 </div>
                 <div v-if="group.id === 'appearance'" class="settings-preview-card">
                   <div class="settings-preview-card__head">
-                    <strong>{{ selectedThemePreset.name }}</strong>
+                    <strong>{{ themeDisplayName(selectedThemePreset) }}</strong>
                     <span>{{ activeThemeDescription }}</span>
                   </div>
                   <div class="settings-preview-card__swatches">
@@ -1764,8 +2150,24 @@
                     @click="applyThemeFromSettings(theme.id)"
                   >
                     <span class="settings-chip__swatch" :style="{ background: theme.accent }"></span>
-                    <span>{{ theme.name }}</span>
+                    <span>{{ themeDisplayName(theme) }}</span>
                   </button>
+                </div>
+                <div v-if="group.id === 'appearance'" class="settings-chip-group">
+                  <button
+                    v-for="option in localeOptions"
+                    :key="`locale-${option.value}`"
+                    type="button"
+                    class="settings-chip"
+                    :class="{ 'settings-chip--active': currentLocale === option.value }"
+                    @click="applyLocaleFromSettings(option.value)"
+                  >
+                    <span>{{ option.label }}</span>
+                  </button>
+                </div>
+                <div v-if="group.id === 'appearance'" class="settings-note">
+                  <strong>{{ t('common.language') }}</strong>
+                  <p>{{ t('common.languageHint') }}</p>
                 </div>
                 <div v-if="group.id === 'appearance'" class="settings-chip-group">
                   <button
@@ -1776,12 +2178,12 @@
                     :class="{ 'settings-chip--active': terminalFontSize === size }"
                     @click="applyTerminalFontSizeFromSettings(size)"
                   >
-                    <span>终端字号 {{ size }}px</span>
+                    <span>{{ t('settings.groups.appearance.fontSize', { size }) }}</span>
                   </button>
                 </div>
                 <div v-if="group.id === 'appearance' && activeThemeId === 'default'" class="settings-inline-field">
-                  <label class="settings-inline-field__label" for="settings-accent-color">主题主色</label>
-                  <input id="settings-accent-color" type="color" :value="customAccentHex" @input="onAccentColorInput(($event.target as HTMLInputElement).value); showToast('主题主色已更新', ($event.target as HTMLInputElement).value)" />
+                  <label class="settings-inline-field__label" for="settings-accent-color">{{ t('settings.actions.themeAccent') }}</label>
+                  <input id="settings-accent-color" type="color" :value="customAccentHex" @input="onAccentColorInput(($event.target as HTMLInputElement).value); showToast(t('toast.accentUpdated'), ($event.target as HTMLInputElement).value)" />
                 </div>
 
                 <div v-if="group.id === 'terminal'" class="settings-actions">
@@ -1799,11 +2201,11 @@
                 <div v-if="group.id === 'terminal'" class="settings-preview-card">
                   <div class="settings-preview-card__head">
                     <strong>{{ terminalFontFamily }}</strong>
-                    <span>当前恢复策略：{{ restoreCommandStrategyLabel(restoreCommandStrategy) }}</span>
+                    <span>{{ t('settings.actions.currentRestoreStrategy', { label: restoreCommandStrategyLabel(restoreCommandStrategy) }) }}</span>
                   </div>
                   <code class="settings-preview-card__terminal" :style="terminalPreviewStyle">PS&gt; echo "Hello Chuchen-Terminal"</code>
                   <div class="settings-control-row">
-                    <label class="settings-control-row__label" for="settings-font-size">终端字号</label>
+                    <label class="settings-control-row__label" for="settings-font-size">{{ t('settings.actions.terminalFontSize') }}</label>
                     <input id="settings-font-size" type="range" min="8" max="24" :value="terminalFontSize" @input="applyTerminalFontSizeFromSettings(Number(($event.target as HTMLInputElement).value))" />
                     <span class="settings-control-row__value">{{ terminalFontSize }}px</span>
                   </div>
@@ -1824,11 +2226,11 @@
                 <div v-if="group.id === 'system'" class="settings-actions">
                   <button type="button" class="ghost-btn ghost-btn--primary" @click="openThemePanel('system')">
                     <AppIcon name="runtime" :size="14" />
-                    <span>打开系统面板</span>
+                    <span>{{ t('settings.actions.openSystemPanel') }}</span>
                   </button>
                   <button type="button" class="ghost-btn" :disabled="environmentChecksRefreshing" @click="refreshEnvironmentChecks(true)">
                     <AppIcon name="refresh" :size="14" :class="{ 'is-spinning': environmentChecksRefreshing }" />
-                    <span>{{ environmentChecksRefreshing ? '检测中' : '重新检测环境' }}</span>
+                    <span>{{ environmentChecksRefreshing ? t('settings.actions.checking') : t('settings.actions.recheckEnvironment') }}</span>
                   </button>
                 </div>
                 <div v-if="group.id === 'system'" class="settings-chip-group">
@@ -1840,7 +2242,7 @@
                     :class="{ 'settings-chip--active': systemRefreshInterval === option }"
                     @click="applySystemRefreshModeFromSettings(option)"
                   >
-                    <span>{{ option === 'manual' ? '手动刷新' : `${option} 刷新` }}</span>
+                    <span>{{ option === 'manual' ? t('settings.actions.refreshManual') : t('settings.actions.refreshQuick', { seconds: option.replace('s', '') }) }}</span>
                   </button>
                 </div>
                 <div v-if="group.id === 'system'" class="settings-chip-group settings-chip-group--wrap">
@@ -1863,7 +2265,7 @@
                     :class="{ 'settings-chip--active': systemNotificationsEnabled }"
                     @click="systemNotificationsEnabled = !systemNotificationsEnabled"
                   >
-                    <span>{{ systemNotificationsEnabled ? '系统通知已开启' : '系统通知已关闭' }}</span>
+                    <span>{{ systemNotificationsEnabled ? t('themePanel.notificationsOn') : t('themePanel.notificationsOff') }}</span>
                   </button>
                   <button
                     type="button"
@@ -1871,26 +2273,26 @@
                     :class="{ 'settings-chip--active': windowAttentionEnabled }"
                     @click="windowAttentionEnabled = !windowAttentionEnabled"
                   >
-                    <span>{{ windowAttentionEnabled ? '任务栏提醒已开启' : '任务栏提醒已关闭' }}</span>
+                    <span>{{ windowAttentionEnabled ? t('themePanel.taskbarOn') : t('themePanel.taskbarOff') }}</span>
                   </button>
                 </div>
 
                 <div v-if="group.id === 'supervisor' && isDevBuild" class="settings-chip-group settings-chip-group--wrap">
-                  <button type="button" class="settings-chip" @click="simulateSessionAttention('completed')"><span>模拟完成</span></button>
-                  <button type="button" class="settings-chip" @click="simulateSessionAttention('needs-input')"><span>模拟等待</span></button>
-                  <button type="button" class="settings-chip" @click="simulateSessionAttention('error')"><span>模拟异常</span></button>
-                  <button type="button" class="settings-chip" @click="simulateSessionAttention('stalled')"><span>模拟停滞</span></button>
-                  <button type="button" class="settings-chip" @click="simulateSessionAttention('clear')"><span>清除提醒</span></button>
+                  <button type="button" class="settings-chip" @click="simulateSessionAttention('completed')"><span>{{ t('themePanel.simulateCompleted') }}</span></button>
+                  <button type="button" class="settings-chip" @click="simulateSessionAttention('needs-input')"><span>{{ t('themePanel.simulateNeedsInput') }}</span></button>
+                  <button type="button" class="settings-chip" @click="simulateSessionAttention('error')"><span>{{ t('themePanel.simulateError') }}</span></button>
+                  <button type="button" class="settings-chip" @click="simulateSessionAttention('stalled')"><span>{{ t('themePanel.simulateStalled') }}</span></button>
+                  <button type="button" class="settings-chip" @click="simulateSessionAttention('clear')"><span>{{ t('themePanel.clearReminder') }}</span></button>
                 </div>
 
                 <div v-if="group.id === 'data'" class="settings-note">
-                  <strong>cc-switch 配置导入</strong>
-                  <p>用于承接常见 AI CLI 配置迁移流程。导入前只读预览 CLI 档案、模型备注和认证来源，不保存 URL 或密钥。</p>
+                  <strong>{{ t('themePanel.providerImportTitle') }}</strong>
+                  <p>{{ t('themePanel.providerImportDesc') }}</p>
                 </div>
                 <div v-if="group.id === 'data'" class="settings-actions">
                   <button type="button" class="ghost-btn" @click="clearDiagnosticsCaches()">
                     <AppIcon name="trash" :size="14" />
-                    <span>重新加载系统数据</span>
+                    <span>{{ t('themePanel.reloadSystemData') }}</span>
                   </button>
                 </div>
               </article>
@@ -1902,7 +2304,7 @@
           <div class="panel__header">
             <div>
               <h2>{{ placeholderTitle }}</h2>
-              <span>该模块暂未纳入当前阶段的主开发闭环，先保留结构入口。</span>
+              <span>{{ tr('该模块暂未纳入当前阶段的主开发闭环，先保留结构入口。', 'This module is not yet part of the current primary delivery loop, so the entry remains in place for now.') }}</span>
             </div>
           </div>
           <div class="placeholder-body">{{ placeholderDescription }}</div>
@@ -1910,67 +2312,74 @@
       </main>
     </div>
 
+    <ModelPricingModal
+      :open="openModelPricingModalState"
+      :locale="currentLocale"
+      @close="closeModelPricingModal()"
+      @saved="onModelPricingSaved()"
+    />
+
     <ModalShell
       :open="openWorkspaceEditorModal"
-      :title="workspaceEditorMode === 'create' ? '新建工作区' : '编辑工作区'"
-      description="保存工作区名称、根目录、描述与标签，作为首页卡片和后续运行配置的归属容器。"
+      :title="workspaceEditorMode === 'create' ? t('forms.workspaceCreateTitle') : t('forms.workspaceEditTitle')"
+      :description="t('forms.workspaceDesc')"
       icon="workspace"
       size="md"
       @close="closeWorkspaceEditorModal()"
     >
       <form class="editor-form editor-form--refined" @submit.prevent="submitWorkspaceForm()">
         <label class="form-field">
-          <span>工作区名称</span>
-          <input v-model.trim="workspaceForm.name" type="text" placeholder="例如：demo-workspace / app-suite" />
+          <span>{{ t('forms.workspaceName') }}</span>
+          <input v-model.trim="workspaceForm.name" type="text" :placeholder="t('forms.workspaceNamePlaceholder')" />
         </label>
         <label class="form-field">
-          <span>根目录</span>
+          <span>{{ t('forms.workspaceRoot') }}</span>
           <div class="path-field">
-            <input v-model.trim="workspaceForm.rootPath" type="text" placeholder="例如：D:\\Projects\\demo-workspace" />
-            <button type="button" class="ghost-btn ghost-btn--small path-field__action" @click.stop="pickWorkspaceRootPath()">选择目录</button>
+            <input v-model.trim="workspaceForm.rootPath" type="text" :placeholder="t('forms.workspaceRootPlaceholder')" />
+            <button type="button" class="ghost-btn ghost-btn--small path-field__action" @click.stop="pickWorkspaceRootPath()">{{ t('common.actions.chooseDirectory') }}</button>
           </div>
         </label>
         <label class="form-field">
-          <span>工作区描述</span>
-          <textarea v-model.trim="workspaceForm.description" rows="3" placeholder="简单描述这个工作区主要承担的用途"></textarea>
+          <span>{{ t('forms.workspaceDescription') }}</span>
+          <textarea v-model.trim="workspaceForm.description" rows="3" :placeholder="t('forms.workspaceDescriptionPlaceholder')"></textarea>
         </label>
         <label class="form-field">
-          <span>标签</span>
-          <input v-model.trim="workspaceForm.tagsText" type="text" placeholder="使用中文逗号、英文逗号或空格分隔，例如：前端, 后端, AI" />
+          <span>{{ t('forms.tags') }}</span>
+          <input v-model.trim="workspaceForm.tagsText" type="text" :placeholder="t('forms.workspaceTagsPlaceholder')" />
         </label>
         <div class="form-actions">
-          <button type="button" class="ghost-btn" @click="closeWorkspaceEditorModal()">取消</button>
-          <button type="submit" class="ghost-btn ghost-btn--primary">保存工作区</button>
+          <button type="button" class="ghost-btn" @click="closeWorkspaceEditorModal()">{{ t('common.actions.cancel') }}</button>
+          <button type="submit" class="ghost-btn ghost-btn--primary">{{ t('forms.saveWorkspace') }}</button>
         </div>
       </form>
     </ModalShell>
 
     <ModalShell
       :open="openTerminalEntryEditorModal"
-      :title="terminalEntryEditorMode === 'create' ? '新建运行配置' : '编辑运行配置'"
-      description="运行配置保存目录、命令、环境变量和备注，是 Pane 恢复与运行时解析的基础对象。"
+      :title="terminalEntryEditorMode === 'create' ? t('forms.entryCreateTitle') : t('forms.entryEditTitle')"
+      :description="t('forms.entryDesc')"
       icon="terminal"
       size="md"
       @close="closeTerminalEntryEditorModal()"
     >
       <form class="editor-form editor-form--refined" @submit.prevent="submitTerminalEntryForm()">
         <label class="form-field">
-          <span>运行配置名称</span>
-          <input v-model.trim="terminalEntryForm.name" type="text" placeholder="例如：前端 / 后端 / Codex" />
+          <span>{{ t('forms.entryName') }}</span>
+          <input v-model.trim="terminalEntryForm.name" type="text" :placeholder="t('forms.entryNamePlaceholder')" />
         </label>
         <label class="form-field">
-          <span>工作目录</span>
+          <span>{{ t('forms.workingDirectory') }}</span>
           <div class="path-field">
-            <input v-model.trim="terminalEntryForm.workingDirectory" type="text" placeholder="例如：D:\\Projects\\demo-frontend" />
-            <button type="button" class="ghost-btn ghost-btn--small path-field__action" @click.stop="pickTerminalEntryWorkingDirectory()">选择目录</button>
+            <input v-model.trim="terminalEntryForm.workingDirectory" type="text" :placeholder="t('forms.workingDirectoryPlaceholder')" />
+            <button type="button" class="ghost-btn ghost-btn--small path-field__action" @click.stop="pickTerminalEntryWorkingDirectory()">{{ t('common.actions.chooseDirectory') }}</button>
           </div>
         </label>
         <label class="form-field">
-          <span>默认命令</span>
-          <input v-model.trim="terminalEntryForm.defaultCommand" type="text" placeholder="例如：pnpm dev / go run ./cmd/server" />
+          <span>{{ t('forms.defaultCommand') }}</span>
+          <input v-model.trim="terminalEntryForm.defaultCommand" type="text" :placeholder="t('forms.defaultCommandPlaceholder')" />
         </label>
         <label class="form-field">
-          <span>启动模式</span>
+          <span>{{ t('forms.launchMode') }}</span>
           <div class="pane__binding-wrap form-select-wrap">
             <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleLaunchModeMenu()">
               <span>{{ launchModeLabel(terminalEntryForm.launchMode) }}</span>
@@ -1980,67 +2389,67 @@
           </div>
         </label>
         <label class="form-field">
-          <span>环境变量</span>
-          <textarea v-model.trim="terminalEntryForm.environmentVariablesText" rows="4" placeholder="每行一个，例如：&#10;NODE_ENV=development&#10;HTTP_PROXY=http://127.0.0.1:7890"></textarea>
+          <span>{{ t('forms.environmentVariables') }}</span>
+          <textarea v-model.trim="terminalEntryForm.environmentVariablesText" rows="4" :placeholder="t('forms.envPlaceholder')"></textarea>
         </label>
         <label class="form-field">
-          <span>标签</span>
-          <input v-model.trim="terminalEntryForm.tagsText" type="text" placeholder="例如：前端, 常用, AI" />
+          <span>{{ t('forms.tags') }}</span>
+          <input v-model.trim="terminalEntryForm.tagsText" type="text" :placeholder="t('forms.entryTagsPlaceholder')" />
         </label>
         <label class="form-field">
-          <span>备注</span>
-          <textarea v-model.trim="terminalEntryForm.note" rows="3" placeholder="记录这个配置的场景说明或注意事项"></textarea>
+          <span>{{ t('forms.note') }}</span>
+          <textarea v-model.trim="terminalEntryForm.note" rows="3" :placeholder="t('forms.notePlaceholder')"></textarea>
         </label>
         <div class="form-actions">
-          <button type="button" class="ghost-btn" @click="closeTerminalEntryEditorModal()">取消</button>
-          <button type="submit" class="ghost-btn ghost-btn--primary">保存配置</button>
+          <button type="button" class="ghost-btn" @click="closeTerminalEntryEditorModal()">{{ t('common.actions.cancel') }}</button>
+          <button type="submit" class="ghost-btn ghost-btn--primary">{{ t('forms.saveEntry') }}</button>
         </div>
       </form>
     </ModalShell>
 
     <ModalShell
       :open="openTemplateEditorModal"
-      :title="templateEditorMode === 'create' ? '新建模板' : '编辑模板'"
-      description="只编辑模板的名称、说明和标签；模板内的 Pane 结构沿用保存时的内容。"
+      :title="templateEditorMode === 'create' ? t('forms.templateCreateTitle') : t('forms.templateEditTitle')"
+      :description="t('forms.templateDesc')"
       icon="template"
       size="md"
       @close="closeWorkflowTemplateEditorModal()"
     >
       <form class="editor-form editor-form--refined" @submit.prevent="submitWorkflowTemplateForm()">
         <label class="form-field">
-          <span>模板名称</span>
-          <input v-model.trim="workflowTemplateForm.name" type="text" placeholder="例如：前后端联调 / AI CLI 工作流" />
+          <span>{{ t('forms.templateName') }}</span>
+          <input v-model.trim="workflowTemplateForm.name" type="text" :placeholder="t('forms.templateNamePlaceholder')" />
         </label>
         <label class="form-field">
-          <span>模板说明</span>
-          <textarea v-model.trim="workflowTemplateForm.description" rows="3" placeholder="简单描述这个模板适合什么场景"></textarea>
+          <span>{{ t('forms.templateDescription') }}</span>
+          <textarea v-model.trim="workflowTemplateForm.description" rows="3" :placeholder="t('forms.templateDescriptionPlaceholder')"></textarea>
         </label>
         <label class="form-field">
-          <span>标签</span>
-          <input v-model.trim="workflowTemplateForm.tagsText" type="text" placeholder="例如：前端, 后端, AI" />
+          <span>{{ t('forms.tags') }}</span>
+          <input v-model.trim="workflowTemplateForm.tagsText" type="text" :placeholder="t('forms.workspaceTagsPlaceholder')" />
         </label>
         <div class="form-actions">
-          <button type="button" class="ghost-btn" @click="closeWorkflowTemplateEditorModal()">取消</button>
-          <button type="submit" class="ghost-btn ghost-btn--primary">保存模板</button>
+          <button type="button" class="ghost-btn" @click="closeWorkflowTemplateEditorModal()">{{ t('common.actions.cancel') }}</button>
+          <button type="submit" class="ghost-btn ghost-btn--primary">{{ t('forms.saveTemplate') }}</button>
         </div>
       </form>
     </ModalShell>
 
     <ModalShell
       :open="openProviderEditorModal"
-      :title="providerEditorMode === 'create' ? '新建配置档案' : '编辑配置档案'"
-      description="记录本地 Codex / Claude Code / Gemini CLI 的配置文件、Profile、模型备注和切换入口，不配置请求 URL 或密钥。"
+      :title="providerEditorMode === 'create' ? t('forms.profileCreateTitle') : t('forms.profileEditTitle')"
+      :description="t('forms.profileDesc')"
       icon="settings"
-      size="md"
+      size="lg"
       @close="closeProviderEditorModal()"
     >
       <form class="editor-form editor-form--refined" @submit.prevent="submitProviderForm()">
         <label class="form-field">
-          <span>档案名称</span>
-          <input v-model.trim="providerForm.name" type="text" placeholder="例如：Codex Stable / Claude Team / Gemini Personal" />
+          <span>{{ t('forms.profileName') }}</span>
+          <input v-model.trim="providerForm.name" type="text" :placeholder="t('forms.profileNamePlaceholder')" />
         </label>
         <label class="form-field">
-          <span>CLI 应用</span>
+          <span>{{ t('forms.cliApp') }}</span>
           <div class="pane__binding-wrap form-select-wrap">
             <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleProviderKindMenu()">
               <span>{{ providerKindLabel(providerForm.providerKind) }}</span>
@@ -2050,15 +2459,15 @@
           </div>
         </label>
         <label class="form-field">
-          <span>Profile 名称</span>
-          <input v-model.trim="providerForm.profileName" type="text" placeholder="例如：stable / team / personal" />
+          <span>{{ t('forms.profileLabel') }}</span>
+          <input v-model.trim="providerForm.profileName" type="text" :placeholder="t('forms.profileIdPlaceholder')" />
+        </label>
+        <label class="form-field form-field--readonly">
+          <span>{{ t('forms.configFile') }}</span>
+          <input v-model.trim="providerForm.configPath" type="text" :placeholder="t('forms.configFilePlaceholder')" readonly tabindex="-1" />
         </label>
         <label class="form-field">
-          <span>配置文件</span>
-          <input v-model.trim="providerForm.configPath" type="text" placeholder="例如：~/.codex/config.toml / ~/.claude.json" />
-        </label>
-        <label class="form-field">
-          <span>配置来源</span>
+          <span>{{ t('provider.configSource') }}</span>
           <div class="pane__binding-wrap form-select-wrap">
             <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleProviderSourceMenu()">
               <span>{{ providerSourceLabel(providerForm.managedBy) }}</span>
@@ -2068,7 +2477,7 @@
           </div>
         </label>
         <label class="form-field">
-          <span>作用域</span>
+          <span>{{ t('provider.scopeLabel') }}</span>
           <div class="pane__binding-wrap form-select-wrap">
             <button type="button" class="binding-trigger form-select-trigger" @pointerdown="handleMenuTriggerPointerDown" @click.stop="toggleProviderScopeMenu()">
               <span>{{ providerScopeLabel(providerForm.configScope) }}</span>
@@ -2078,48 +2487,64 @@
           </div>
         </label>
         <label class="form-field">
-          <span>适用 CLI</span>
-          <input v-model.trim="providerForm.toolTargetsText" type="text" placeholder="例如：codex, claude, gemini" />
+          <span>{{ t('provider.targetCli') }}</span>
+          <input v-model.trim="providerForm.toolTargetsText" type="text" :placeholder="t('forms.targetCliPlaceholder')" />
         </label>
         <label class="form-field">
-          <span>模型备注</span>
-          <input v-model.trim="providerForm.defaultModel" type="text" placeholder="仅作为本地配置检测值或备注，例如 gpt-5" />
+          <span>{{ tr('默认模型', 'Default model') }}</span>
+          <input v-model.trim="providerForm.defaultModel" type="text" :placeholder="tr('留空则使用 CLI 内置默认', 'Leave empty to use CLI default')" />
         </label>
         <label class="form-field">
-          <span>认证来源</span>
-          <input v-model.trim="providerForm.authSource" type="text" placeholder="例如：Codex OAuth 登录态 / Claude Code 本地登录态" />
+          <span>{{ t('provider.authSource') }}</span>
+          <input v-model.trim="providerForm.authSource" type="text" :placeholder="t('forms.authSourcePlaceholder')" />
         </label>
         <label class="form-field">
-          <span>切换命令</span>
-          <input v-model.trim="providerForm.switchCommand" type="text" placeholder="例如：cc-switch codex use stable" />
+          <span>{{ t('forms.homepageUrl') }}</span>
+          <input v-model.trim="providerForm.homepageUrl" type="text" :placeholder="t('forms.homepageUrlPlaceholder')" />
         </label>
         <label class="form-field">
-          <span>标识颜色</span>
-          <input v-model.trim="providerForm.color" type="text" placeholder="例如：#4b83ff" />
+          <span>{{ t('forms.requestBaseUrl') }}</span>
+          <input v-model.trim="providerForm.requestBaseUrl" type="text" :placeholder="t('forms.requestBaseUrlPlaceholder')" />
         </label>
         <label class="form-field">
-          <span>备注</span>
-          <textarea v-model.trim="providerForm.note" rows="3" placeholder="说明这套配置绑定了什么 CLI、在哪切换、适用于哪些项目"></textarea>
+          <span>{{ t('provider.switchCommand') }}</span>
+          <input
+            v-model.trim="providerForm.switchCommand"
+            type="text"
+            :placeholder="switchCommandPlaceholderForKind(providerForm.providerKind, providerForm.profileName)"
+          />
+        </label>
+        <label class="form-field">
+          <span>{{ t('provider.colorTag') }}</span>
+          <input v-model.trim="providerForm.color" type="text" :placeholder="t('forms.colorPlaceholder')" />
+        </label>
+        <label class="form-field">
+          <span>{{ t('forms.note') }}</span>
+          <textarea v-model.trim="providerForm.note" rows="3" :placeholder="t('forms.profileNotePlaceholder')"></textarea>
+        </label>
+        <label class="form-field">
+          <span>{{ t('forms.authPayload') }}</span>
+          <textarea v-model.trim="providerForm.authPayload" rows="5" :placeholder="t('forms.authPayloadPlaceholder')"></textarea>
+        </label>
+        <label class="form-field">
+          <span>{{ t('forms.configPayload') }}</span>
+          <textarea v-model.trim="providerForm.configPayload" rows="10" :placeholder="t('forms.configPayloadPlaceholder')"></textarea>
         </label>
         <label class="form-field form-field--inline">
           <input v-model="providerForm.isDefault" type="checkbox" />
-          <span>设为默认档案</span>
-        </label>
-        <label class="form-field form-field--inline">
-          <input v-model="providerForm.isActive" type="checkbox" />
-          <span>标记为当前启用</span>
+          <span>{{ t('provider.setDefaultProfile') }}</span>
         </label>
         <div class="form-actions">
-          <button type="button" class="ghost-btn" @click="closeProviderEditorModal()">取消</button>
-          <button type="submit" class="ghost-btn ghost-btn--primary">保存档案</button>
+          <button type="button" class="ghost-btn" @click="closeProviderEditorModal()">{{ t('common.actions.cancel') }}</button>
+          <button type="submit" class="ghost-btn ghost-btn--primary">{{ t('forms.saveProfile') }}</button>
         </div>
       </form>
     </ModalShell>
 
     <ModalShell
       :open="openTerminalEntriesModal"
-      title="运行配置"
-      description="运行配置只负责工作目录、命令与环境变量。AI CLI 配置档案在左侧 Provider 菜单中单独管理。"
+      :title="t('provider.runConfigsTitle')"
+      :description="t('provider.runConfigsDesc')"
       icon="terminal"
       size="lg"
       @close="openTerminalEntriesModal = false"
@@ -2128,12 +2553,12 @@
         <div class="entry-modal__toolbar">
           <div class="entry-modal__intro">
             <strong>{{ selectedWorkspace?.name }}</strong>
-            <span>当前工作区的运行配置列表。</span>
+            <span>{{ t('provider.currentWorkspaceEntries') }}</span>
           </div>
           <div class="entry-modal__toolbar-actions">
             <button class="ghost-btn ghost-btn--primary" @click="openTerminalEntryCreateModal()">
               <AppIcon name="terminal" :size="15" />
-              <span>新建运行配置</span>
+              <span>{{ t('provider.newRunConfig') }}</span>
             </button>
           </div>
         </div>
@@ -2145,19 +2570,19 @@
                 <strong>{{ entry.name }}</strong>
                 <span>{{ entry.workingDirectory }}</span>
               </div>
-              <div class="entry-card__head-meta">
+            <div class="entry-card__head-meta">
                 <span class="meta-badge">{{ launchModeLabel(entry.launchMode) }}</span>
-                <span class="meta-badge meta-badge--soft">已绑定 {{ entryUsageCount(entry.id) }} 个 Pane</span>
+                <span class="meta-badge meta-badge--soft">{{ t('provider.boundPanes', { count: entryUsageCount(entry.id) }) }}</span>
               </div>
             </div>
             <div class="entry-card__body">
-              <span>默认命令：{{ entry.defaultCommand || '未设置' }}</span>
-              <span>环境变量：{{ entry.environmentVariablesText ? '已配置' : '未配置' }}</span>
-              <span>最近命令：{{ entry.lastCommand || '未记录' }}</span>
+              <span>{{ t('workspace.defaultCommand') }}：{{ entry.defaultCommand || t('workspace.notSet') }}</span>
+              <span>{{ t('forms.environmentVariables') }}：{{ entry.environmentVariablesText ? t('provider.envConfigured') : t('provider.envNotConfigured') }}</span>
+              <span>{{ t('workspace.lastCommand') }}：{{ entry.lastCommand || t('workspace.notRecorded') }}</span>
             </div>
             <div class="entry-card__actions">
-              <button class="ghost-btn ghost-btn--small" @click="openTerminalEntryEditModal(entry.id)">编辑</button>
-              <button class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeTerminalEntry(entry.id)">删除</button>
+              <button class="ghost-btn ghost-btn--small" @click="openTerminalEntryEditModal(entry.id)">{{ t('common.actions.edit') }}</button>
+              <button class="ghost-btn ghost-btn--danger ghost-btn--small" @click="removeTerminalEntry(entry.id)">{{ t('common.actions.delete') }}</button>
             </div>
           </article>
         </div>
@@ -2167,8 +2592,8 @@
             <AppIcon name="terminal" :size="15" />
           </div>
           <div class="empty-state__body">
-            <strong>还没有运行配置</strong>
-            <p>你可以先创建运行配置，再到“运行态”为某个 Pane 绑定它。</p>
+            <strong>{{ t('provider.noRunConfigsTitle') }}</strong>
+            <p>{{ t('provider.noRunConfigsDesc') }}</p>
           </div>
         </div>
       </div>
@@ -2176,8 +2601,8 @@
 
     <ModalShell
       :open="openSplitActionModal"
-      :title="splitActionState.mode === 'create' ? '新增分屏 Pane' : '复制当前 Pane'"
-      description="选择这次新增分屏的布局方向。"
+      :title="splitActionState.mode === 'create' ? t('modal.splitPaneTitleCreate') : t('modal.splitPaneTitleDuplicate')"
+      :description="t('modal.splitPaneDesc')"
       icon="pane"
       size="md"
       @close="openSplitActionModal = false"
@@ -2186,18 +2611,18 @@
         <div class="split-action-grid">
           <button type="button" class="split-choice-card" @click="submitSplitAction('grid')">
             <AppIcon name="workspace" :size="18" />
-            <strong>网格</strong>
-            <span>更适合多个 Pane 同时总览。</span>
+            <strong>{{ t('workspace.layoutGrid') }}</strong>
+            <span>{{ tr('更适合多个 Pane 同时总览。', 'Best when several panes must stay visible together.') }}</span>
           </button>
           <button type="button" class="split-choice-card" @click="submitSplitAction('horizontal')">
             <AppIcon name="copy" :size="18" />
-            <strong>横向</strong>
-            <span>让 Pane 以左右并排的方式展示。</span>
+            <strong>{{ t('workspace.layoutHorizontal') }}</strong>
+            <span>{{ tr('让 Pane 以左右并排的方式展示。', 'Arrange panes side by side.') }}</span>
           </button>
           <button type="button" class="split-choice-card" @click="submitSplitAction('vertical')">
             <AppIcon name="pane" :size="18" />
-            <strong>纵向</strong>
-            <span>让 Pane 以上下堆叠的方式展示。</span>
+            <strong>{{ t('workspace.layoutVertical') }}</strong>
+            <span>{{ tr('让 Pane 以上下堆叠的方式展示。', 'Stack panes vertically.') }}</span>
           </button>
         </div>
       </div>
@@ -2205,23 +2630,23 @@
 
     <ModalShell
       :open="openThemeModal"
-      title="主题与字体"
-      description="高频配置使用居中 Modal；主题与字体在同一个面板中切换，不强制关闭整个面板。"
+      :title="t('modal.themeTitle')"
+      :description="t('modal.themeDesc')"
       size="lg"
       @close="openThemeModal = false"
     >
       <div class="modal-tabs">
         <button type="button" class="modal-tab" :class="{ 'modal-tab--active': themePanelTab === 'theme' }" @click.stop="themePanelTab = 'theme'">
           <AppIcon name="theme" :size="15" />
-          <span>主题</span>
+          <span>{{ t('themePanel.themeTab') }}</span>
         </button>
         <button type="button" class="modal-tab" :class="{ 'modal-tab--active': themePanelTab === 'font' }" @click.stop="themePanelTab = 'font'">
           <AppIcon name="terminal" :size="15" />
-          <span>字体</span>
+          <span>{{ t('themePanel.fontTab') }}</span>
         </button>
         <button type="button" class="modal-tab" :class="{ 'modal-tab--active': themePanelTab === 'system' }" @click.stop="themePanelTab = 'system'">
           <AppIcon name="runtime" :size="15" />
-          <span>系统</span>
+          <span>{{ t('themePanel.systemTab') }}</span>
         </button>
       </div>
 
@@ -2238,8 +2663,8 @@
 
         <section class="theme-section">
           <div class="theme-section__head">
-            <h4>系统主题</h4>
-            <span>默认主题支持自由调主色；彩色预设可一键切换。</span>
+            <h4>{{ t('themePanel.systemThemes') }}</h4>
+            <span>{{ t('themePanel.systemThemesDesc') }}</span>
           </div>
           <div class="theme-grid">
             <button
@@ -2254,18 +2679,18 @@
                 <span v-for="color in theme.swatches" :key="color" class="theme-card__dot" :style="{ background: color }"></span>
               </span>
               <span class="theme-card__body">
-                <strong>{{ theme.name }}</strong>
-                <span>{{ theme.description }}</span>
+                <strong>{{ themeDisplayName(theme) }}</strong>
+                <span>{{ themeDisplayDescription(theme) }}</span>
               </span>
-              <small>{{ theme.kind }}</small>
+              <small>{{ themeDisplayKind(theme) }}</small>
             </button>
           </div>
         </section>
 
         <section class="theme-section">
           <div class="theme-section__head">
-            <h4>常见主题风格</h4>
-            <span>先内置几套常见主题，后续可扩展下载与导入。</span>
+            <h4>{{ t('themePanel.importedThemes') }}</h4>
+            <span>{{ t('themePanel.importedThemesDesc') }}</span>
           </div>
           <div class="theme-grid theme-grid--compact">
             <button
@@ -2280,22 +2705,22 @@
                 <span v-for="color in theme.swatches" :key="color" class="theme-card__dot" :style="{ background: color }"></span>
               </span>
               <span class="theme-card__body">
-                <strong>{{ theme.name }}</strong>
-                <span>{{ theme.description }}</span>
+                <strong>{{ themeDisplayName(theme) }}</strong>
+                <span>{{ themeDisplayDescription(theme) }}</span>
               </span>
-              <small>{{ theme.kind }}</small>
+              <small>{{ themeDisplayKind(theme) }}</small>
             </button>
           </div>
         </section>
 
         <section class="theme-customizer" v-if="activeThemeId === 'default'">
           <div class="theme-section__head">
-            <h4>默认主题调色</h4>
-            <span>默认主题允许按你的喜好自定义主色，支持色盘、HEX 与 RGB。</span>
+            <h4>{{ t('themePanel.customizeTheme') }}</h4>
+            <span>{{ t('themePanel.customizeThemeDesc') }}</span>
           </div>
           <div class="color-editor">
             <label class="color-input-card">
-              <span>主色</span>
+              <span>{{ t('themePanel.accent') }}</span>
               <input type="color" :value="customAccentHex" @input="onAccentColorInput(($event.target as HTMLInputElement).value)" />
             </label>
             <label class="text-input-card text-input-card--wide">
@@ -2325,20 +2750,20 @@
           <div><span class="font-preview__prompt">?</span> pnpm dev</div>
           <div class="font-preview__muted">ready in 812 ms  ?  Local: http://localhost:5173/</div>
           <div class="font-preview__divider"></div>
-          <div class="font-preview__chars">特殊字符：│ ├ └ ┐ ─ ? ? ↖ ↗ ? √ △</div>
+          <div class="font-preview__chars">{{ t('themePanel.fontSpecialChars') }}</div>
         </div>
 
         <div class="font-presets">
           <button type="button" class="font-preset" :class="{ 'font-preset--active': terminalFontSize === 11 }" @click.stop="setTerminalFontSize(11)">
-            <strong>小</strong>
+            <strong>{{ t('themePanel.small') }}</strong>
             <span>11px</span>
           </button>
           <button type="button" class="font-preset" :class="{ 'font-preset--active': terminalFontSize === 13 }" @click.stop="setTerminalFontSize(13)">
-            <strong>中</strong>
+            <strong>{{ t('themePanel.medium') }}</strong>
             <span>13px</span>
           </button>
           <button type="button" class="font-preset" :class="{ 'font-preset--active': terminalFontSize === 16 }" @click.stop="setTerminalFontSize(16)">
-            <strong>大</strong>
+            <strong>{{ t('themePanel.large') }}</strong>
             <span>16px</span>
           </button>
         </div>
@@ -2346,7 +2771,7 @@
         <div class="font-controls">
           <div class="font-control">
             <div class="font-control__head">
-              <strong>终端字号</strong>
+              <strong>{{ t('themePanel.terminalFontSize') }}</strong>
               <span>{{ terminalFontSize }}px</span>
             </div>
             <div class="font-control__body">
@@ -2357,8 +2782,8 @@
 
           <div class="font-control">
             <div class="font-control__head">
-              <strong>终端字体</strong>
-              <span>{{ fontOptions.length }} 个候选</span>
+              <strong>{{ t('themePanel.terminalFont') }}</strong>
+              <span>{{ t('themePanel.candidateCount', { count: fontOptions.length }) }}</span>
             </div>
             <div class="font-list">
               <button
@@ -2373,44 +2798,44 @@
                   <strong>{{ font }}</strong>
                   <span>The quick brown fox jumps</span>
                 </span>
-                <small>终端</small>
+                <small>{{ t('themePanel.terminalSample') }}</small>
               </button>
             </div>
           </div>
         </div>
 
-        <div class="font-note">后续可扩展：在线检索常见终端字体、导入本地 Nerd Font、与 xterm.js 配置联动。</div>
+        <div class="font-note">{{ t('themePanel.fontNote') }}</div>
       </div>
 
       <div v-else class="font-panel">
         <section class="theme-section">
           <div class="theme-section__head">
-            <h4>系统资源刷新</h4>
-            <span>自动刷新默认开启，也可以切为手动刷新，降低系统负担。</span>
+            <h4>{{ tr('系统资源刷新', 'System resource refresh') }}</h4>
+            <span>{{ tr('自动刷新默认开启，也可以切为手动刷新，降低系统负担。', 'Auto refresh is enabled by default, but you can switch to manual refresh to reduce system load.') }}</span>
           </div>
           <div class="theme-section__actions">
             <button type="button" class="ghost-btn ghost-btn--small" @click.stop="refreshSystemStatus()">
               <AppIcon name="runtime" :size="14" />
-              <span>立即刷新</span>
+              <span>{{ t('common.actions.refreshNow') }}</span>
             </button>
           </div>
           <div class="theme-grid theme-grid--compact">
-            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === 'manual' }" @click.stop="systemRefreshInterval = 'manual'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>手动刷新</strong><span>仅在打开应用时读取一次</span></span></button>
-            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === '5s' }" @click.stop="systemRefreshInterval = '5s'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>5 秒</strong><span>更实时，但开销更大</span></span></button>
-            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === '10s' }" @click.stop="systemRefreshInterval = '10s'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>10 秒</strong><span>默认建议值</span></span></button>
-            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === '30s' }" @click.stop="systemRefreshInterval = '30s'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>30 秒</strong><span>更省资源</span></span></button>
+            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === 'manual' }" @click.stop="systemRefreshInterval = 'manual'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>{{ t('settings.actions.refreshManual') }}</strong><span>{{ tr('仅在打开应用时读取一次', 'Only read once when the app opens.') }}</span></span></button>
+            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === '5s' }" @click.stop="systemRefreshInterval = '5s'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>{{ t('settings.actions.refreshQuick', { seconds: 5 }) }}</strong><span>{{ tr('更实时，但开销更大', 'More real-time, but heavier.') }}</span></span></button>
+            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === '10s' }" @click.stop="systemRefreshInterval = '10s'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>{{ t('settings.actions.refreshQuick', { seconds: 10 }) }}</strong><span>{{ tr('默认建议值', 'Recommended default.') }}</span></span></button>
+            <button type="button" class="theme-card" :class="{ 'theme-card--active': systemRefreshInterval === '30s' }" @click.stop="systemRefreshInterval = '30s'; scheduleSystemRefresh()"><span class="theme-card__body"><strong>{{ t('settings.actions.refreshQuick', { seconds: 30 }) }}</strong><span>{{ tr('更省资源', 'Lighter on resources.') }}</span></span></button>
           </div>
         </section>
 
         <section class="theme-section">
           <div class="theme-section__head">
-            <h4>环境项显示</h4>
-            <span>常见技术栈默认展示，可以按你的习惯隐藏不关心的项。</span>
+            <h4>{{ tr('环境项显示', 'Environment visibility') }}</h4>
+            <span>{{ tr('常见技术栈默认展示，可以按你的习惯隐藏不关心的项。', 'Common stacks are shown by default; hide the ones you do not care about.') }}</span>
           </div>
           <div class="theme-section__actions">
             <button type="button" class="ghost-btn ghost-btn--small" :disabled="environmentChecksRefreshing" @click.stop="refreshEnvironmentChecks(true)">
               <AppIcon name="refresh" :size="14" :class="{ 'is-spinning': environmentChecksRefreshing }" />
-              <span>{{ environmentChecksRefreshing ? '检测中' : '重新检测环境' }}</span>
+              <span>{{ environmentChecksRefreshing ? tr('检测中', 'Checking') : tr('重新检测环境', 'Recheck environment') }}</span>
             </button>
           </div>
           <div class="theme-grid theme-grid--compact theme-grid--env-switches">
@@ -2423,12 +2848,12 @@
               @click.stop="hiddenEnvironmentItems = hiddenEnvironmentItems.includes(item.name) ? hiddenEnvironmentItems.filter((name) => name !== item.name) : [...hiddenEnvironmentItems, item.name]"
             >
               <span class="theme-card__icon">
-                <img v-if="item.iconSrc" :src="item.iconSrc" :alt="`${item.name} 图标`" />
+                <img v-if="item.iconSrc" :src="item.iconSrc" :alt="`${item.name} icon`" />
                 <span v-else>{{ item.icon }}</span>
               </span>
               <span class="theme-card__body">
                 <strong>{{ item.name }}</strong>
-                <span>{{ hiddenEnvironmentItems.includes(item.name) ? '已隐藏' : '已显示' }}</span>
+                <span>{{ hiddenEnvironmentItems.includes(item.name) ? tr('已隐藏', 'Hidden') : tr('已显示', 'Visible') }}</span>
               </span>
             </button>
           </div>
@@ -2436,45 +2861,45 @@
 
         <section v-if="isDevBuild" class="theme-section">
           <div class="theme-section__head">
-            <h4>提醒测试（开发环境）</h4>
-            <span>只在开发环境显示，用于直接模拟终端提醒状态，验证高亮、通知、待处理数与任务栏提醒。</span>
+            <h4>{{ tr('提醒测试（开发环境）', 'Alert testing (dev only)') }}</h4>
+            <span>{{ tr('只在开发环境显示，用于直接模拟终端提醒状态，验证高亮、通知、待处理数与任务栏提醒。', 'Shown only in development mode. Simulate terminal alert states to verify highlights, notifications, pending counters, and taskbar attention.') }}</span>
           </div>
           <div class="theme-panel__summary theme-panel__summary--devtest">
             <div>
-              <strong>{{ currentActiveRuntimeSessionMeta?.sessionName || '未选中终端' }}</strong>
-              <span>{{ currentActiveRuntimeSessionMeta ? `${currentActiveRuntimeSessionMeta.workspaceName} / ${currentActiveRuntimeSessionMeta.tabName}` : '请先在右侧选中一个终端标签' }}</span>
+              <strong>{{ currentActiveRuntimeSessionMeta?.sessionName || tr('未选中终端', 'No terminal selected') }}</strong>
+              <span>{{ currentActiveRuntimeSessionMeta ? `${currentActiveRuntimeSessionMeta.workspaceName} / ${currentActiveRuntimeSessionMeta.tabName}` : tr('请先在右侧选中一个终端标签', 'Select a terminal tab on the right first.') }}</span>
             </div>
             <span class="meta-badge meta-badge--soft">DEV ONLY</span>
           </div>
           <div class="theme-grid theme-grid--compact">
             <button type="button" class="theme-card" @click.stop="simulateSessionAttention('completed')">
               <span class="theme-card__body">
-                <strong>模拟完成</strong>
-                <span>触发已完成高亮、通知与待处理数。</span>
+                <strong>{{ tr('模拟完成', 'Simulate completed') }}</strong>
+                <span>{{ tr('触发已完成高亮、通知与待处理数。', 'Trigger completed highlights, notifications, and pending counters.') }}</span>
               </span>
             </button>
             <button type="button" class="theme-card" @click.stop="simulateSessionAttention('needs-input')">
               <span class="theme-card__body">
-                <strong>模拟等待输入</strong>
-                <span>触发待处理高亮与系统提醒。</span>
+                <strong>{{ tr('模拟等待输入', 'Simulate needs input') }}</strong>
+                <span>{{ tr('触发待处理高亮与系统提醒。', 'Trigger pending highlights and system reminders.') }}</span>
               </span>
             </button>
             <button type="button" class="theme-card" @click.stop="simulateSessionAttention('error')">
               <span class="theme-card__body">
-                <strong>模拟异常退出</strong>
-                <span>触发异常高亮、通知与待处理数。</span>
+                <strong>{{ tr('模拟异常退出', 'Simulate error exit') }}</strong>
+                <span>{{ tr('触发异常高亮、通知与待处理数。', 'Trigger error highlights, notifications, and pending counters.') }}</span>
               </span>
             </button>
             <button type="button" class="theme-card" @click.stop="simulateSessionAttention('stalled')">
               <span class="theme-card__body">
-                <strong>模拟疑似停滞</strong>
-                <span>触发黄色提醒，用于测试人工介入场景。</span>
+                <strong>{{ tr('模拟疑似停滞', 'Simulate stalled') }}</strong>
+                <span>{{ tr('触发黄色提醒，用于测试人工介入场景。', 'Trigger an amber alert state for manual intervention testing.') }}</span>
               </span>
             </button>
             <button type="button" class="theme-card" @click.stop="simulateSessionAttention('clear')">
               <span class="theme-card__body">
-                <strong>清除提醒</strong>
-                <span>把当前终端恢复为无提醒状态。</span>
+                <strong>{{ tr('清除提醒', 'Clear reminder') }}</strong>
+                <span>{{ tr('把当前终端恢复为无提醒状态。', 'Return the current terminal to a neutral state.') }}</span>
               </span>
             </button>
           </div>
@@ -2485,34 +2910,34 @@
     <ModalShell
       :open="openRenameModal"
       :title="renameTarget.title"
-      description="支持手动调整名称，不影响内部编号与布局状态。"
+      :description="tr('支持手动调整名称，不影响内部编号与布局状态。', 'Manual renaming only changes the display name and does not affect internal IDs or layout state.')"
       icon="edit"
       size="sm"
       @close="closeRenameModal()"
     >
       <form class="editor-form editor-form--refined" @submit.prevent="submitRenameModal()">
         <label class="form-field">
-          <span>{{ renameTarget.kind === 'tab' ? '项目名称' : renameTarget.kind === 'session' ? '终端名称' : 'Pane 名称' }}</span>
+          <span>{{ renameTarget.kind === 'tab' ? tr('项目名称', 'Project name') : renameTarget.kind === 'session' ? tr('终端名称', 'Terminal name') : tr('Pane 名称', 'Pane name') }}</span>
           <input ref="renameInputRef" v-model.trim="renameTarget.value" type="text" :placeholder="renameTarget.placeholder" />
         </label>
         <div class="form-actions">
-          <button type="button" class="ghost-btn" @click="closeRenameModal()">取消</button>
-          <button type="submit" class="ghost-btn ghost-btn--primary">保存名称</button>
+          <button type="button" class="ghost-btn" @click="closeRenameModal()">{{ t('common.actions.cancel') }}</button>
+          <button type="submit" class="ghost-btn ghost-btn--primary">{{ tr('保存名称', 'Save name') }}</button>
         </div>
       </form>
     </ModalShell>
 
     <ModalShell
       :open="openSearchModal"
-      title="快速搜索"
-      description="双击 Shift 或 Ctrl+K 随时唤起，快速打开工作区、项目、终端、配置和命令。"
+      :title="tr('快速搜索', 'Quick search')"
+      :description="tr('双击 Shift 或 Ctrl+K 随时唤起，快速打开工作区、项目、终端、配置和命令。', 'Open it anytime with double Shift or Ctrl+K to jump to workspaces, projects, terminals, configs, and commands.')"
       size="lg"
       @close="openSearchModal = false"
     >
       <div class="quick-search-panel">
         <label class="app-search-input app-search-input--modal">
           <AppIcon name="search" :size="16" />
-          <input data-quick-search-input v-model.trim="appSearchQuery" type="search" placeholder="输入工作区、项目、终端、配置、命令..." @keydown="handleSearchInputKeydown" />
+          <input data-quick-search-input v-model.trim="appSearchQuery" type="search" :placeholder="t('search.quickPlaceholder')" @keydown="handleSearchInputKeydown" />
         </label>
         <div class="quick-search-panel__meta">
           <span class="meta-badge meta-badge--soft">Shift Shift</span>
@@ -2520,7 +2945,7 @@
           <span v-if="searchLoopHint" class="meta-badge meta-badge--notice">{{ searchLoopHint }}</span>
           <button type="button" class="ghost-btn ghost-btn--small" @click="openSearchModal = false; openSearchPage()">
             <AppIcon name="search" :size="13" />
-            <span>进入搜索页</span>
+            <span>{{ t('search.openSearchPage') }}</span>
           </button>
         </div>
         <div v-if="groupedSearchResults.length" class="quick-search-results">
@@ -2559,8 +2984,8 @@
             <AppIcon name="search" :size="18" />
           </div>
           <div class="empty-state__body">
-            <strong>没有找到匹配结果</strong>
-            <p>这里只检索 Chuchen-Terminal 内部数据，不会扫描整个电脑磁盘。</p>
+            <strong>{{ t('search.noResultsTitle') }}</strong>
+            <p>{{ tr('这里只检索 Chuchen-Terminal 内部数据，不会扫描整个电脑磁盘。', 'Only data inside Chuchen-Terminal is searched here; your whole disk is not scanned.') }}</p>
           </div>
         </div>
       </div>
@@ -2568,8 +2993,8 @@
 
     <ModalShell
       :open="openRecentRecycleBinModal"
-      title="最近记录回收站"
-      description="这里保存你从最近页移除的记录。可以单条恢复，也可以全部恢复。"
+      :title="tr('最近记录回收站', 'Recent history recycle bin')"
+      :description="tr('这里保存你从最近页移除的记录。可以单条恢复，也可以全部恢复。', 'Records removed from the Recent page are stored here. You can restore one or restore all of them.')"
       icon="trash"
       size="md"
       @close="openRecentRecycleBinModal = false"
@@ -2577,17 +3002,17 @@
       <div class="entry-modal">
         <div class="entry-modal__toolbar">
           <div class="entry-modal__intro">
-            <strong>{{ removedRecentItems.length }} 条记录</strong>
-            <span>恢复后会重新出现在最近页中。</span>
+            <strong>{{ tr('{count} 条记录', '{count} records').replace('{count}', String(removedRecentItems.length)) }}</strong>
+            <span>{{ tr('恢复后会重新出现在最近页中。', 'Restored records will appear on the Recent page again.') }}</span>
           </div>
           <div class="entry-modal__toolbar-actions">
             <button class="ghost-btn" @click="clearHiddenRecentItems()">
               <AppIcon name="trash" :size="14" />
-              <span>清空回收站</span>
+              <span>{{ tr('清空回收站', 'Clear recycle bin') }}</span>
             </button>
             <button class="ghost-btn ghost-btn--primary" @click="restoreHiddenRecentItems()">
               <AppIcon name="refresh" :size="14" />
-              <span>全部恢复</span>
+              <span>{{ tr('全部恢复', 'Restore all') }}</span>
             </button>
           </div>
         </div>
@@ -2607,7 +3032,7 @@
               <span>{{ item.meta }}</span>
             </div>
             <div class="entry-card__actions">
-              <button class="ghost-btn ghost-btn--small" @click="restoreHiddenRecentItem(item.id)">恢复</button>
+              <button class="ghost-btn ghost-btn--small" @click="restoreHiddenRecentItem(item.id)">{{ t('common.actions.restore') }}</button>
             </div>
           </article>
         </div>
@@ -2617,8 +3042,8 @@
             <AppIcon name="trash" :size="18" />
           </div>
           <div class="empty-state__body">
-            <strong>回收站为空</strong>
-            <p>当前没有被移除的最近记录。</p>
+            <strong>{{ tr('回收站为空', 'Recycle bin is empty') }}</strong>
+            <p>{{ tr('当前没有被移除的最近记录。', 'There are no removed recent records right now.') }}</p>
           </div>
         </div>
       </div>
@@ -2639,7 +3064,7 @@
           </ul>
         </div>
         <div class="modal-actions modal-actions--end">
-          <button type="button" class="ghost-btn" @click="closeConfirmModal()">取消</button>
+          <button type="button" class="ghost-btn" @click="closeConfirmModal()">{{ t('common.actions.cancel') }}</button>
           <button type="button" class="ghost-btn" :class="confirmDialog.variant === 'danger' ? 'ghost-btn--danger' : 'ghost-btn--primary'" @click="submitConfirmModal()">{{ confirmDialog.confirmLabel }}</button>
         </div>
       </div>
@@ -2665,16 +3090,16 @@
 
     <DrawerPanel
       :open="openAiHistoryDrawer"
-      title="AI CLI 历史 / Resume"
-      description="聚合当前工作区内 Codex、Claude Code、Gemini CLI 等 AI 终端上下文，用于快速回到最近会话或复用命令。"
+      :title="tr('AI CLI 历史 / Resume', 'AI CLI History / Resume')"
+      :description="tr('聚合当前工作区内 Codex、Claude Code、Gemini CLI 等 AI 终端上下文，用于快速回到最近会话或复用命令。', 'Aggregate Codex, Claude Code, Gemini CLI, and similar AI terminal context in the current workspace so you can jump back to sessions or reuse commands quickly.')"
       side="right"
       @close="openAiHistoryDrawer = false"
     >
       <div class="ai-history-drawer">
         <section class="ai-history-section">
           <div class="ai-history-section__head">
-            <h4>AI CLI 会话</h4>
-            <span>{{ selectedWorkspaceAiCliSessions.length }} 个</span>
+            <h4>{{ tr('AI CLI 会话', 'AI CLI sessions') }}</h4>
+            <span>{{ tr('{count} 个', '{count} items').replace('{count}', String(selectedWorkspaceAiCliSessions.length)) }}</span>
           </div>
           <div v-if="selectedWorkspaceAiCliSessions.length" class="ai-history-list">
             <button
@@ -2691,7 +3116,7 @@
                 <small>
                   {{ item.tabName }} / {{ item.path }}
                   <template v-if="item.info.kind !== item.lastInfo.kind">
-                    · 当前：普通终端
+                    · {{ tr('当前：普通终端', 'Current: normal terminal') }}
                   </template>
                 </small>
                 <code v-if="item.command">{{ item.command }}</code>
@@ -2703,13 +3128,13 @@
               </span>
             </button>
           </div>
-          <div v-else class="ai-history-empty">当前工作区还没有识别到 AI CLI 终端。</div>
+          <div v-else class="ai-history-empty">{{ tr('当前工作区还没有识别到 AI CLI 终端。', 'No AI CLI terminal has been recognized in the current workspace yet.') }}</div>
         </section>
 
         <section class="ai-history-section">
           <div class="ai-history-section__head">
-            <h4>Resume 命令</h4>
-            <span>{{ selectedWorkspaceAiCliCommands.length }} 条</span>
+            <h4>{{ tr('Resume 命令', 'Resume commands') }}</h4>
+            <span>{{ tr('{count} 条', '{count} items').replace('{count}', String(selectedWorkspaceAiCliCommands.length)) }}</span>
           </div>
           <div v-if="selectedWorkspaceAiCliCommands.length" class="ai-command-list">
             <article v-for="item in selectedWorkspaceAiCliCommands.slice(0, 10)" :key="item.id" class="ai-command-card">
@@ -2719,18 +3144,18 @@
                 <code>{{ item.command }}</code>
               </div>
               <div class="ai-command-card__actions">
-                <button type="button" class="ghost-btn ghost-btn--small" @click="copyCommandText(item.command)">复制</button>
-                <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary" @click="insertAiCommand(item)">回填</button>
+                <button type="button" class="ghost-btn ghost-btn--small" @click="copyCommandText(item.command)">{{ t('search.copyCommand') }}</button>
+                <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary" @click="insertAiCommand(item)">{{ t('search.insertCurrentInput') }}</button>
               </div>
             </article>
           </div>
-          <div v-else class="ai-history-empty">还没有 AI CLI 命令历史。</div>
+          <div v-else class="ai-history-empty">{{ tr('还没有 AI CLI 命令历史。', 'No AI CLI command history yet.') }}</div>
         </section>
 
         <section class="ai-history-section">
           <div class="ai-history-section__head">
-            <h4>布局快照</h4>
-            <span>{{ selectedWorkspaceAiResumeSnapshots.length }} 个</span>
+            <h4>{{ tr('布局快照', 'Layout snapshots') }}</h4>
+            <span>{{ tr('{count} 个', '{count} items').replace('{count}', String(selectedWorkspaceAiResumeSnapshots.length)) }}</span>
           </div>
           <div v-if="selectedWorkspaceAiResumeSnapshots.length" class="ai-snapshot-list">
             <button
@@ -2741,10 +3166,10 @@
               @click="restoreAiSnapshotFromHistory(snapshot.workspaceId, snapshot.id)"
             >
               <strong>{{ snapshot.name }}</strong>
-              <span>{{ relativeTimeLabel(snapshot.updatedAt) }} · {{ snapshot.tabsState.length }} 项目</span>
+              <span>{{ relativeTimeLabel(snapshot.updatedAt) }} · {{ t('workspace.projects', { count: snapshot.tabsState.length }) }}</span>
             </button>
           </div>
-          <div v-else class="ai-history-empty">还没有包含 AI CLI 的布局快照。</div>
+          <div v-else class="ai-history-empty">{{ tr('还没有包含 AI CLI 的布局快照。', 'There are no layout snapshots containing AI CLI sessions yet.') }}</div>
         </section>
       </div>
     </DrawerPanel>
@@ -2805,9 +3230,9 @@
       <header class="ai-assist-card__head" @pointerdown="beginAiAssistDrag">
         <div>
           <span class="ai-assist-card__eyebrow">
-            <span>AI Workspace Monitor</span>
+            <span>{{ t('ai.monitorTitle') }}</span>
           </span>
-          <strong v-if="!aiAssistantMinimized">{{ selectedWorkspace?.name || '当前工作区' }} · {{ visibleAiAssistItems.length }} 个 AI 对话</strong>
+          <strong v-if="!aiAssistantMinimized">{{ t('ai.monitorSummary', { workspace: selectedWorkspace?.name || t('common.none'), count: visibleAiAssistItems.length }) }}</strong>
           <div v-else class="ai-assist-card__compact-strip">
             <button
               v-for="item in visibleAiAssistItems.slice(0, 4)"
@@ -2833,13 +3258,13 @@
           </div>
         </div>
         <div class="ai-assist-card__actions">
-          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" title="打开历史" @click="openAiHistoryDrawer = true">
+          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" :title="t('ai.openHistory')" @click="openAiHistoryDrawer = true">
             <AppIcon name="recent" :size="12" />
           </button>
-          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" :title="aiAssistantMinimized ? '展开辅助层' : '最小化辅助层'" @click="aiAssistantMinimized = !aiAssistantMinimized">
+          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" :title="aiAssistantMinimized ? tr('展开辅助层', 'Expand assist layer') : tr('最小化辅助层', 'Minimize assist layer')" @click="aiAssistantMinimized = !aiAssistantMinimized">
             <AppIcon :name="aiAssistantMinimized ? 'chevron-right' : 'chevron-down'" :size="12" />
           </button>
-          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" title="关闭辅助层" @click="aiAssistantPinned = false">
+          <button type="button" class="icon-btn icon-btn--mini" data-no-drag="true" :title="tr('关闭辅助层', 'Close assist layer')" @click="aiAssistantPinned = false">
             <AppIcon name="close" :size="12" />
           </button>
         </div>
@@ -2857,7 +3282,7 @@
               <button
                 type="button"
                 class="icon-btn icon-btn--mini"
-                :title="pinnedAiAssistItemId === item.id ? '取消置顶' : '置顶'"
+                :title="pinnedAiAssistItemId === item.id ? tr('取消置顶', 'Unpin') : tr('置顶', 'Pin')"
                 @click="pinAiAssistItem(item.id)"
               >
                 <AppIcon name="star" :size="12" />
@@ -2888,13 +3313,13 @@
                 <code :title="item.path">{{ item.path }}</code>
                 <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary ai-assist-monitor-item__jump" @click="openAiAssistTarget(item)">
                   <AppIcon name="terminal" :size="12" />
-                  <span>定位</span>
+                  <span>{{ t('ai.locate') }}</span>
                 </button>
                 <button
                   v-if="shouldCountAttentionState(item.state)"
                   type="button"
                   class="icon-btn icon-btn--mini ai-assist-monitor-item__ack"
-                  title="标记已处理"
+                  :title="t('ai.handled')"
                   @click="clearSessionAttention(item.sessionId)"
                 >
                   <AppIcon name="check" :size="12" />
@@ -2904,7 +3329,7 @@
             <div class="ai-assist-monitor-item__actions sr-only">
               <button type="button" class="ghost-btn ghost-btn--small ghost-btn--primary" @click="openAiAssistTarget(item)">
                 <AppIcon name="terminal" :size="13" />
-                <span>定位</span>
+                <span>{{ t('ai.locate') }}</span>
               </button>
             </div>
           </article>
@@ -2917,12 +3342,15 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch, type PropType, type VNode } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window'
 import AppIcon from './components/AppIcon.vue'
 import DrawerPanel from './components/DrawerPanel.vue'
 import ModalShell from './components/ModalShell.vue'
+import ModelPricingModal from './components/ModelPricingModal.vue'
 import PopoverMenu, { type PopoverItem } from './components/PopoverMenu.vue'
 import SnapshotMiniPreview from './components/SnapshotMiniPreview.vue'
 const TerminalPane = defineAsyncComponent(() => import('./components/TerminalPane.vue'))
@@ -2933,6 +3361,7 @@ import nodejsIcon from './assets/env-icons/nodejs.svg'
 import openAiBrandIcon from './assets/ai-brand-icons/openai.svg'
 import claudeBrandIcon from './assets/ai-brand-icons/claude.svg'
 import geminiBrandIcon from './assets/ai-brand-icons/gemini.svg'
+import hermesBrandIcon from './assets/ai-brand-icons/hermes.svg'
 import deepseekBrandIcon from './assets/ai-brand-icons/deepseek.svg'
 import powershellIcon from './assets/env-icons/powershell.svg'
 import pythonIcon from './assets/env-icons/python.svg'
@@ -2940,6 +3369,7 @@ import rustIcon from './assets/env-icons/Rust-icon.svg'
 import tauriIcon from './assets/env-icons/tauri.svg'
 import tsIcon from './assets/env-icons/ts.svg'
 import vueIcon from './assets/env-icons/vue3.svg'
+import { SUPPORTED_LOCALES, setAppLocale, type AppLocale } from './i18n'
 import {
   createProviderProfileRecord,
   createId,
@@ -2950,12 +3380,22 @@ import {
   relativeTimeLabel,
   saveWorkspaces,
 } from './services/workspace-storage'
-import { detectLocalProviderProfiles, type DetectedProviderProfile } from './services/provider-detector'
+import {
+  applyProviderProfile,
+  detectLocalProviderProfiles,
+  queryManagedUsage,
+  readCurrentClaudeProfile,
+  readCurrentCodexProfile,
+  readCurrentGeminiProfile,
+  readCurrentHermesProfile,
+  type DetectedProviderProfile,
+  type ManagedUsageQueryResult,
+} from './services/provider-detector'
 import {
   createWorkflowTemplateFromInput,
+  getSystemWorkflowTemplates,
   loadUserWorkflowTemplates,
   saveUserWorkflowTemplates,
-  systemWorkflowTemplates,
 } from './services/workflow-templates'
 import { destroyTerminalRuntime, ensureTerminalReady, getTerminalRuntimeState, writeTerminalText } from './services/terminal-runtime'
 import { sendSessionAttentionNotification } from './services/session-attention-notifier'
@@ -2964,7 +3404,6 @@ import type {
   AppSection,
   PaneNode,
   PaneTerminalSession,
-  ProviderQuotaSnapshot,
   ProviderConfigScope,
   ProviderKind,
   ProviderProfile,
@@ -3218,6 +3657,13 @@ type HelpContent = {
   sections: HelpSection[]
 }
 
+const { t, locale } = useI18n()
+
+const localeOptions = computed<Array<{ value: AppLocale; label: string }>>(() => [
+  { value: 'zh-CN', label: t('common.localeZhCn') },
+  { value: 'en-US', label: t('common.localeEnUs') },
+])
+
 const themePresets: ThemePreset[] = [
   {
     id: 'default',
@@ -3239,64 +3685,64 @@ const themePresets: ThemePreset[] = [
     id: 'orange',
     name: '\u660e\u4eae\u6a59',
     kind: '\u7cfb\u7edf\u4e3b\u9898',
-    description: '\u6696\u767d\u5e95\u914d\u6a59\u8272\u5f3a\u8c03\uff0c\u4fe1\u606f\u6e05\u6670\u800c\u4e0d\u523a\u773c\u3002',
+    description: '\u4e2d\u6027\u5e95\u914d\u6a59\u8272\u5f3a\u8c03\uff0c\u80cc\u666f\u4e0d\u67d3\u8272\uff0c\u4ec5\u6309\u94ae\u4e0e\u9009\u4e2d\u6001\u7528\u6a59\u3002',
     accent: '#eb8a2f',
-    background: '#fbf7f1',
-    background2: '#f5eee4',
+    background: '#f6f8fb',
+    background2: '#eef2f7',
     panel: '#ffffff',
-    panelElevated: '#f7f1e8',
+    panelElevated: '#f3f6fb',
     accentBlue: '#ef9f49',
-    textPrimary: '#211b15',
-    textSecondary: '#716356',
-    swatches: ['#fbf7f1', '#ffffff', '#eb8a2f', '#ef9f49'],
+    textPrimary: '#18212b',
+    textSecondary: '#5f7286',
+    swatches: ['#f6f8fb', '#ffffff', '#eb8a2f', '#ef9f49'],
     scheme: 'light',
   },
   {
     id: 'blue',
     name: '\u660e\u4eae\u84dd',
     kind: '\u7cfb\u7edf\u4e3b\u9898',
-    description: '\u51b7\u767d\u5e95\u914d\u84dd\u8272\u5f3a\u8c03\uff0c\u66f4\u63a5\u8fd1\u4e13\u4e1a\u684c\u9762\u5de5\u5177\u3002',
+    description: '\u4e2d\u6027\u5e95\u914d\u84dd\u8272\u5f3a\u8c03\uff0c\u80cc\u666f\u4e0d\u67d3\u8272\uff0c\u4ec5\u6309\u94ae\u4e0e\u9009\u4e2d\u6001\u7528\u84dd\u3002',
     accent: '#4b83ff',
-    background: '#f4f8fd',
-    background2: '#ebf1f8',
+    background: '#f6f8fb',
+    background2: '#eef2f7',
     panel: '#ffffff',
-    panelElevated: '#f0f5fb',
+    panelElevated: '#f3f6fb',
     accentBlue: '#6a9cff',
-    textPrimary: '#172233',
-    textSecondary: '#607488',
-    swatches: ['#f4f8fd', '#ffffff', '#4b83ff', '#6a9cff'],
+    textPrimary: '#18212b',
+    textSecondary: '#5f7286',
+    swatches: ['#f6f8fb', '#ffffff', '#4b83ff', '#6a9cff'],
     scheme: 'light',
   },
   {
     id: 'purple',
     name: '\u660e\u4eae\u7d2b',
     kind: '\u7cfb\u7edf\u4e3b\u9898',
-    description: '\u67d4\u548c\u7d2b\u8272\u5f3a\u8c03\uff0c\u4fdd\u7559\u4e00\u70b9\u4e2a\u6027\u4f46\u6574\u4f53\u4ecd\u504f\u6e05\u723d\u3002',
+    description: '\u4e2d\u6027\u5e95\u914d\u7d2b\u8272\u5f3a\u8c03\uff0c\u80cc\u666f\u4e0d\u67d3\u8272\uff0c\u4ec5\u6309\u94ae\u4e0e\u9009\u4e2d\u6001\u7528\u7d2b\u3002',
     accent: '#8b6cff',
-    background: '#f7f5fd',
-    background2: '#efebfa',
+    background: '#f6f8fb',
+    background2: '#eef2f7',
     panel: '#ffffff',
-    panelElevated: '#f3effb',
+    panelElevated: '#f3f6fb',
     accentBlue: '#a084ff',
-    textPrimary: '#201a2f',
-    textSecondary: '#6f6685',
-    swatches: ['#f7f5fd', '#ffffff', '#8b6cff', '#a084ff'],
+    textPrimary: '#18212b',
+    textSecondary: '#5f7286',
+    swatches: ['#f6f8fb', '#ffffff', '#8b6cff', '#a084ff'],
     scheme: 'light',
   },
   {
     id: 'pink',
     name: '\u660e\u4eae\u7c89',
     kind: '\u7cfb\u7edf\u4e3b\u9898',
-    description: '\u96fe\u7c89\u5f3a\u8c03\uff0c\u6574\u4f53\u66f4\u8f7b\u4f46\u4fdd\u6301\u8db3\u591f\u5bf9\u6bd4\u3002',
+    description: '\u4e2d\u6027\u5e95\u914d\u7c89\u8272\u5f3a\u8c03\uff0c\u80cc\u666f\u4e0d\u67d3\u8272\uff0c\u4ec5\u6309\u94ae\u4e0e\u9009\u4e2d\u6001\u7528\u7c89\u3002',
     accent: '#d974a5',
-    background: '#fcf7fa',
-    background2: '#f5eef4',
+    background: '#f6f8fb',
+    background2: '#eef2f7',
     panel: '#ffffff',
-    panelElevated: '#f8f1f6',
+    panelElevated: '#f3f6fb',
     accentBlue: '#e18bb5',
-    textPrimary: '#241b22',
-    textSecondary: '#7a6975',
-    swatches: ['#fcf7fa', '#ffffff', '#d974a5', '#e18bb5'],
+    textPrimary: '#18212b',
+    textSecondary: '#5f7286',
+    swatches: ['#f6f8fb', '#ffffff', '#d974a5', '#e18bb5'],
     scheme: 'light',
   },
   {
@@ -3386,6 +3832,7 @@ const terminalReloadVersions = shallowRef<Record<string, number>>({})
 const userWorkflowTemplates = ref<WorkflowTemplate[]>(loadUserWorkflowTemplates())
 const openHelpDrawer = ref(false)
 const openWorkspaceEditorModal = ref(false)
+const openModelPricingModalState = ref(false)
 const openTerminalEntryEditorModal = ref(false)
 const openProviderEditorModal = ref(false)
 const openTemplateEditorModal = ref(false)
@@ -3397,6 +3844,7 @@ const activePaneSessionMenu = ref<{ paneId: string; sessionId: string } | null>(
 const activeCommandPanelPaneId = ref<string | null>(null)
 const aiAssistantPinned = ref(true)
 const aiAssistantMinimized = ref(false)
+const immersiveAiAutoMinimized = ref(false)
 const pinnedAiAssistItemId = ref<string | null>(null)
 const aiAssistCardRef = ref<HTMLElement | null>(null)
 const aiAssistCardPosition = ref<{ left: number; top: number } | null>(null)
@@ -3421,6 +3869,9 @@ const openProviderScopeMenu = ref(false)
 const openSplitActionModal = ref(false)
 const openConfirmModal = ref(false)
 const railCollapsed = ref(false)
+const workbenchImmersive = ref(false)
+const workbenchExplorerCollapsed = ref(false)
+const workbenchExplorerAutoCollapsed = ref(false)
 const activeThemeId = ref('default')
 const isDevBuild = import.meta.env.DEV
 const activeHelpTopicId = ref('layout')
@@ -3455,7 +3906,7 @@ const startupPerf = reactive({
 const confirmDialog = reactive({
   title: '',
   description: '',
-  confirmLabel: '确认',
+  confirmLabel: '',
   variant: 'danger' as 'primary' | 'danger',
   details: [] as string[],
 })
@@ -3475,6 +3926,8 @@ const renameTarget = reactive<{ kind: 'tab' | 'pane' | 'session'; id: string; ti
   value: '',
 })
 const renameInputRef = ref<HTMLInputElement | null>(null)
+const runtimeSessionOverlays = shallowRef<Record<string, Partial<PaneTerminalSession>>>({})
+const runtimeEntryStatusOverlays = shallowRef<Record<string, TerminalEntry['status']>>({})
 const workspaces = ref<WorkspaceCard[]>(loadWorkspaces())
 const initialWorkbenchRestoreState = loadWorkbenchRestoreState(workspaces.value)
 const initialSelectedWorkspaceId = resolveRestoredWorkspaceId(workspaces.value, initialWorkbenchRestoreState.selectedWorkspaceId)
@@ -3506,10 +3959,64 @@ const collapsedWorkspaceIds = ref<string[]>(resolveCollapsedWorkspaceIds(workspa
 const collapsedTreeTabIds = ref<string[]>(resolveRestoredCollapsedTreeTabIds(initialSelectedWorkspace, initialWorkspaceFocus?.collapsedTreeTabIds))
 const workbenchSidebarWidth = ref(loadWorkbenchSidebarWidth())
 const activeProviderStatsId = ref('')
+const activatingProviderId = ref('')
+const expandedProviderId = ref('')
 const activeProviderToolFilter = ref<'all' | ProviderProfile['providerKind']>('all')
 const providerSearchQuery = ref('')
 const providerDetectionRunning = ref(false)
 const providerDetectionSummary = ref('')
+/** silent | native | cc-switch：区分静默同步 / 本机 / 显式 CC Switch 导入 */
+const providerSyncMode = ref<'idle' | 'silent' | 'native' | 'cc-switch'>('idle')
+/** 本页生命周期内是否已做过静默 native 同步 */
+const providerSilentSyncedOnce = ref(false)
+const providerUsageRefreshRunning = ref(false)
+const usageView = ref<'requestLogs' | 'providerStats' | 'modelStats'>('requestLogs')
+const usageAppFilter = ref<'all' | ProviderRequestLog['appType']>('all')
+const usageProviderFilter = ref('')
+type UsagePeriodFilter = 'all' | 'today' | '1h' | '7d' | '30d' | '90d' | 'month' | 'custom'
+type UsageBucketFilter = 'auto' | 'minute' | 'hour' | 'day' | 'week' | 'month'
+const usagePeriodFilter = ref<UsagePeriodFilter>('7d')
+// 粒度不再暴露手动选项；始终按时间范围自动映射
+const usageCustomStartAt = ref('')
+const usageCustomEndAt = ref('')
+// OpenCode Usage 后端暂缓：若历史状态误选 opencode，强制回退 all
+watch(usageAppFilter, (value) => {
+  if (value === 'opencode') usageAppFilter.value = 'all'
+})
+/** 多选 Provider 筛选（本地 profile id）；空 = 全部；请求时映射为 identityKey */
+const usageSelectedProviderIds = ref<string[]>([])
+const usageProviderPickerOpen = ref(false)
+const usageProviderPickerQuery = ref('')
+const usageProviderPickerTriggerRef = ref<HTMLElement | null>(null)
+const usageProviderPickerStyle = ref<Record<string, string>>({})
+const usageSearchQuery = ref('')
+/** 请求明细：cursor 分页；与 KPI/趋势解耦 */
+const usageRequestLogPageSize = 80
+const managedUsageNextCursor = ref<string | null>(null)
+const managedUsageHasMore = ref(false)
+const managedUsageTotal = ref(0)
+const managedUsageRequestLogs = ref<ManagedUsageQueryResult['requestLogs']>([])
+const managedUsageInFlight = ref(false)
+/** 仅手动点「刷新」时显示按钮 loading，后台轮询不抢占 UI */
+const usageManualRefreshRunning = ref(false)
+let managedUsageRequestSeq = 0
+let managedUsageDebounceTimer: number | null = null
+const MANAGED_USAGE_DEBOUNCE_MS = 280
+/** 筛选变更后若上一请求仍在飞，完成后补拉一次最新条件 */
+let managedUsageNeedsReload = false
+const MANAGED_USAGE_TIMEOUT_MS = 45_000
+/** 实时用量聚合：summary / trends / providerStats（全量过滤后、limit 前） */
+const managedUsageLive = ref<ManagedUsageQueryResult | null>(null)
+const managedUsageUpdatedAt = ref('')
+const managedUsageLoadError = ref('')
+const chartHoverIndex = ref<number | null>(null)
+const usageChartShellRef = ref<HTMLElement | null>(null)
+const usageChartTooltipRef = ref<HTMLElement | null>(null)
+const usageChartTooltipStyle = ref<Record<string, string>>({
+  left: '12px',
+  top: '8px',
+  transform: 'none',
+})
 let workbenchResizeCleanup: (() => void) | null = null
 let saveWorkspacesTimer: number | null = null
 let saveWorkspacesIdleHandle: number | null = null
@@ -3517,8 +4024,14 @@ let saveWorkbenchRestoreStateTimer: ReturnType<typeof setTimeout> | null = null
 let nextWorkspacePersistenceMode: 'persist' | 'transient' = 'persist'
 let systemRefreshTimer: number | null = null
 let systemRefreshTickTimer: number | null = null
+/** Usage 页周期轮询 query_managed_usage —— 全局唯一；事件优先，poll 兜底 */
+let managedUsagePollTimer: number | null = null
+const MANAGED_USAGE_POLL_MS = 60_000
+let unlistenUsageLogRecorded: UnlistenFn | null = null
+let unlistenModelPricingUpdated: UnlistenFn | null = null
 let environmentRefreshRunId = 0
 let supervisorScanTimer: number | null = null
+const windowVisible = ref(typeof document === 'undefined' ? true : !document.hidden)
 let suppressFloatingMenuCloseUntil = 0
 const tauriViewportWidth = ref<number | null>(null)
 let unlistenWindowResize: (() => void) | null = null
@@ -3557,11 +4070,15 @@ const providerForm = reactive({
   configScope: 'global' as ProviderConfigScope,
   managedBy: 'cli-config' as ProviderProfileSource,
   authSource: '',
+  homepageUrl: '',
+  requestBaseUrl: '',
   switchCommand: '',
   defaultModel: '',
   toolTargetsText: 'codex',
   color: '#4b83ff',
   note: '',
+  configPayload: null as string | null,
+  authPayload: null as string | null,
   isDefault: true,
   isActive: false,
 })
@@ -3599,130 +4116,165 @@ const recentCommandsByPane = computed<Record<string, string[]>>(() => {
   return result
 })
 
-const launchModeOptions: Array<{ value: TerminalEntry['launchMode']; label: string; description: string }> = [
-  { value: 'open-only', label: '仅打开窗口', description: '只打开终端，不自动填充和发送命令。' },
-  { value: 'prefill', label: '预填命令', description: '将命令填入终端输入区，由用户确认后发送。' },
-  { value: 'execute', label: '立即执行', description: '打开终端后按配置发送默认命令，适合可信的本地开发命令。' },
-  { value: 'switch-or-create', label: '切换或创建', description: '优先切换已有终端，没有再创建新的终端。' },
-]
+const launchModeOptions = computed<Array<{ value: TerminalEntry['launchMode']; label: string; description: string }>>(() => [
+  { value: 'open-only', label: tr('仅打开窗口', 'Open only'), description: tr('只打开终端，不自动填充和发送命令。', 'Open the terminal only without filling or sending commands automatically.') },
+  { value: 'prefill', label: tr('预填命令', 'Prefill command'), description: tr('将命令填入终端输入区，由用户确认后发送。', 'Prefill the command in the terminal input so the user can review it before sending.') },
+  { value: 'execute', label: tr('立即执行', 'Execute immediately'), description: tr('打开终端后按配置发送默认命令，适合可信的本地开发命令。', 'Send the default command right after opening the terminal. Best for trusted local development commands.') },
+  { value: 'switch-or-create', label: tr('切换或创建', 'Switch or create'), description: tr('优先切换已有终端，没有再创建新的终端。', 'Switch to an existing terminal first; create a new one only if needed.') },
+])
 
-const providerKindOptions: Array<{ value: ProviderProfile['providerKind']; label: string; description: string }> = [
-  { value: 'codex', label: 'Codex CLI', description: '读取或切换本机 Codex CLI 的配置档案。' },
-  { value: 'claude-code', label: 'Claude Code', description: '读取或切换 Claude Code 的本地配置档案。' },
-  { value: 'gemini-cli', label: 'Gemini CLI', description: '读取或切换 Gemini CLI 的账号与配置档案。' },
-  { value: 'opencode', label: 'OpenCode', description: '读取或切换 OpenCode 的本地 provider 配置。' },
-  { value: 'custom-cli', label: '自定义 CLI', description: '适合脚本切换、团队代理或其他未预置的本地 CLI 档案。' },
-]
+const providerKindOptions = computed<Array<{ value: ProviderProfile['providerKind']; label: string; description: string }>>(() => [
+  { value: 'codex', label: 'Codex CLI', description: tr('读取或切换本机 Codex CLI 的配置档案。', 'Read or switch local Codex CLI profiles on this machine.') },
+  { value: 'claude-code', label: 'Claude Code', description: tr('读取或切换 Claude Code 的本地配置档案。', 'Read or switch Claude Code local profiles.') },
+  { value: 'gemini-cli', label: 'Gemini CLI', description: tr('读取或切换 Gemini CLI 的账号与配置档案。', 'Read or switch Gemini CLI accounts and config profiles.') },
+  { value: 'opencode', label: 'OpenCode', description: tr('读取或切换 OpenCode 的本地 provider 配置。', 'Read or switch OpenCode local provider configs.') },
+  { value: 'hermes', label: 'Hermes', description: tr('读取或切换 Hermes 的本地配置档案。', 'Read or switch Hermes local profiles.') },
+  { value: 'custom-cli', label: providerKindLabel('custom-cli'), description: tr('适合脚本切换、团队代理或其他未预置的本地 CLI 档案。', 'Use it for script-based switching, team proxies, or any local CLI profile not covered by the built-in presets.') },
+])
 
-const providerSourceOptions: Array<{ value: ProviderProfileSource; label: string; description: string }> = [
-  { value: 'cli-config', label: 'CLI 本地配置', description: '由工具自己的配置文件决定，不在运行配置中注入。' },
-  { value: 'cc-switch', label: 'CC Switch', description: '通过 cc-switch 风格的配置档案或切换层管理。' },
-  { value: 'oauth', label: 'OAuth 登录态', description: '使用 CLI 已登录账号和本地 token。' },
-  { value: 'env', label: '环境变量', description: '由用户 shell/profile 或系统环境变量决定。' },
-  { value: 'script', label: '切换脚本', description: '通过自定义脚本完成配置切换。' },
-  { value: 'manual', label: '手动登记', description: '只记录配置档案信息，不自动读取。' },
-]
+const providerSourceOptions = computed<Array<{ value: ProviderProfileSource; label: string; description: string }>>(() => [
+  { value: 'cli-config', label: providerSourceLabel('cli-config'), description: tr('由工具自己的配置文件决定，不在运行配置中注入。', 'Driven by the tool’s own config file instead of terminal run config injection.') },
+  { value: 'cc-switch', label: 'CC Switch', description: tr('通过 cc-switch 风格的配置档案或切换层管理。', 'Managed through a cc-switch style profile or switching layer.') },
+  { value: 'oauth', label: providerSourceLabel('oauth'), description: tr('使用 CLI 已登录账号和本地 token。', 'Use the CLI’s signed-in account and local token state.') },
+  { value: 'env', label: providerSourceLabel('env'), description: tr('由用户 shell/profile 或系统环境变量决定。', 'Driven by shell profile values or system environment variables.') },
+  { value: 'script', label: providerSourceLabel('script'), description: tr('通过自定义脚本完成配置切换。', 'Switch configuration through a custom script.') },
+  { value: 'manual', label: providerSourceLabel('manual'), description: tr('只记录配置档案信息，不自动读取。', 'Record profile information only, without reading it automatically.') },
+])
 
-const providerScopeOptions: Array<{ value: ProviderConfigScope; label: string; description: string }> = [
-  { value: 'global', label: '全局配置', description: '配置位于用户目录，影响该 CLI 的默认行为。' },
-  { value: 'workspace', label: '工作区配置', description: '配置跟随当前 Chuchen 工作区管理。' },
-  { value: 'project', label: '项目配置', description: '配置位于项目根目录或项目子目录。' },
-]
+const providerScopeOptions = computed<Array<{ value: ProviderConfigScope; label: string; description: string }>>(() => [
+  { value: 'global', label: providerScopeLabel('global'), description: tr('配置位于用户目录，影响该 CLI 的默认行为。', 'The config lives in the user directory and affects the CLI default behavior globally.') },
+  { value: 'workspace', label: providerScopeLabel('workspace'), description: tr('配置跟随当前 Chuchen 工作区管理。', 'The config is managed together with the current Chuchen workspace.') },
+  { value: 'project', label: providerScopeLabel('project'), description: tr('配置位于项目根目录或项目子目录。', 'The config lives in the project root or a project subdirectory.') },
+])
 
-const restoreCommandStrategyOptions: Array<{ value: RestoreCommandStrategy; label: string; description: string }> = [
-  { value: 'layout-only', label: '仅布局', description: '只恢复项目、Pane 和终端标签，不写入命令。' },
-  { value: 'prefill', label: '预填', description: '按运行配置预填默认命令，但不自动回车。' },
-  { value: 'execute', label: '执行', description: '仅对启动模式为“立即执行”的配置发送命令。' },
-]
+const restoreCommandStrategyOptions = computed<Array<{ value: RestoreCommandStrategy; label: string; description: string }>>(() => [
+  { value: 'layout-only', label: t('settings.restoreStrategies.layoutOnly'), description: 'layout-only' },
+  { value: 'prefill', label: t('settings.restoreStrategies.prefill'), description: 'prefill' },
+  { value: 'execute', label: t('settings.restoreStrategies.execute'), description: 'execute' },
+])
 
 let confirmAction: (() => void) | null = null
 
 const fontOptions = ['Cascadia Code', 'FiraCode Nerd Font', 'JetBrains Mono', 'Consolas', 'Geist Mono']
 
-const helpContentMap: Record<string, HelpContent> = {
+const helpContentMap = computed<Record<string, HelpContent>>(() => ({
   layout: {
-    title: '布局说明',
-    description: '抽屉用于持续浏览的辅助信息，不打断主终端画布。',
+    title: tr('布局说明', 'Layout guide'),
+    description: tr('抽屉用于持续浏览的辅助信息，不打断主终端画布。', 'The drawer is for persistent browsing of supporting information without interrupting the main terminal canvas.'),
     sections: [
       {
-        title: '双层结构',
-        body: '保留工作区卡片首页作为总览入口；进入后切换到左控右画布的工作台壳层。',
+        title: tr('双层结构', 'Two-layer structure'),
+        body: tr('保留工作区卡片首页作为总览入口；进入后切换到左控右画布的工作台壳层。', 'Keep the workspace card home as the overview entry, then switch into the workbench shell with left controls and the right-side terminal canvas.'),
       },
       {
-        title: '核心层级',
-        items: ['工作区卡片是最高一级入口。', '工作区内部以 Tab 组织页面单元。', 'Tab 内部用 Pane 承载真正的终端实例。'],
+        title: tr('核心层级', 'Core hierarchy'),
+        items: [
+          tr('工作区卡片是最高一级入口。', 'Workspace cards are the top-level entry point.'),
+          tr('工作区内部以 Tab 组织页面单元。', 'Tabs organize page units inside a workspace.'),
+          tr('Tab 内部用 Pane 承载真正的终端实例。', 'Panes carry real terminal sessions inside each tab.'),
+        ],
       },
       {
-        title: '终端能力',
-        items: ['已接入本地终端运行时。', '支持工作现场保存、恢复与任务提醒。'],
+        title: tr('终端能力', 'Terminal capability'),
+        items: [
+          tr('已接入本地终端运行时。', 'A local terminal runtime is already integrated.'),
+          tr('支持工作现场保存、恢复与任务提醒。', 'Supports workspace snapshot save/restore and task reminders.'),
+        ],
       },
     ],
   },
   workspace: {
-    title: '工作区',
-    description: '工作区菜单负责卡片首页、进入工作台，以及已打开工作区之间的切换。',
+    title: t('rail.primary.workspace.label'),
+    description: tr('工作区菜单负责卡片首页、进入工作台，以及已打开工作区之间的切换。', 'The workspace menu covers the home cards, workbench entry, and switching between already opened workspaces.'),
     sections: [
       {
-        title: '为什么保留卡片首页',
-        items: ['目录一多时，纯列表不利于总览。', '卡片更适合展示 Tab / Pane 数量、最近使用时间和标签。'],
+        title: tr('为什么保留卡片首页', 'Why keep the card-based home'),
+        items: [
+          tr('目录一多时，纯列表不利于总览。', 'When there are many directories, a plain list is poor for overview.'),
+          tr('卡片更适合展示 Tab / Pane 数量、最近使用时间和标签。', 'Cards are better for showing tab/pane counts, recent activity, and tags.'),
+        ],
       },
       {
-        title: '进入后如何工作',
-        items: ['左侧切换已打开工作区。', '左侧项目树负责 Tab / Pane 层级导航。', '右侧区域专注于终端工作台本身。'],
+        title: tr('进入后如何工作', 'How it works after entry'),
+        items: [
+          tr('左侧切换已打开工作区。', 'Use the left side to switch between opened workspaces.'),
+          tr('左侧项目树负责 Tab / Pane 层级导航。', 'The left project tree handles tab/pane hierarchy navigation.'),
+          tr('右侧区域专注于终端工作台本身。', 'The right side focuses on the terminal workbench itself.'),
+        ],
       },
     ],
   },
   recent: {
-    title: '最近',
-    description: '后续这里会收纳最近恢复的工作区、最近打开的会话以及高频命令入口。',
+    title: t('recent.title'),
+    description: tr('后续这里会收纳最近恢复的工作区、最近打开的会话以及高频命令入口。', 'This area will gather recently restored workspaces, recently opened sessions, and high-frequency command entrances.'),
     sections: [
       {
-        title: '规划用途',
-        items: ['最近打开的工作区。', '最近恢复的布局快照。', '最近使用的运行配置与命令。'],
+        title: tr('规划用途', 'Planned usage'),
+        items: [
+          tr('最近打开的工作区。', 'Recently opened workspaces.'),
+          tr('最近恢复的布局快照。', 'Recently restored layout snapshots.'),
+          tr('最近使用的运行配置与命令。', 'Recently used run configs and commands.'),
+        ],
       },
     ],
   },
   templates: {
-    title: '模板',
-    description: '模板用于沉淀常用工作区蓝图，而不是只保存某一次运行态。',
+    title: t('templates.title'),
+    description: tr('模板用于沉淀常用工作区蓝图，而不是只保存某一次运行态。', 'Templates are for preserving reusable workspace blueprints, not just a single runtime snapshot.'),
     sections: [
       {
-        title: '规划用途',
-        items: ['常用前后端双 Pane 模板。', 'AI CLI 工作台模板。', '项目初始化与测试脚本模板。'],
+        title: tr('规划用途', 'Planned usage'),
+        items: [
+          tr('常用前后端双 Pane 模板。', 'Common frontend/backend dual-pane templates.'),
+          tr('AI CLI 工作台模板。', 'AI CLI workbench templates.'),
+          tr('项目初始化与测试脚本模板。', 'Project bootstrap and test script templates.'),
+        ],
       },
     ],
   },
   search: {
-    title: '搜索',
-    description: '搜索入口会跨工作区检索名称、路径、运行配置和高频命令。',
+    title: t('pages.search'),
+    description: tr('搜索入口会跨工作区检索名称、路径、运行配置和高频命令。', 'Search runs across workspaces for names, paths, run configs, and frequent commands.'),
     sections: [
       {
-        title: '建议范围',
-        items: ['工作区名称与标签。', '路径与配置名。', '默认命令与最近命令。'],
+        title: tr('建议范围', 'Suggested scope'),
+        items: [
+          tr('工作区名称与标签。', 'Workspace names and tags.'),
+          tr('路径与配置名。', 'Paths and config names.'),
+          tr('默认命令与最近命令。', 'Default commands and recent commands.'),
+        ],
       },
     ],
   },
   theme: {
-    title: '主题与字体',
-    description: '主题、字体和界面密度属于高频配置，适合居中 Modal。',
+    title: tr('主题与字体', 'Theme & font'),
+    description: tr('主题、字体和界面密度属于高频配置，适合居中 Modal。', 'Theme, font, and interface density are high-frequency settings and fit a centered modal.'),
     sections: [
       {
-        title: '设计原则',
-        items: ['默认提供系统主题预设。', '默认主题允许自由调整主色。', '字体与主题统一在一个面板中切换。'],
+        title: tr('设计原则', 'Design principles'),
+        items: [
+          tr('默认提供系统主题预设。', 'Ship system theme presets by default.'),
+          tr('默认主题允许自由调整主色。', 'Allow free accent tuning in the default theme.'),
+          tr('字体与主题统一在一个面板中切换。', 'Switch font and theme in one unified panel.'),
+        ],
       },
     ],
   },
   settings: {
-    title: '设置',
-    description: '设置用于放置较低频的全局偏好，例如默认 Shell、启动行为和桌面端选项。',
+    title: t('settings.title'),
+    description: tr('设置用于放置较低频的全局偏好，例如默认 Shell、启动行为和桌面端选项。', 'Settings are for lower-frequency global preferences such as default shell, startup behavior, and desktop options.'),
     sections: [
       {
-        title: '后续规划',
-        items: ['默认 Shell 与启动方式。', '窗口关闭、托盘与最小化策略。', 'Tauri 级别的路径与权限偏好。'],
+        title: tr('后续规划', 'Next planning'),
+        items: [
+          tr('默认 Shell 与启动方式。', 'Default shell and startup flow.'),
+          tr('窗口关闭、托盘与最小化策略。', 'Window close, tray, and minimize behavior.'),
+          tr('Tauri 级别的路径与权限偏好。', 'Tauri-level path and permission preferences.'),
+        ],
       },
     ],
   },
-}
+}))
 
 const systemThemes = computed(() => themePresets.filter((theme) => theme.kind === '系统主题'))
 const importedThemes = computed(() => themePresets.filter((theme) => theme.kind === '常见主题'))
@@ -3739,8 +4291,17 @@ const openedWorkspaces = computed(() => openedWorkspaceIds.value
   .map((workspaceId) => workspaces.value.find((workspace) => workspace.id === workspaceId))
   .filter((workspace): workspace is WorkspaceCard => Boolean(workspace)))
 const isWorkspaceWorkbench = computed(() => appSection.value === 'workspace' && workspaceView.value !== 'overview')
-const activeHelpContent = computed(() => helpContentMap[activeHelpTopicId.value] ?? helpContentMap.layout)
-const selectedWorkspaceEntries = computed(() => selectedWorkspace.value?.terminalEntries ?? [])
+const isRuntimeWorkbench = computed(() => appSection.value === 'workspace' && workspaceView.value === 'runtime' && Boolean(selectedWorkspace.value))
+const immersiveWorkbenchActive = computed(() => isRuntimeWorkbench.value && workbenchImmersive.value)
+const effectiveRailCollapsed = computed(() => railCollapsed.value || immersiveWorkbenchActive.value)
+const activeHelpContent = computed(() => helpContentMap.value[activeHelpTopicId.value] ?? helpContentMap.value.layout)
+const selectedWorkspaceEntries = computed(() =>
+  (selectedWorkspace.value?.terminalEntries ?? []).map((entry) => {
+    const runtimeStatus = runtimeEntryStatusOverlays.value[entry.id]
+    return runtimeStatus ? { ...entry, status: runtimeStatus } : entry
+  }),
+)
+const selectedWorkspaceEntryMap = computed(() => new Map(selectedWorkspaceEntries.value.map((entry) => [entry.id, entry])))
 const selectedWorkspaceProviders = computed(() => selectedWorkspace.value?.providerProfiles ?? [])
 const selectedWorkspaceProviderQuotas = computed(() => selectedWorkspace.value?.providerQuotas ?? [])
 const selectedWorkspaceProviderUsageStats = computed(() => selectedWorkspace.value?.providerUsageStats ?? [])
@@ -3858,8 +4419,8 @@ const providerToolFilters = computed<Array<{ id: 'all' | ProviderProfile['provid
   }, {})
 
   return [
-    { id: 'all', label: '全部', count: providers.length },
-    ...providerKindOptions.map((option) => ({
+    { id: 'all', label: t('common.all'), count: providers.length },
+    ...providerKindOptions.value.map((option) => ({
       id: option.value,
       label: option.label,
       count: countByKind[option.value] ?? 0,
@@ -3889,8 +4450,9 @@ const activeProviderProfile = computed(() => {
   return selectedWorkspaceProviders.value.find((provider) => provider.id === providerId) ?? null
 })
 const activeProviderQuota = computed(() => {
-  const providerIndex = selectedWorkspaceProviders.value.findIndex((provider) => provider.id === activeProviderProfile.value?.id)
-  return providerIndex >= 0 ? selectedWorkspaceProviderQuotas.value[providerIndex] ?? null : null
+  const provider = activeProviderProfile.value
+  if (!provider) return null
+  return selectedWorkspaceProviderQuotas.value.find((quota) => quota.providerProfileId === provider.id) ?? null
 })
 const activeProviderStats = computed(() => {
   const provider = activeProviderProfile.value
@@ -3898,22 +4460,898 @@ const activeProviderStats = computed(() => {
   const stats = selectedWorkspaceProviderUsageStats.value.find((item) => item.providerProfileId === provider.id)
   return normalizeProviderUsageStatsForProfile(provider, stats ?? createEmptyProviderUsageStatsForProfile(provider.id))
 })
-const activeUsageSummary = computed(() => activeProviderStats.value?.summary ?? emptyProviderUsageSummary())
-const activeUsageLogs = computed(() => activeProviderStats.value?.requestLogs ?? [])
-const usageTrendChartData = computed(() => (activeProviderStats.value?.trends ?? []).map((point) => ({
-  ...point,
-  label: formatUsageHour(point.timestamp),
-})))
-const usageTrendMaxTokens = computed(() => Math.max(1, ...usageTrendChartData.value.map((point) => Math.max(point.inputTokens, point.outputTokens, point.cacheReadTokens))))
+
+/** 时间段是否落在 usagePeriodFilter 内（明细二次过滤兜底；主过滤在后端） */
+function usageLogInPeriod(createdAt: string, period: UsagePeriodFilter, nowMs = Date.now()) {
+  if (period === 'all') return true
+  if (period === 'custom') {
+    const ts = new Date(createdAt).getTime()
+    if (Number.isNaN(ts)) return false
+    const startIso = datetimeLocalToIso(usageCustomStartAt.value)
+    const endIso = datetimeLocalToIso(usageCustomEndAt.value)
+    if (startIso) {
+      const start = new Date(startIso).getTime()
+      if (!Number.isNaN(start) && ts < start) return false
+    }
+    if (endIso) {
+      const end = new Date(endIso).getTime()
+      if (!Number.isNaN(end) && ts > end) return false
+    }
+    return true
+  }
+  const ts = new Date(createdAt).getTime()
+  if (Number.isNaN(ts)) return false
+  if (period === '1h') return nowMs - ts <= 3_600_000
+  if (period === 'today') return isSameLocalDay(createdAt)
+  if (period === 'month') {
+    const d = new Date(createdAt)
+    const now = new Date(nowMs)
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  }
+  const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 0
+  if (!days) return true
+  return nowMs - ts <= days * 86400_000
+}
+
+function datetimeLocalToIso(value: string): string | null {
+  const raw = value.trim()
+  if (!raw) return null
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
+/** Usage 周期短标签（Provider 卡片副行 / 提示共用） */
+function usagePeriodShortLabel(period: UsagePeriodFilter) {
+  if (period === '1h') return '1h'
+  if (period === 'today') return tr('今日', 'Today')
+  if (period === '7d') return '7d'
+  if (period === '30d') return '30d'
+  if (period === 'month') return tr('本月', 'Month')
+  if (period === '90d') return '90d'
+  if (period === 'custom') return tr('自定义', 'Custom')
+  return tr('全部', 'All')
+}
+
+function resolveAutoUsageBucket(period: UsagePeriodFilter, startAt?: string | null, endAt?: string | null): Exclude<UsageBucketFilter, 'auto'> {
+  if (period === '1h') return 'minute'
+  if (period === 'today') return 'hour'
+  if (period === '7d' || period === '30d' || period === 'month') return 'day'
+  if (period === '90d') return 'week'
+  if (period === 'all') return 'month'
+  if (period === 'custom') {
+    const startMs = startAt ? new Date(startAt).getTime() : Number.NaN
+    const endMs = endAt ? new Date(endAt).getTime() : Date.now()
+    if (!Number.isNaN(startMs) && !Number.isNaN(endMs)) {
+      const span = Math.max(0, endMs - startMs)
+      if (span <= 3_600_000) return 'minute'
+      if (span <= 86_400_000) return 'hour'
+      if (span <= 30 * 86_400_000) return 'day'
+      if (span <= 90 * 86_400_000) return 'week'
+      return 'month'
+    }
+    return 'day'
+  }
+  return 'day'
+}
+
+/**
+ * Provider 卡片指标范围：
+ * - 有 managedUsageLive：副指标是「当前 Usage 周期」内聚合，不是全历史
+ * - 无 live：回退本地缓存快照
+ */
+const providerMetricsScopeShort = computed(() => {
+  if (managedUsageLive.value) return usagePeriodShortLabel(usagePeriodFilter.value)
+  return tr('缓存', 'Cache')
+})
+
+const providerMetricsScopeHint = computed(() => {
+  if (managedUsageLive.value) {
+    return tr(
+      `副指标为当前周期（${usagePeriodShortLabel(usagePeriodFilter.value)}）内聚合；今日请求/成本仍按自然日。卡片总量来自后端 providerStats，不受明细分页影响。`,
+      `Secondary metrics are for the current period (${usagePeriodShortLabel(usagePeriodFilter.value)}). Today uses calendar day. Card totals come from backend providerStats and are unaffected by detail pagination.`,
+    )
+  }
+  return tr(
+    '尚未拉取实时 Usage，副指标来自本地缓存快照，可能偏旧。进入 Usage 页或点击刷新后会改为当前周期。',
+    'Live Usage has not been loaded; secondary metrics come from a local cache snapshot and may be stale. Open Usage or refresh to switch to the current period.',
+  )
+})
+
+const providerStatusRailText = computed(() => {
+  if (providerDetectionRunning.value) {
+    if (providerSyncMode.value === 'cc-switch') return tr('正在从 CC Switch 导入档案…', 'Importing profiles from CC Switch…')
+    if (providerSyncMode.value === 'silent') return tr('正在静默同步本机配置…', 'Silently syncing local configs…')
+    return tr('正在同步本机配置…', 'Syncing local configs…')
+  }
+  if (providerDetectionSummary.value) return providerDetectionSummary.value
+  if (providerSilentSyncedOnce.value) {
+    return tr(
+      `已同步本机配置 · ${selectedWorkspaceProviders.value.length} 个档案（identityKey 去重）`,
+      `Local configs synced · ${selectedWorkspaceProviders.value.length} profiles (identityKey-deduped)`,
+    )
+  }
+  return tr(
+    '进入页面将自动静默同步本机配置；CC Switch 需点「从 CC Switch 导入」。当前 detect API 仍返回合并目录，前后端拆分前不会假装只含 native。',
+    'Page entry silently syncs local configs; CC Switch needs explicit import. Detect still returns a merged catalog — frontend will not fake a native-only split.',
+  )
+})
+
+/** 将本地 profile id 映射为后端 providerIds（identityKey） */
+/** 将本地 profile id 映射为后端 providerIds（identityKey）
+ * - null：未选筛选，查全部
+ * - 空数组：选了档案但没有可映射 identityKey（前端应短路为空结果，勿当全量）
+ */
+function resolveUsageProviderIdentityKeys(): string[] | null {
+  if (!usageSelectedProviderIds.value.length) return null
+  const keys: string[] = []
+  for (const id of usageSelectedProviderIds.value) {
+    const profile = selectedWorkspaceProviders.value.find((provider) => provider.id === id)
+    if (profile?.identityKey) {
+      keys.push(profile.identityKey)
+      continue
+    }
+    if (id.startsWith('identity:')) {
+      keys.push(id.slice('identity:'.length))
+      continue
+    }
+  }
+  // 允许空数组：表示“有选择但不可映射”
+  return keys
+}
+
+/**
+ * KPI：优先后端 summary（过滤后、limit 前全量聚合）
+ * 后端已支持 providerIds，多选也不再从分页明细重算
+ */
+const activeUsageSummary = computed(() => {
+  if (managedUsageLive.value?.summary) {
+    return normalizeProviderUsageSummary(managedUsageLive.value.summary)
+  }
+  return recalculateProviderUsageSummary(activeUsageLogs.value)
+})
+
+const usageHasMoreRequestLogs = computed(() => Boolean(managedUsageHasMore.value))
+
+const usageEffectiveBucket = computed(() => {
+  // 粒度完全由时间范围自动决定，不再暴露手动 bucket，避免 30d+minute 这类无意义组合
+  const range = usagePeriodRange(usagePeriodFilter.value)
+  return resolveAutoUsageBucket(usagePeriodFilter.value, range.startAt, range.endAt)
+})
+const usageProviderPickerGroups = computed(() => {
+  type PickerItem = {
+    id: string
+    name: string
+    model: string
+    providerKind: ProviderProfile['providerKind']
+    source: string
+  }
+  type PickerGroup = {
+    id: string
+    label: string
+    items: PickerItem[]
+  }
+
+  const query = normalizeSearchText(usageProviderPickerQuery.value)
+  const groups: PickerGroup[] = providerKindOptions.value.map((option) => ({
+    id: option.value,
+    label: option.label,
+    items: selectedWorkspaceProviders.value
+      .filter((provider) => provider.providerKind === option.value)
+      .filter((provider) => {
+        if (!query) return true
+        return [
+          provider.name,
+          provider.profileName,
+          provider.defaultModel,
+          provider.managedBy,
+          provider.identityKey ?? '',
+        ].some((value) => normalizeSearchText(value).includes(query))
+      })
+      .map((provider) => ({
+        id: provider.id,
+        name: provider.name,
+        model: provider.defaultModel,
+        providerKind: provider.providerKind,
+        source: providerSourceLabel(provider.managedBy),
+      })),
+  })).filter((group) => group.items.length > 0 || !query)
+
+  const orphanLogs = allWorkspaceUsageLogs.value.filter((log) => String(log.providerProfileId).startsWith('identity:') || String(log.providerProfileId).startsWith('unknown:'))
+  const orphanMap = new Map<string, PickerItem>()
+  for (const log of orphanLogs) {
+    if (orphanMap.has(log.providerProfileId)) continue
+    orphanMap.set(log.providerProfileId, {
+      id: log.providerProfileId,
+      name: log.managedProviderName || tr('未关联档案', 'Unlinked profile'),
+      model: log.model || '',
+      providerKind: usageLogProviderKind(log) ?? 'custom-cli',
+      source: tr('未关联档案', 'Unlinked profile'),
+    })
+  }
+  const orphanItems = [...orphanMap.values()].filter((item) => {
+    if (!query) return true
+    return normalizeSearchText(`${item.name} ${item.model} ${item.id}`).includes(query)
+  })
+  if (orphanItems.length) {
+    groups.push({
+      id: 'unlinked',
+      label: tr('未关联档案', 'Unlinked profiles'),
+      items: orphanItems,
+    })
+  }
+  return groups
+})
+
+const usageSelectedProviderChips = computed(() => {
+  const byId = new Map(selectedWorkspaceProviders.value.map((provider) => [provider.id, provider]))
+  return usageSelectedProviderIds.value.map((id) => {
+    const profile = byId.get(id)
+    if (profile) {
+      return {
+        id: profile.id,
+        name: profile.name,
+        providerKind: profile.providerKind,
+      }
+    }
+    const log = allWorkspaceUsageLogs.value.find((item) => item.providerProfileId === id)
+    return {
+      id,
+      name: log?.managedProviderName || tr('未关联档案', 'Unlinked profile'),
+      providerKind: (log ? (usageLogProviderKind(log) ?? 'custom-cli') : 'custom-cli') as ProviderProfile['providerKind'],
+    }
+  })
+})
+
+// Per-provider inline metrics for the card list (requests / cost / balance / last-used).
+const providerMetricsById = computed(() => {
+  const map = new Map<string, {
+    requests: number
+    todayRequests: number
+    totalRequests: number
+    costUsd: number
+    todayCostUsd: number
+    totalCostUsd: number
+    cacheHitRate: number
+    balance: number | null
+    lastUsedAt: string
+  }>()
+
+  // 后端 providerStats：过滤后全量聚合，不受 requestLogs 分页影响
+  const statsByIdentity = new Map<string, NonNullable<ManagedUsageQueryResult['providerStats']>[number]>()
+  if (managedUsageLive.value?.providerStats?.length) {
+    for (const stat of managedUsageLive.value.providerStats) {
+      const key = (stat.providerId || '').trim()
+      if (key) statsByIdentity.set(key, stat)
+    }
+  }
+
+  // 今日请求/成本仍按自然日：仅用已加载明细估算（非全量 KPI）
+  const liveLogsByProfile = new Map<string, Array<{ createdAt: string; costUsd: number }>>()
+  if (managedUsageRequestLogs.value.length) {
+    const byIdentity = new Map<string, string>()
+    for (const provider of selectedWorkspaceProviders.value) {
+      const key = (provider.identityKey || '').trim()
+      if (key && !byIdentity.has(key)) byIdentity.set(key, provider.id)
+    }
+    for (const log of managedUsageRequestLogs.value) {
+      const identity = (log.providerId || '').trim()
+      const profileId = identity ? byIdentity.get(identity) : undefined
+      if (!profileId) continue
+      const list = liveLogsByProfile.get(profileId) ?? []
+      list.push({
+        createdAt: log.createdAt,
+        costUsd: log.totalCostUsd ?? 0,
+      })
+      liveLogsByProfile.set(profileId, list)
+    }
+  }
+
+  for (const provider of selectedWorkspaceProviders.value) {
+    const rawStats = selectedWorkspaceProviderUsageStats.value.find((item) => item.providerProfileId === provider.id)
+    const stats = normalizeProviderUsageStatsForProfile(provider, rawStats ?? createEmptyProviderUsageStatsForProfile(provider.id))
+    const quota = selectedWorkspaceProviderQuotas.value.find((item) => item.providerProfileId === provider.id) ?? null
+    const identity = (provider.identityKey || '').trim()
+    const backendStat = identity ? statsByIdentity.get(identity) : undefined
+    const liveLogs = liveLogsByProfile.get(provider.id) ?? []
+    const todayLogs = liveLogs.filter((log) => isSameLocalDay(log.createdAt))
+    const todayRequests = todayLogs.length || (quota?.requestsToday ?? 0)
+    const todayCostUsd = todayLogs.reduce((acc, log) => acc + (log.costUsd ?? 0), 0)
+    const lastUsedAt = backendStat?.lastActivityAt
+      || liveLogs.reduce(
+        (acc, log) => (new Date(log.createdAt).getTime() > new Date(acc || 0).getTime() ? log.createdAt : acc),
+        '',
+      )
+    const totalCostUsd = backendStat?.totalCostUsd ?? stats.summary.totalCostUsd
+    const totalRequests = backendStat?.totalRequests ?? stats.summary.totalRequests
+    const cacheHitRate = backendStat?.cacheHitRate ?? stats.summary.cacheHitRate
+    map.set(provider.id, {
+      requests: todayRequests,
+      todayRequests,
+      totalRequests,
+      costUsd: todayCostUsd,
+      todayCostUsd,
+      totalCostUsd,
+      cacheHitRate,
+      balance: quota?.usdRemaining ?? null,
+      lastUsedAt,
+    })
+  }
+  return map
+})
+const filteredProviderCards = computed(() => {
+  const cards = filteredWorkspaceProviders.value.map((provider) => ({
+    provider,
+    metrics: providerMetricsById.value.get(provider.id) ?? { requests: 0, todayRequests: 0, totalRequests: 0, costUsd: 0, todayCostUsd: 0, totalCostUsd: 0, cacheHitRate: 0, balance: null, lastUsedAt: '' },
+    url: (provider.homepageUrl || provider.requestBaseUrl || '').replace(/^https?:\/\//, '').replace(/\/$/, ''),
+  }))
+  // Active provider always first
+  return [...cards].sort((a, b) => {
+    if (a.provider.isActive && !b.provider.isActive) return -1
+    if (!a.provider.isActive && b.provider.isActive) return 1
+    return 0
+  })
+})
+/** 明细表：使用累计 requestLogs（cursor 分页追加），不是只取最后一页 */
+const allWorkspaceUsageLogs = computed(() => {
+  if (managedUsageLive.value || managedUsageRequestLogs.value.length) {
+    // 契约：Usage.providerId ↔ Profile.identityKey 唯一匹配；禁止拆解 providerId / 名称回退当主键
+    const byIdentity = new Map<string, ProviderProfile>()
+    for (const provider of selectedWorkspaceProviders.value) {
+      const key = (provider.identityKey || '').trim()
+      if (key && !byIdentity.has(key)) byIdentity.set(key, provider)
+    }
+
+    return managedUsageRequestLogs.value.map((log, index) => {
+      const identity = (log.providerId || '').trim()
+      const matched = identity ? byIdentity.get(identity) : undefined
+      const appType = (['claude', 'codex', 'gemini', 'opencode', 'hermes'].includes(log.appType)
+        ? log.appType
+        : matched
+          ? providerKindToAppType(matched.providerKind)
+          : 'codex') as ProviderRequestLog['appType']
+      return {
+        id: log.id || `managed-usage-${index}`,
+        // 未匹配到本地 Profile 时用 managed providerId 作占位 id（不拆解、不发明 active）
+        providerProfileId: matched?.id || (identity ? `identity:${identity}` : `unknown:${log.providerName || index}`),
+        appType,
+        model: log.model || log.pricingModel || '',
+        pricingModel: log.pricingModel || '',
+        inputTokens: log.inputTokens ?? 0,
+        outputTokens: log.outputTokens ?? 0,
+        cacheReadTokens: log.cacheReadTokens ?? 0,
+        cacheCreationTokens: log.cacheCreationTokens ?? 0,
+        costUsd: log.totalCostUsd ?? 0,
+        inputCostUsd: log.inputCostUsd ?? 0,
+        outputCostUsd: log.outputCostUsd ?? 0,
+        cacheReadCostUsd: log.cacheReadCostUsd ?? 0,
+        cacheCreationCostUsd: log.cacheCreationCostUsd ?? 0,
+        firstTokenMs: log.firstTokenMs ?? null,
+        statusCode: log.statusCode ?? 0,
+        durationMs: log.durationMs ?? 0,
+        dataSource: log.dataSource || 'managed',
+        createdAt: log.createdAt,
+        managedProviderId: identity || undefined,
+        managedProviderName: log.providerName || undefined,
+      } satisfies ProviderRequestLog
+    }).sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+  }
+
+  return selectedWorkspaceProviderUsageStats.value
+    .flatMap((stats) => stats.requestLogs || [])
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+})
+
+// Unique provider names for filter dropdown
+const usageProviderOptions = computed(() => {
+  const names = new Set<string>()
+  for (const log of allWorkspaceUsageLogs.value) {
+    const name = usageLogProviderName(log)
+    if (name) names.add(name)
+  }
+  return [...names].sort()
+})
+
+const activeUsageLogs = computed(() => {
+  // 请求日志表：后端已按筛选返回；客户端只做搜索与兜底 period 过滤
+  const baseLogs = allWorkspaceUsageLogs.value
+  const query = normalizeSearchText(usageSearchQuery.value)
+  const now = Date.now()
+  const period = usagePeriodFilter.value
+
+  return baseLogs.filter((log) => {
+    if (!usageLogInPeriod(log.createdAt, period, now)) return false
+    if (usageAppFilter.value !== 'all' && log.appType !== usageAppFilter.value) return false
+    if (!query) return true
+    return [
+      usageLogProviderName(log),
+      log.model,
+      log.dataSource,
+      log.appType,
+      log.managedProviderId,
+    ].some((value) => value && normalizeSearchText(value).includes(query))
+  })
+})
+const providerUsageRows = computed(() => {
+  // 排行榜：优先后端 providerStats（全量聚合）
+  if (managedUsageLive.value?.providerStats?.length) {
+    const byIdentity = new Map<string, ProviderProfile>()
+    for (const provider of selectedWorkspaceProviders.value) {
+      const key = (provider.identityKey || '').trim()
+      if (key && !byIdentity.has(key)) byIdentity.set(key, provider)
+    }
+    return managedUsageLive.value.providerStats
+      .map((stat) => {
+        const identity = (stat.providerId || '').trim()
+        const matched = identity ? byIdentity.get(identity) : undefined
+        const models = new Set(stat.models || [])
+        const appTypes = new Set<string>(stat.appType ? [stat.appType] : [])
+        return {
+          providerProfileId: matched?.id || (identity ? `identity:${identity}` : `unknown:${stat.providerName}`),
+          providerName: matched?.name
+            || (identity
+              ? (stat.providerName
+                ? tr(`未关联档案 · ${stat.providerName}`, `Unlinked · ${stat.providerName}`)
+                : tr('未关联档案', 'Unlinked profile'))
+              : (stat.providerName || tr('未关联档案', 'Unlinked profile'))),
+          appTypes,
+          models,
+          totalRequests: stat.totalRequests ?? 0,
+          totalInputTokens: stat.totalInputTokens ?? 0,
+          totalOutputTokens: stat.totalOutputTokens ?? 0,
+          totalCacheReadTokens: stat.totalCacheReadTokens ?? 0,
+          totalCacheCreationTokens: stat.totalCacheCreationTokens ?? 0,
+          totalCostUsd: Number((stat.totalCostUsd ?? 0).toFixed(4)),
+          lastActivityAt: stat.lastActivityAt || '',
+          cacheHitRate: stat.cacheHitRate ?? 0,
+        }
+      })
+      .sort((left, right) => right.totalCostUsd - left.totalCostUsd)
+  }
+
+  // 无 live stats 时回退本地缓存明细（可能截断）
+  const rows = new Map<string, {
+    providerProfileId: string
+    providerName: string
+    appTypes: Set<string>
+    models: Set<string>
+    totalRequests: number
+    totalInputTokens: number
+    totalOutputTokens: number
+    totalCacheReadTokens: number
+    totalCacheCreationTokens: number
+    totalCostUsd: number
+    lastActivityAt: string
+  }>()
+
+  activeUsageLogs.value.forEach((log) => {
+    const existing = rows.get(log.providerProfileId) ?? {
+      providerProfileId: log.providerProfileId,
+      providerName: usageLogProviderName(log),
+      appTypes: new Set<string>(),
+      models: new Set<string>(),
+      totalRequests: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCacheReadTokens: 0,
+      totalCacheCreationTokens: 0,
+      totalCostUsd: 0,
+      lastActivityAt: log.createdAt,
+    }
+    existing.appTypes.add(log.appType)
+    existing.models.add(log.model)
+    existing.totalRequests += 1
+    existing.totalInputTokens += log.inputTokens
+    existing.totalOutputTokens += log.outputTokens
+    existing.totalCacheReadTokens += log.cacheReadTokens
+    existing.totalCacheCreationTokens += log.cacheCreationTokens
+    existing.totalCostUsd += log.costUsd
+    if (new Date(log.createdAt).getTime() > new Date(existing.lastActivityAt).getTime()) {
+      existing.lastActivityAt = log.createdAt
+    }
+    rows.set(log.providerProfileId, existing)
+  })
+
+  return Array.from(rows.values())
+    .map((row) => ({
+      ...row,
+      cacheHitRate: row.totalCacheReadTokens + row.totalInputTokens + row.totalCacheCreationTokens > 0
+        ? row.totalCacheReadTokens / (row.totalCacheReadTokens + row.totalInputTokens + row.totalCacheCreationTokens)
+        : 0,
+      totalCostUsd: Number(row.totalCostUsd.toFixed(4)),
+    }))
+    .sort((left, right) => right.totalCostUsd - left.totalCostUsd)
+})
+const modelUsageRows = computed(() => {
+  const query = normalizeSearchText(usageSearchQuery.value)
+
+  // 模型排行只信后端 modelStats（含 rollup）；禁止用分页 logs 重算
+  if (managedUsageLive.value?.modelStats) {
+    return managedUsageLive.value.modelStats
+      .filter((stat) => {
+        if (!query) return true
+        const haystack = [
+          stat.model,
+          ...(stat.providerNames || []),
+          ...(stat.appTypes || []),
+        ].join(' ')
+        return normalizeSearchText(haystack).includes(query)
+      })
+      .map((stat) => ({
+        model: stat.model,
+        providerNames: new Set(stat.providerNames || []),
+        appTypes: new Set(stat.appTypes || []),
+        totalRequests: stat.totalRequests ?? 0,
+        totalInputTokens: stat.totalInputTokens ?? 0,
+        totalOutputTokens: stat.totalOutputTokens ?? 0,
+        totalCacheReadTokens: stat.totalCacheReadTokens ?? 0,
+        totalCacheCreationTokens: stat.totalCacheCreationTokens ?? 0,
+        totalCostUsd: Number((stat.totalCostUsd ?? 0).toFixed(4)),
+        lastActivityAt: stat.lastActivityAt || '',
+      }))
+      .sort((left, right) => right.totalCostUsd - left.totalCostUsd)
+  }
+
+  // 无 live 时兜底：仅本地已加载明细（可能截断）
+  const rows = new Map<string, {
+    model: string
+    providerNames: Set<string>
+    appTypes: Set<string>
+    totalRequests: number
+    totalInputTokens: number
+    totalOutputTokens: number
+    totalCacheReadTokens: number
+    totalCacheCreationTokens: number
+    totalCostUsd: number
+    lastActivityAt: string
+  }>()
+
+  activeUsageLogs.value.forEach((log) => {
+    const existing = rows.get(log.model) ?? {
+      model: log.model,
+      providerNames: new Set<string>(),
+      appTypes: new Set<string>(),
+      totalRequests: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCacheReadTokens: 0,
+      totalCacheCreationTokens: 0,
+      totalCostUsd: 0,
+      lastActivityAt: log.createdAt,
+    }
+    existing.providerNames.add(usageLogProviderName(log))
+    existing.appTypes.add(log.appType)
+    existing.totalRequests += 1
+    existing.totalInputTokens += log.inputTokens
+    existing.totalOutputTokens += log.outputTokens
+    existing.totalCacheReadTokens += log.cacheReadTokens
+    existing.totalCacheCreationTokens += log.cacheCreationTokens
+    existing.totalCostUsd += log.costUsd
+    if (new Date(log.createdAt).getTime() > new Date(existing.lastActivityAt).getTime()) {
+      existing.lastActivityAt = log.createdAt
+    }
+    rows.set(log.model, existing)
+  })
+
+  return Array.from(rows.values())
+    .map((row) => ({
+      ...row,
+      totalCostUsd: Number(row.totalCostUsd.toFixed(4)),
+    }))
+    .sort((left, right) => right.totalCostUsd - left.totalCostUsd)
+})
+/** 从 logs 按时间桶聚合趋势（无后端 trends 时回退；明细可能截断） */
+function buildUsageTrendFromLogs(logs: ProviderRequestLog[], period: typeof usagePeriodFilter.value) {
+  const bucketMode = resolveAutoUsageBucket(period, usagePeriodRange(period).startAt, usagePeriodRange(period).endAt)
+  const byBucket = new Map<string, {
+    inputTokens: number
+    outputTokens: number
+    cacheReadTokens: number
+    cacheCreationTokens: number
+    costUsd: number
+    timestamp: string
+  }>()
+
+  for (const log of logs) {
+    const d = new Date(log.createdAt)
+    if (Number.isNaN(d.getTime())) continue
+    let key: string
+    let bucketTs: Date
+    if (bucketMode === 'minute') {
+      key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`
+      bucketTs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes())
+    } else if (bucketMode === 'hour') {
+      key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`
+      bucketTs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours())
+    } else if (bucketMode === 'day') {
+      key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      bucketTs = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    } else if (bucketMode === 'week') {
+      const dayOfWeek = d.getDay() === 0 ? 6 : d.getDay() - 1
+      const weekStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dayOfWeek)
+      key = `${weekStart.getFullYear()}-W${weekStart.getMonth()}-${weekStart.getDate()}`
+      bucketTs = weekStart
+    } else {
+      key = `${d.getFullYear()}-${d.getMonth()}`
+      bucketTs = new Date(d.getFullYear(), d.getMonth(), 1)
+    }
+    if (!byBucket.has(key)) {
+      byBucket.set(key, {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+        costUsd: 0,
+        timestamp: bucketTs.toISOString(),
+      })
+    }
+    const b = byBucket.get(key)!
+    b.inputTokens += log.inputTokens ?? 0
+    b.outputTokens += log.outputTokens ?? 0
+    b.cacheReadTokens += log.cacheReadTokens ?? 0
+    b.cacheCreationTokens += log.cacheCreationTokens ?? 0
+    b.costUsd += log.costUsd ?? 0
+  }
+
+  return [...byBucket.values()]
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map((pt) => ({
+      ...pt,
+      costUsd: Number(pt.costUsd.toFixed(6)),
+      label: formatTrendBucketLabel(pt.timestamp, period, bucketMode),
+    }))
+}
+
+/** 优先后端 trends（全量聚合）；无 trends 时回退已加载明细（可能截断） */
+const usageTrendChartData = computed(() => {
+  if (managedUsageLive.value?.trends?.length) {
+    const period = usagePeriodFilter.value
+    const bucket = usageEffectiveBucket.value
+    return managedUsageLive.value.trends.map((point) => ({
+      timestamp: point.timestamp,
+      inputTokens: point.inputTokens ?? 0,
+      outputTokens: point.outputTokens ?? 0,
+      cacheReadTokens: point.cacheReadTokens ?? 0,
+      cacheCreationTokens: point.cacheCreationTokens ?? 0,
+      costUsd: Number((point.costUsd ?? 0).toFixed(6)),
+      label: formatTrendBucketLabel(point.timestamp, period, bucket),
+    }))
+  }
+  return buildUsageTrendFromLogs(activeUsageLogs.value, usagePeriodFilter.value)
+})
+const usageTrendHasSignal = computed(() => usageTrendChartData.value.some((point) => (
+  point.inputTokens > 0
+  || point.outputTokens > 0
+  || point.cacheReadTokens > 0
+  || (point.cacheCreationTokens ?? 0) > 0
+  || point.costUsd > 0
+)))
+const usageTrendMaxTokens = computed(() => Math.max(
+  1,
+  ...usageTrendChartData.value.map((point) => Math.max(
+    point.inputTokens,
+    point.outputTokens,
+    point.cacheReadTokens,
+    point.cacheCreationTokens ?? 0,
+  )),
+))
 const usageTrendMaxCost = computed(() => Math.max(1, ...usageTrendChartData.value.map((point) => point.costUsd)))
-const usageTrendLabelPoints = computed(() => usageTrendChartData.value.map((point, index, arr) => ({
-  label: point.label,
-  x: arr.length <= 1 ? 500 : 40 + (920 / (arr.length - 1)) * index,
-})))
+const usageTrendLabelPoints = computed(() => {
+  const arr = usageTrendChartData.value
+  // 超过12个数据点时，按间隔只显示约8个label，避免x轴拥挤
+  const step = arr.length > 12 ? Math.ceil(arr.length / 8) : 1
+  return arr.map((point, index) => ({
+    label: point.label,
+    x: arr.length <= 1 ? 500 : 56 + (884 / Math.max(arr.length - 1, 1)) * index,
+    pct: arr.length <= 1 ? 50 : (index / Math.max(arr.length - 1, 1)) * 100,
+    show: index === 0 || index === arr.length - 1 || index % step === 0,
+  }))
+})
 const usageTrendInputPath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.inputTokens, usageTrendMaxTokens.value))
 const usageTrendOutputPath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.outputTokens, usageTrendMaxTokens.value))
 const usageTrendCachePath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.cacheReadTokens, usageTrendMaxTokens.value))
 const usageTrendCostPath = computed(() => buildUsageLinePath(usageTrendChartData.value, (point) => point.costUsd, usageTrendMaxCost.value))
+// Area paths (closed for gradient fill)
+const usageTrendInputArea = computed(() => buildUsageAreaPath(usageTrendChartData.value, (point) => point.inputTokens, usageTrendMaxTokens.value))
+const usageTrendOutputArea = computed(() => buildUsageAreaPath(usageTrendChartData.value, (point) => point.outputTokens, usageTrendMaxTokens.value))
+const usageTrendCacheArea = computed(() => buildUsageAreaPath(usageTrendChartData.value, (point) => point.cacheReadTokens, usageTrendMaxTokens.value))
+// Y-axis actual value labels (token scale, 5 levels) — chart plot y: 52..284（与网格线对齐）
+const USAGE_CHART_TOP = 52
+const USAGE_CHART_BOTTOM = 284
+const USAGE_CHART_HEIGHT = USAGE_CHART_BOTTOM - USAGE_CHART_TOP
+const usageTrendYLabels = computed(() => {
+  const max = usageTrendMaxTokens.value
+  return [100, 75, 50, 25, 0].map((pct) => ({
+    y: USAGE_CHART_TOP + ((100 - pct) / 100) * USAGE_CHART_HEIGHT,
+    label: pct === 0 ? '0' : formatCompactWan(Math.round(max * pct / 100)),
+  }))
+})
+// Y-axis cost labels (right side)
+const usageTrendCostYLabels = computed(() => {
+  const max = usageTrendMaxCost.value
+  return [100, 75, 50, 25, 0].map((pct) => ({
+    y: USAGE_CHART_TOP + ((100 - pct) / 100) * USAGE_CHART_HEIGHT,
+    label: max === 0 ? '$0' : `$${(max * pct / 100).toFixed(max * pct / 100 >= 1 ? 0 : 2)}`,
+  }))
+})
+
+function chartYForToken(value: number) {
+  const max = Math.max(1, usageTrendMaxTokens.value)
+  return USAGE_CHART_BOTTOM - (Math.max(0, value) / max) * USAGE_CHART_HEIGHT
+}
+
+function chartYForCost(value: number) {
+  const max = Math.max(1, usageTrendMaxCost.value)
+  return USAGE_CHART_BOTTOM - (Math.max(0, value) / max) * USAGE_CHART_HEIGHT
+}
+
+function onUsageChartMouseMove(event: MouseEvent) {
+  const svg = event.currentTarget as SVGSVGElement | null
+  if (!svg || !usageTrendChartData.value.length) {
+    chartHoverIndex.value = null
+    return
+  }
+  const rect = svg.getBoundingClientRect()
+  if (!rect.width) return
+  const x = ((event.clientX - rect.left) / rect.width) * 1000
+  let best = 0
+  let bestDist = Number.POSITIVE_INFINITY
+  usageTrendLabelPoints.value.forEach((point, index) => {
+    const dist = Math.abs(point.x - x)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = index
+    }
+  })
+  chartHoverIndex.value = best
+  updateUsageChartTooltipPosition(best)
+}
+
+function updateUsageChartTooltipPosition(index: number) {
+  const shell = usageChartShellRef.value
+  if (!shell || !usageTrendLabelPoints.value[index]) {
+    return
+  }
+  const shellRect = shell.getBoundingClientRect()
+  if (!shellRect.width) return
+  // SVG plot x mapped to shell width (viewBox 0..1000)
+  const pointX = usageTrendLabelPoints.value[index].x
+  const rawLeft = (pointX / 1000) * shellRect.width
+  const tooltipEl = usageChartTooltipRef.value
+  const tooltipWidth = tooltipEl?.offsetWidth || 160
+  const pad = 12
+  const minLeft = pad + tooltipWidth / 2
+  const maxLeft = shellRect.width - pad - tooltipWidth / 2
+  const clamped = Math.min(Math.max(rawLeft, minLeft), Math.max(minLeft, maxLeft))
+  usageChartTooltipStyle.value = {
+    left: `${clamped}px`,
+    top: '8px',
+    transform: 'translateX(-50%)',
+  }
+}
+
+function positionUsageProviderPicker() {
+  const trigger = usageProviderPickerTriggerRef.value
+  if (!trigger) return
+  const rect = trigger.getBoundingClientRect()
+  const viewportW = window.innerWidth
+  const viewportH = window.innerHeight
+  const width = Math.min(320, Math.max(260, Math.min(rect.width + 120, viewportW - 24)))
+  const gap = 6
+  const pad = 12
+  // 优先与 trigger 左对齐；右侧溢出再左移，避免整块飞到视口最左
+  let left = rect.left
+  if (left + width > viewportW - pad) left = viewportW - width - pad
+  if (left < pad) left = pad
+  const spaceBelow = viewportH - rect.bottom - pad
+  const spaceAbove = rect.top - pad
+  const preferBelow = spaceBelow >= 220 || spaceBelow >= spaceAbove
+  const maxHeight = Math.max(180, Math.min(380, preferBelow ? spaceBelow - gap : spaceAbove - gap))
+  if (preferBelow) {
+    usageProviderPickerStyle.value = {
+      position: 'fixed',
+      top: `${Math.round(rect.bottom + gap)}px`,
+      left: `${Math.round(left)}px`,
+      width: `${Math.round(width)}px`,
+      maxHeight: `${Math.round(maxHeight)}px`,
+      zIndex: '10050',
+    }
+  } else {
+    usageProviderPickerStyle.value = {
+      position: 'fixed',
+      top: 'auto',
+      bottom: `${Math.round(viewportH - rect.top + gap)}px`,
+      left: `${Math.round(left)}px`,
+      width: `${Math.round(width)}px`,
+      maxHeight: `${Math.round(maxHeight)}px`,
+      zIndex: '10050',
+    }
+  }
+}
+
+function toggleUsageProviderPicker() {
+  const next = !usageProviderPickerOpen.value
+  usageProviderPickerOpen.value = next
+  if (next) {
+    // 打开时吞掉随后的全局 pointerdown/click，避免立刻被 closeFloatingMenus 关掉
+    suppressFloatingMenuCloseUntil = Date.now() + 280
+    nextTick(() => positionUsageProviderPicker())
+  }
+}
+
+function repositionUsageProviderPickerIfOpen() {
+  if (!usageProviderPickerOpen.value) return
+  positionUsageProviderPicker()
+}
+
+function formatUsageTrendTooltipTime(timestamp: string) {
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return timestamp
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mi = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  const bucket = usageEffectiveBucket.value
+  if (bucket === 'minute' || usagePeriodFilter.value === '1h') {
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`
+  }
+  if (bucket === 'hour' || usagePeriodFilter.value === 'today') {
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
+  }
+  if (bucket === 'month') {
+    return `${yyyy}-${mm}`
+  }
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
+}
+
+function clearUsageProviderSelection() {
+  usageSelectedProviderIds.value = []
+  usageProviderFilter.value = ''
+  usageProviderPickerOpen.value = false
+  // 清空后立即按「全部」重拉，避免残留空筛选结果
+  managedUsageNextCursor.value = null
+  managedUsageHasMore.value = false
+  scheduleManagedUsageReload()
+}
+
+function toggleUsageProviderSelection(id: string) {
+  const set = new Set(usageSelectedProviderIds.value)
+  if (set.has(id)) set.delete(id)
+  else set.add(id)
+  usageSelectedProviderIds.value = [...set]
+  // 选择变更由 watch debounce 重拉；此处不关浮层，方便连续多选
+}
+
+function closeUsageProviderPicker() {
+  usageProviderPickerOpen.value = false
+}
+
+/** 从 Provider 卡片「查看用量」：进入 Usage 并选中该档案（多选筛选，不制造假 tab） */
+function openProviderUsageFilter(providerId: string) {
+  usageSelectedProviderIds.value = [providerId]
+  usageProviderFilter.value = ''
+  usageProviderPickerOpen.value = false
+  appSection.value = 'usage'
+}
+
+function loadMoreUsageRequestLogs() {
+  if (!managedUsageHasMore.value || !managedUsageNextCursor.value) return
+  if (managedUsageInFlight.value) return
+  void loadManagedUsageLive({ append: true })
+}
+
+function scheduleManagedUsageReload() {
+  if (managedUsageDebounceTimer != null) {
+    window.clearTimeout(managedUsageDebounceTimer)
+    managedUsageDebounceTimer = null
+  }
+  managedUsageDebounceTimer = window.setTimeout(() => {
+    managedUsageDebounceTimer = null
+    void loadManagedUsageLive({ reset: true })
+  }, MANAGED_USAGE_DEBOUNCE_MS)
+}
 const referencedTerminalEntryIds = computed(() => {
   const ids = selectedWorkspace.value?.tabs.flatMap((tab) => flattenLeafPanes(tab.panes).map((pane) => pane.terminalEntryId).filter((entryId): entryId is string => Boolean(entryId))) ?? []
   return new Set(ids)
@@ -3925,11 +5363,11 @@ const totalWorkspaceCount = computed(() => workspaces.value.length)
 const totalPaneCount = computed(() => workspaces.value.reduce((count, workspace) => count + totalPanes(workspace), 0))
 const totalRunningCount = computed(() => workspaces.value.reduce((count, workspace) => count + runningCount(workspace), 0))
 const visibleEnvironmentChecks = computed(() => homeEnvironmentChecks.filter((item) => !hiddenEnvironmentItems.value.includes(item.name)))
-const allWorkflowTemplates = computed(() => [...systemWorkflowTemplates, ...userWorkflowTemplates.value])
+const allWorkflowTemplates = computed(() => [...getSystemWorkflowTemplates(currentLocale.value), ...userWorkflowTemplates.value])
 const workflowTemplateFilters = computed<Array<{ id: 'all' | 'system' | 'user'; label: string; count: number; icon: string }>>(() => [
-  { id: 'all', label: '全部', count: allWorkflowTemplates.value.length, icon: 'template' },
-  { id: 'system', label: '系统模板', count: allWorkflowTemplates.value.filter((template) => template.kind === 'system').length, icon: 'workspace' },
-  { id: 'user', label: '我的模板', count: userWorkflowTemplates.value.length, icon: 'edit' },
+  { id: 'all', label: t('common.all'), count: allWorkflowTemplates.value.length, icon: 'template' },
+  { id: 'system', label: t('templates.systemTemplate'), count: allWorkflowTemplates.value.filter((template) => template.kind === 'system').length, icon: 'workspace' },
+  { id: 'user', label: t('templates.userTemplate'), count: userWorkflowTemplates.value.length, icon: 'edit' },
 ])
 const workflowTemplateTagFilters = computed(() => {
   const tags = Array.from(new Set(allWorkflowTemplates.value.flatMap((template) => template.tags))).sort((a, b) => a.localeCompare(b, 'zh-CN'))
@@ -3946,51 +5384,51 @@ const filteredWorkflowTemplates = computed(() => {
   return templates
 })
 const recentWorkspaceOptions = computed(() => [
-  { id: 'all', label: '全部工作区' },
+  { id: 'all', label: tr('全部工作区', 'All workspaces') },
   ...workspaces.value.map((workspace) => ({ id: workspace.id, label: workspace.name })),
 ])
 const hiddenRecentItemCount = computed(() => hiddenRecentItemIds.value.length)
 const removedRecentItems = computed(() =>
   allRecentItems.value.filter((item) => recentItemIsHidden(item.id)),
 )
-const recentWorkspaceFilterLabel = computed(() => recentWorkspaceOptions.value.find((workspace) => workspace.id === recentWorkspaceFilter.value)?.label ?? '全部工作区')
+const recentWorkspaceFilterLabel = computed(() => recentWorkspaceOptions.value.find((workspace) => workspace.id === recentWorkspaceFilter.value)?.label ?? tr('全部工作区', 'All workspaces'))
 const recentFilters = computed<Array<{ id: RecentFilter; label: string; count: number; icon: string }>>(() => {
   const items = allRecentItems.value
   return [
-    { id: 'all', label: '全部', count: items.length, icon: 'recent' },
-    { id: 'workspace', label: '工作区', count: items.filter((item) => item.type === 'workspace').length, icon: 'workspace' },
-    { id: 'project', label: '项目', count: items.filter((item) => item.type === 'project').length, icon: 'tab' },
-    { id: 'session', label: '终端', count: items.filter((item) => item.type === 'session').length, icon: 'terminal' },
-    { id: 'command', label: '历史命令', count: items.filter((item) => item.type === 'command').length, icon: 'bolt' },
-    { id: 'snapshot', label: '布局', count: items.filter((item) => item.type === 'snapshot').length, icon: 'copy' },
+    { id: 'all', label: t('common.all'), count: items.length, icon: 'recent' },
+    { id: 'workspace', label: t('search.groups.workspace'), count: items.filter((item) => item.type === 'workspace').length, icon: 'workspace' },
+    { id: 'project', label: t('search.groups.project'), count: items.filter((item) => item.type === 'project').length, icon: 'tab' },
+    { id: 'session', label: t('search.groups.session'), count: items.filter((item) => item.type === 'session').length, icon: 'terminal' },
+    { id: 'command', label: t('search.groups.command'), count: items.filter((item) => item.type === 'command').length, icon: 'bolt' },
+    { id: 'snapshot', label: t('search.groups.snapshot'), count: items.filter((item) => item.type === 'snapshot').length, icon: 'copy' },
   ]
 })
 const allRecentItems = computed<RecentItem[]>(() => {
   const items: RecentItem[] = []
 
   workspaces.value.forEach((workspace) => {
-    items.push({
-      id: `workspace-${workspace.id}`,
-      type: 'workspace',
-      icon: 'workspace',
-      title: workspace.name,
-      description: workspace.rootPath,
-      meta: `${workspace.tabs.length} 项目 · ${totalWorkspaceSessions(workspace)} 终端`,
-      badge: relativeTimeLabel(workspace.lastOpenedAt),
+      items.push({
+        id: `workspace-${workspace.id}`,
+        type: 'workspace',
+        icon: 'workspace',
+        title: workspace.name,
+        description: workspace.rootPath,
+        meta: `${t('workspace.projects', { count: workspace.tabs.length })} · ${t('snapshot.terminals', { count: totalWorkspaceSessions(workspace) })}`,
+        badge: relativeTimeLabel(workspace.lastOpenedAt),
       timestamp: workspace.lastOpenedAt,
       workspaceId: workspace.id,
       onOpen: () => openWorkspace(workspace.id),
     })
 
     workspace.tabs.forEach((tab) => {
-      items.push({
-        id: `project-${workspace.id}-${tab.id}`,
-        type: 'project',
-        icon: 'tab',
-        title: tab.name,
-        description: `${workspace.name} · ${workspace.rootPath}`,
-        meta: `${countLeafPanes(tab.panes)} Pane · ${countPaneSessions(tab.panes)} 终端`,
-        badge: relativeTimeLabel(tab.updatedAt || workspace.updatedAt),
+        items.push({
+          id: `project-${workspace.id}-${tab.id}`,
+          type: 'project',
+          icon: 'tab',
+          title: tab.name,
+          description: `${workspace.name} · ${workspace.rootPath}`,
+          meta: `${t('snapshot.panes', { count: countLeafPanes(tab.panes) })} · ${t('snapshot.terminals', { count: countPaneSessions(tab.panes) })}`,
+          badge: relativeTimeLabel(tab.updatedAt || workspace.updatedAt),
         timestamp: tab.updatedAt || workspace.updatedAt,
         workspaceId: workspace.id,
         tabId: tab.id,
@@ -4028,7 +5466,7 @@ const allRecentItems = computed<RecentItem[]>(() => {
           title: command,
           description: entry.workingDirectory,
           meta: `${workspace.name} / ${entry.name}`,
-          badge: entry.tags[0] || '历史命令',
+          badge: entry.tags[0] || t('search.groups.command'),
           timestamp: entry.updatedAt,
           command,
           workspaceId: workspace.id,
@@ -4040,13 +5478,13 @@ const allRecentItems = computed<RecentItem[]>(() => {
     })
 
     ;(workspace.snapshots ?? []).forEach((snapshot) => {
-      items.push({
-        id: `snapshot-${workspace.id}-${snapshot.id}`,
-        type: 'snapshot',
-        icon: 'copy',
-        title: snapshot.name,
-        description: workspace.rootPath,
-        meta: `${workspace.name} · ${snapshot.tabsState.length} 项目现场`,
+        items.push({
+          id: `snapshot-${workspace.id}-${snapshot.id}`,
+          type: 'snapshot',
+          icon: 'copy',
+          title: snapshot.name,
+          description: workspace.rootPath,
+          meta: `${workspace.name} · ${t('workspace.projects', { count: snapshot.tabsState.length })}`,
         badge: relativeTimeLabel(snapshot.updatedAt),
         timestamp: snapshot.updatedAt,
         workspaceId: workspace.id,
@@ -4078,10 +5516,10 @@ const searchResults = computed<SearchResultItem[]>(() => {
       id: `workspace-${workspace.id}`,
       type: 'workspace',
       icon: 'workspace',
-      title: workspace.name,
-      description: workspace.rootPath,
-      meta: `${workspace.tabs.length} 项目 · ${workspace.tags.join(' · ') || '未设置标签'}`,
-      actionLabel: '打开工作区',
+        title: workspace.name,
+        description: workspace.rootPath,
+        meta: `${t('workspace.projects', { count: workspace.tabs.length })} · ${workspace.tags.join(' · ') || t('workspace.tagsEmpty')}`,
+        actionLabel: t('workspace.openWorkspace'),
       onOpen: () => openWorkspace(workspace.id),
     }, [workspace.name, workspace.rootPath, workspace.description, workspace.tags.join(' ')])
 
@@ -4092,8 +5530,8 @@ const searchResults = computed<SearchResultItem[]>(() => {
         icon: 'tab',
         title: tab.name,
         description: workspace.rootPath,
-        meta: `${workspace.name} · ${countPaneSessions(tab.panes)} 终端`,
-        actionLabel: '定位项目',
+        meta: `${workspace.name} · ${t('snapshot.terminals', { count: countPaneSessions(tab.panes) })}`,
+        actionLabel: tr('定位项目', 'Locate project'),
         onOpen: () => openProjectWorkspace(workspace.id, tab.id),
       }, [workspace.name, workspace.rootPath, tab.name])
 
@@ -4107,7 +5545,7 @@ const searchResults = computed<SearchResultItem[]>(() => {
             title: sessionDisplayName(workspace, pane, session),
             description: entry?.workingDirectory || session.pathLabel || pane.pathLabel,
             meta: `${workspace.name} / ${tab.name}`,
-            actionLabel: '打开终端',
+            actionLabel: tr('打开终端', 'Open terminal'),
             onOpen: () => openWorkspaceTerminalSession(workspace.id, tab.id, pane.id, session.id),
           }, sessionDisplayTitle(workspace, tab, pane, session))
         })
@@ -4122,7 +5560,7 @@ const searchResults = computed<SearchResultItem[]>(() => {
         title: entry.name,
         description: entry.workingDirectory,
         meta: `${workspace.name} · ${launchModeLabel(entry.launchMode)}`,
-        actionLabel: '查看配置',
+        actionLabel: tr('查看配置', 'View config'),
         onOpen: () => openWorkspaceTerminalEntries(workspace.id),
       }, [entry.name, entry.workingDirectory, entry.defaultCommand, entry.lastCommand, entry.tags.join(' ')])
 
@@ -4134,7 +5572,7 @@ const searchResults = computed<SearchResultItem[]>(() => {
           title: command,
           description: entry.workingDirectory,
           meta: `${workspace.name} / ${entry.name}`,
-          actionLabel: '回到来源终端',
+          actionLabel: t('recent.backToSource'),
           command,
           onOpen: () => openRecentCommandTarget(workspace.id, entry.id, command),
         }, [command, entry.workingDirectory, entry.name, workspace.name])
@@ -4148,8 +5586,8 @@ const searchResults = computed<SearchResultItem[]>(() => {
         icon: 'copy',
         title: snapshot.name,
         description: workspace.name,
-        meta: `${snapshot.tabsState.length} 项目 · ${relativeTimeLabel(snapshot.updatedAt)}`,
-        actionLabel: '恢复现场',
+        meta: `${t('workspace.projects', { count: snapshot.tabsState.length })} · ${relativeTimeLabel(snapshot.updatedAt)}`,
+        actionLabel: t('common.actions.restoreSnapshot'),
         onOpen: () => restoreWorkspaceSnapshotFromRecent(workspace.id, snapshot.id),
       }, [snapshot.name, workspace.name])
     })
@@ -4162,8 +5600,8 @@ const searchResults = computed<SearchResultItem[]>(() => {
       icon: group.icon,
       title: group.title,
       description: group.description,
-      meta: '设置入口',
-      actionLabel: '打开设置',
+      meta: tr('设置入口', 'Settings entry'),
+      actionLabel: tr('打开设置', 'Open settings'),
       onOpen: () => {
         appSection.value = 'settings'
         activeSettingsSection.value = group.id
@@ -4177,14 +5615,14 @@ const searchResults = computed<SearchResultItem[]>(() => {
 })
 const groupedSearchResults = computed(() => {
   const groups: Array<{ key: string; type: SearchResultType; title: string; items: SearchResultItem[] }> = [
-    { key: 'best', type: 'workspace', title: '最佳匹配', items: [] },
-    { key: 'workspace', type: 'workspace', title: '工作区', items: [] },
-    { key: 'project', type: 'project', title: '项目', items: [] },
-    { key: 'session', type: 'session', title: '终端', items: [] },
-    { key: 'command', type: 'command', title: '历史命令', items: [] },
-    { key: 'config', type: 'config', title: '配置', items: [] },
-    { key: 'snapshot', type: 'snapshot', title: '布局快照', items: [] },
-    { key: 'setting', type: 'setting', title: '设置入口', items: [] },
+    { key: 'best', type: 'workspace', title: t('search.groups.best'), items: [] },
+    { key: 'workspace', type: 'workspace', title: t('search.groups.workspace'), items: [] },
+    { key: 'project', type: 'project', title: t('search.groups.project'), items: [] },
+    { key: 'session', type: 'session', title: t('search.groups.session'), items: [] },
+    { key: 'command', type: 'command', title: t('search.groups.command'), items: [] },
+    { key: 'config', type: 'config', title: t('search.groups.config'), items: [] },
+    { key: 'snapshot', type: 'snapshot', title: t('search.groups.snapshot'), items: [] },
+    { key: 'setting', type: 'setting', title: t('search.groups.setting'), items: [] },
   ]
 
   if (normalizeSearchText(appSearchQuery.value)) {
@@ -4206,58 +5644,268 @@ const activeSearchResultList = computed(() => openSearchModal.value ? quickSearc
 const settingsGroups = computed<Array<{ id: SettingsSection; title: string; icon: string; badge: string; description: string; items: string[] }>>(() => [
   {
     id: 'appearance',
-    title: '外观',
+    title: t('settings.groups.appearance.title'),
     icon: 'theme',
-    badge: '即时预览',
-    description: '主题、字体、界面密度和 Rail 记忆。',
-    items: [`当前主题：${selectedThemePreset.value.name}`, `终端字号：${terminalFontSize.value}px`, `Rail：${railCollapsed.value ? '默认收起' : '默认展开'}`],
+    badge: t('settings.groups.appearance.badge'),
+    description: t('settings.groups.appearance.description'),
+    items: [
+      t('settings.groups.appearance.currentTheme', { name: themeDisplayName(selectedThemePreset.value) }),
+      t('settings.groups.appearance.fontSize', { size: terminalFontSize.value }),
+      railCollapsed.value ? t('settings.groups.appearance.railCollapsed') : t('settings.groups.appearance.railExpanded'),
+    ],
   },
   {
     id: 'terminal',
-    title: '终端',
+    title: t('settings.groups.terminal.title'),
     icon: 'terminal',
-    badge: '运行态生效',
-    description: '默认 Shell、启动行为和命令恢复策略。',
-    items: ['默认 Shell：PowerShell 7', `命令恢复：${restoreCommandStrategyLabel(restoreCommandStrategy.value)}`, '自动执行：默认禁用'],
+    badge: t('settings.groups.terminal.badge'),
+    description: t('settings.groups.terminal.description'),
+    items: [
+      t('settings.groups.terminal.defaultShell'),
+      t('settings.groups.terminal.restoreStrategy', { label: restoreCommandStrategyLabel(restoreCommandStrategy.value) }),
+      t('settings.groups.terminal.autoExecute'),
+    ],
   },
   {
     id: 'system',
-    title: '系统与环境',
+    title: t('settings.groups.system.title'),
     icon: 'runtime',
-    badge: '检测与缓存',
-    description: '系统资源刷新、环境检测缓存与手动检测。',
-    items: [`资源刷新：${systemRefreshLabel.value}`, `环境项：${visibleEnvironmentChecks.value.length} 个展示`, hasEnvironmentCheckCache.value ? '环境缓存：已加载' : '环境缓存：待生成'],
+    badge: t('settings.groups.system.badge'),
+    description: t('settings.groups.system.description'),
+    items: [
+      t('settings.groups.system.refresh', { label: systemRefreshLabel.value }),
+      t('settings.groups.system.envVisible', { count: visibleEnvironmentChecks.value.length }),
+      hasEnvironmentCheckCache.value ? t('settings.groups.system.envCacheLoaded') : t('settings.groups.system.envCachePending'),
+    ],
   },
   {
     id: 'notifications',
-    title: '通知',
+    title: t('settings.groups.notifications.title'),
     icon: 'recent',
-    badge: '提醒与角标',
-    description: '系统通知、任务栏提醒和待处理计数。',
-    items: [`待处理终端：${countAttentionSessions()}`, `系统通知：${systemNotificationsEnabled.value ? '已开启' : '已关闭'}`, `任务栏提醒：${windowAttentionEnabled.value ? '已开启' : '已关闭'}`],
+    badge: t('settings.groups.notifications.badge'),
+    description: t('settings.groups.notifications.description'),
+    items: [
+      t('settings.groups.notifications.attentionSessions', { count: countAttentionSessions() }),
+      systemNotificationsEnabled.value ? t('settings.groups.notifications.notificationsEnabled') : t('settings.groups.notifications.notificationsDisabled'),
+      windowAttentionEnabled.value ? t('settings.groups.notifications.taskbarEnabled') : t('settings.groups.notifications.taskbarDisabled'),
+    ],
   },
   {
     id: 'supervisor',
-    title: '任务监督',
+    title: t('settings.groups.supervisor.title'),
     icon: 'bolt',
-    badge: '任务提醒',
-    description: '完成、等待输入、异常和停滞识别。',
-    items: [`停滞阈值：${Math.round(SUPERVISOR_STALLED_THRESHOLD_MS / 60000)} 分钟`, '提醒状态：Explorer / 顶栏 / 系统通知共用', isDevBuild ? '调试入口：可用' : '调试入口：隐藏'],
+    badge: t('settings.groups.supervisor.badge'),
+    description: t('settings.groups.supervisor.description'),
+    items: [
+      t('settings.groups.supervisor.stalledThreshold', { minutes: Math.round(SUPERVISOR_STALLED_THRESHOLD_MS / 60000) }),
+      t('settings.groups.supervisor.sharedState'),
+      isDevBuild ? t('settings.groups.supervisor.debugAvailable') : t('settings.groups.supervisor.debugHidden'),
+    ],
   },
   {
     id: 'data',
-    title: '数据',
+    title: t('settings.groups.data.title'),
     icon: 'copy',
-    badge: '本地持久化',
-    description: '本地数据、导入导出和配置迁移。',
-    items: ['工作区数据：本地持久化', '配置导入：预览后确认', '导出数据：自动排除敏感字段'],
+    badge: t('settings.groups.data.badge'),
+    description: t('settings.groups.data.description'),
+    items: [
+      t('settings.groups.data.workspacePersistence'),
+      t('settings.groups.data.importPreview'),
+      t('settings.groups.data.exportSafe'),
+    ],
   },
 ])
+const currentLocale = computed(() => locale.value as AppLocale)
+function tr(zh: string, en: string) {
+  return currentLocale.value === 'zh-CN' ? zh : en
+}
+function themeDisplayName(theme: ThemePreset) {
+  if (theme.id === 'default') return tr('明亮默认', 'Bright Default')
+  if (theme.id === 'orange') return tr('明亮橙', 'Bright Orange')
+  if (theme.id === 'blue') return tr('明亮蓝', 'Bright Blue')
+  if (theme.id === 'purple') return tr('明亮紫', 'Bright Purple')
+  if (theme.id === 'pink') return tr('明亮粉', 'Bright Pink')
+  if (theme.id === 'dark-default') return tr('暗色经典', 'Dark Classic')
+  return theme.name
+}
+function themeDisplayKind(theme: ThemePreset) {
+  if (theme.kind === '系统主题') return tr('系统主题', 'System Theme')
+  if (theme.kind === '常见主题') return tr('常见主题', 'Common Theme')
+  return theme.kind
+}
+function themeDisplayDescription(theme: ThemePreset) {
+  if (theme.id === 'default') return tr('温和中性色基底，适合作为默认工作主题。', 'A calm neutral baseline that works well as the default work theme.')
+  if (theme.id === 'orange') return tr('暖白底配橙色强调，信息清晰而不刺眼。', 'Warm white surfaces with orange emphasis for clear but comfortable scanning.')
+  if (theme.id === 'blue') return tr('冷白底配蓝色强调，更接近专业桌面工具。', 'Cool white surfaces with blue emphasis, closer to a professional desktop tool feel.')
+  if (theme.id === 'purple') return tr('柔和紫色强调，保留一点个性但整体仍偏清爽。', 'A soft purple accent that keeps some personality while staying clean overall.')
+  if (theme.id === 'pink') return tr('雾粉强调，整体更轻但保持足够对比。', 'A misty pink accent that feels lighter while still preserving enough contrast.')
+  if (theme.id === 'dark-default') return tr('面向长时间终端工作的低亮度主题，和浅色主题共用同一套组件语义。', 'A low-luminance theme for long terminal sessions, sharing the same component semantics as the light themes.')
+  if (theme.id === 'ayu-mirage') return tr('保留一个成熟暗色主题作为可选项。', 'A mature dark theme preserved as an optional preset.')
+  if (theme.id === 'arc-dark') return tr('更偏桌面工具的中性暗色。', 'A neutral dark palette that leans more toward desktop tooling.')
+  if (theme.id === 'catppuccin-latte') return tr('较柔和的浅色可选风格，适合白天工作。', 'A softer light optional palette that fits daytime work well.')
+  return theme.description
+}
+function localizeBuiltInWorkspaces(current: WorkspaceCard[]) {
+  return current.map((workspace) => {
+    if (workspace.id === 'demo-workspace' || workspace.id === 'memos') {
+      return {
+        ...workspace,
+        description: tr('本地项目工作区，包含前端、后端、AI 协作与临时终端。', 'Local project workspace with frontend, backend, AI collaboration, and temporary terminal sessions.'),
+        tags: [tr('前端', 'Frontend'), tr('后端', 'Backend'), 'AI'],
+        providerProfiles: (workspace.providerProfiles ?? []).map((profile) => {
+          if (profile.id === 'provider-openai-main' || profile.id === 'memos-provider-openai-main') {
+            return {
+              ...profile,
+              authSource: tr('Codex CLI OAuth 登录态', 'Codex CLI OAuth session'),
+              note: tr('从本机 Codex CLI 配置读取，当前作为默认 Codex 档案。', 'Read from the local Codex CLI config and currently used as the default Codex profile.'),
+            }
+          }
+          if (profile.id === 'provider-claude-team' || profile.id === 'memos-provider-claude-team') {
+            return {
+              ...profile,
+              authSource: tr('Claude Code 本地登录态', 'Claude Code local sign-in state'),
+              note: tr('读取 Claude Code 本地配置，切换时不写入终端运行配置。', 'Reads the local Claude Code config and does not inject it into terminal run configs when switching.'),
+            }
+          }
+          if (profile.id === 'provider-gemini-personal' || profile.id === 'memos-provider-gemini-personal') {
+            return {
+              ...profile,
+              authSource: tr('Google OAuth 登录态', 'Google OAuth session'),
+              note: tr('Gemini CLI 本地登录档案，用于快速切换账号与默认模型。', 'Gemini CLI local profile for switching accounts and default models quickly.'),
+            }
+          }
+          return profile
+        }),
+        terminalEntries: (workspace.terminalEntries ?? []).map((entry) => {
+          if (entry.id === 'demo-frontend' || entry.id === 'memos-frontend') {
+            return {
+              ...entry,
+              name: tr('前端', 'Frontend'),
+              tags: [tr('前端', 'Frontend'), tr('常用', 'Common')],
+              note: tr('前端本地开发服务', 'Frontend local development service'),
+            }
+          }
+          if (entry.id === 'demo-backend' || entry.id === 'memos-backend') {
+            return {
+              ...entry,
+              name: tr('后端', 'Backend'),
+              tags: [tr('后端', 'Backend'), tr('常用', 'Common')],
+              note: tr('后端调试入口', 'Backend debugging entry'),
+            }
+          }
+          if (entry.id === 'demo-codex' || entry.id === 'memos-codex') {
+            return {
+              ...entry,
+              tags: ['AI'],
+              note: tr('AI 协作终端条目', 'AI collaboration terminal entry'),
+            }
+          }
+          if (entry.id === 'demo-shell-a' || entry.id === 'demo-shell-b' || entry.id === 'memos-shell-a' || entry.id === 'memos-shell-b') {
+            return {
+              ...entry,
+              tags: [tr('临时', 'Temporary')],
+            }
+          }
+          return entry
+        }),
+        tabs: (workspace.tabs ?? []).map((tab) => {
+          if (tab.id === 'demo-dev' || tab.id === 'memos-dev') {
+            return {
+              ...tab,
+              name: tr('开发', 'Development'),
+              panes: tab.panes.map((pane) => {
+                if (pane.id === 'pane-frontend' || pane.id === 'memos-pane-frontend') return { ...pane, name: tr('前端', 'Frontend') }
+                if (pane.id === 'pane-backend' || pane.id === 'memos-pane-backend') return { ...pane, name: tr('后端', 'Backend') }
+                return pane
+              }),
+            }
+          }
+          if (tab.id === 'demo-ai' || tab.id === 'memos-ai') {
+            return {
+              ...tab,
+              name: tr('AI 协作', 'AI collaboration'),
+            }
+          }
+          if (tab.id === 'demo-temp' || tab.id === 'memos-temp') {
+            return {
+              ...tab,
+              name: tr('临时操作', 'Scratchpad'),
+            }
+          }
+          return tab
+        }),
+      }
+    }
+
+    if (workspace.id === 'demo-api-suite' || workspace.id === 'live') {
+      return {
+        ...workspace,
+        description: tr('较轻量的前后端联调工作区。', 'A lighter workspace for frontend/backend integration work.'),
+        tags: [tr('联调', 'Integration')],
+        terminalEntries: (workspace.terminalEntries ?? []).map((entry) => {
+          if (entry.id === 'suite-web' || entry.id === 'live-web') {
+            return {
+              ...entry,
+              tags: [tr('前端', 'Frontend')],
+            }
+          }
+          if (entry.id === 'suite-api' || entry.id === 'live-api') {
+            return {
+              ...entry,
+              tags: [tr('后端', 'Backend')],
+            }
+          }
+          return entry
+        }),
+        tabs: (workspace.tabs ?? []).map((tab) => {
+          if (tab.id === 'suite-dev' || tab.id === 'live-dev' || tab.id === 'suite-main') {
+            return {
+              ...tab,
+              name: tr('开发', 'Development'),
+            }
+          }
+          if (tab.id === 'suite-note' || tab.id === 'live-note') {
+            return {
+              ...tab,
+              name: tr('临时', 'Temporary'),
+            }
+          }
+          return tab
+        }),
+      }
+    }
+
+    return workspace
+  })
+}
+function environmentItemValueLabel(value: string) {
+  if (value === '待检测') return tr('待检测', 'Pending')
+  if (value === '检测中') return tr('检测中', 'Checking')
+  if (value === '检测失败') return tr('检测失败', 'Check failed')
+  if (value === '浏览器模式') return tr('浏览器模式', 'Browser mode')
+  if (value === '读取失败') return tr('读取失败', 'Read failed')
+  if (value === '项目依赖') return tr('项目依赖', 'Project dependency')
+  if (value === '已接入') return tr('已接入', 'Integrated')
+  return value
+}
+function environmentItemNoteLabel(note: string) {
+  if (note === '前端 UI 框架') return tr('前端 UI 框架', 'Frontend UI framework')
+  if (note === '类型系统') return tr('类型系统', 'Type system')
+  if (note === '桌面壳运行时') return tr('桌面壳运行时', 'Desktop shell runtime')
+  if (note === '真实终端渲染') return tr('真实终端渲染', 'Real terminal rendering')
+  return note
+}
+function systemStatusDisplayValue(value: string) {
+  if (value === '检测中') return tr('检测中', 'Checking')
+  if (value === '浏览器模式') return tr('浏览器模式', 'Browser mode')
+  if (value === '读取失败') return tr('读取失败', 'Read failed')
+  return value
+}
 const systemRefreshLabel = computed(() => {
-  if (systemStatusRefreshing.value) return '刷新中'
-  if (systemRefreshInterval.value === 'manual') return '手动刷新'
-  if (systemRefreshCountdown.value > 0) return `${systemRefreshCountdown.value}s 后刷新`
-  return `${systemRefreshInterval.value} 自动刷新`
+  if (systemStatusRefreshing.value) return t('refresh.refreshing')
+  if (systemRefreshInterval.value === 'manual') return t('refresh.manual')
+  if (systemRefreshCountdown.value > 0) return t('refresh.autoAfter', { seconds: systemRefreshCountdown.value })
+  return t('refresh.autoInterval', { interval: systemRefreshInterval.value })
 })
 const overviewWorkspaceIndex = computed(() => {
   const index = workspaces.value.findIndex((workspace) => workspace.id === selectedOverviewWorkspaceId.value)
@@ -4296,9 +5944,9 @@ const homeEnvironmentChecks = reactive([
 const primaryRailItems = computed<RailItem[]>(() => [
   {
     id: 'home',
-    label: '首页',
+    label: t('rail.primary.home.label'),
     icon: 'home',
-    summary: '最近项目、环境检测和系统状态总览。',
+    summary: t('rail.primary.home.summary'),
     active: appSection.value === 'home',
     action: () => {
       appSection.value = 'home'
@@ -4307,41 +5955,41 @@ const primaryRailItems = computed<RailItem[]>(() => [
   },
   {
     id: 'workspace',
-    label: '工作区',
+    label: t('rail.primary.workspace.label'),
     icon: 'workspace',
-    summary: '工作区卡片总览与工作台入口。',
+    summary: t('rail.primary.workspace.summary'),
     active: appSection.value === 'workspace',
     action: () => goWorkspaceOverview(),
   },
   {
     id: 'recent',
-    label: '最近',
+    label: t('rail.primary.recent.label'),
     icon: 'recent',
-    summary: '最近恢复、最近会话和高频入口。',
+    summary: t('rail.primary.recent.summary'),
     active: appSection.value === 'recent',
     action: () => { appSection.value = 'recent' },
   },
   {
     id: 'templates',
-    label: '模板',
+    label: t('rail.primary.templates.label'),
     icon: 'template',
-    summary: '常用布局、运行配置和启动蓝图。',
+    summary: t('rail.primary.templates.summary'),
     active: appSection.value === 'templates',
     action: () => { appSection.value = 'templates' },
   },
   {
     id: 'providers',
-    label: 'Provider',
-    icon: 'settings',
-    summary: '参考 CC Switch 管理本地 CLI Provider 档案。',
+    label: t('rail.primary.providers.label'),
+    icon: 'package',
+    summary: t('rail.primary.providers.summary'),
     active: appSection.value === 'providers',
     action: () => { appSection.value = 'providers' },
   },
   {
     id: 'usage',
-    label: '统计',
-    icon: 'recent',
-    summary: '查看请求日志、趋势图与用量总览。',
+    label: t('rail.primary.usage.label'),
+    icon: 'bar-chart',
+    summary: t('rail.primary.usage.summary'),
     active: appSection.value === 'usage',
     action: () => { appSection.value = 'usage' },
   },
@@ -4349,25 +5997,25 @@ const primaryRailItems = computed<RailItem[]>(() => [
 const secondaryRailItems = computed<RailItem[]>(() => [
   {
     id: 'search',
-    label: '搜索',
+    label: t('rail.secondary.search.label'),
     icon: 'search',
-    summary: '跨工作区搜索目录、配置与命令。',
+    summary: t('rail.secondary.search.summary'),
     active: appSection.value === 'search',
     action: () => openSearchPage(),
   },
   {
     id: 'theme',
-    label: '主题',
+    label: t('rail.secondary.theme.label'),
     icon: 'theme',
-    summary: '切换主题、字体和视觉密度。',
+    summary: t('rail.secondary.theme.summary'),
     active: openThemeModal.value,
     action: () => openThemePanel('theme'),
   },
   {
     id: 'settings',
-    label: '设置',
+    label: t('rail.secondary.settings.label'),
     icon: 'settings',
-    summary: '全局 Shell、桌面端行为和低频偏好。',
+    summary: t('rail.secondary.settings.summary'),
     active: appSection.value === 'settings',
     action: () => { appSection.value = 'settings' },
   },
@@ -4662,6 +6310,10 @@ watch(workspaces, (nextWorkspaces) => {
   )
 }, { flush: 'post' })
 
+watch(currentLocale, () => {
+  commitWorkspaces((current) => localizeBuiltInWorkspaces(current), 'transient')
+}, { immediate: true })
+
 watch(userWorkflowTemplates, (templates) => {
   saveUserWorkflowTemplates(templates)
 }, { deep: true })
@@ -4723,6 +6375,61 @@ watch(filteredWorkspaceProviders, (providers) => {
   }
 })
 
+/**
+ * - Usage 页：拉实时数据 + 60s 轮询兜底（唯一 timer）；事件 usage-log-recorded 优先 invalidate
+ * - Providers 页：静默同步一次 + 按当前周期拉 Usage（卡片副标），不轮询
+ * - 筛选变化：debounce 后 reset 明细 cursor 并刷新聚合
+ * - 其它页 / 隐藏：停轮询
+ */
+watch(
+  [appSection, usagePeriodFilter, usageAppFilter, usageProviderFilter, usageSelectedProviderIds, usageCustomStartAt, usageCustomEndAt],
+  ([section], previous) => {
+    if (!("__TAURI_INTERNALS__" in window)) {
+      stopManagedUsagePolling()
+      return
+    }
+
+    const prevSection = previous?.[0]
+    const filtersChanged = Boolean(previous) && (
+      previous![1] !== usagePeriodFilter.value
+      || previous![2] !== usageAppFilter.value
+      || previous![3] !== usageProviderFilter.value
+      || previous![4] !== usageSelectedProviderIds.value
+      || previous![5] !== usageCustomStartAt.value
+      || previous![6] !== usageCustomEndAt.value
+    )
+
+    if (section === 'usage') {
+      if (filtersChanged || prevSection !== 'usage') {
+        managedUsageNextCursor.value = null
+        managedUsageHasMore.value = false
+        scheduleManagedUsageReload()
+      }
+      startManagedUsagePolling()
+      return
+    }
+
+    stopManagedUsagePolling()
+    if (section === 'providers') {
+      if (!providerSilentSyncedOnce.value && !providerDetectionRunning.value) {
+        void syncNativeProviderProfiles({ silent: true })
+      }
+      void loadManagedUsageLive({ reset: true })
+    }
+  },
+  { immediate: false, deep: true },
+)
+
+watch(usageProviderPickerOpen, (open) => {
+  if (!open) return
+  nextTick(() => positionUsageProviderPicker())
+})
+
+watch(chartHoverIndex, (index) => {
+  if (index == null) return
+  nextTick(() => updateUsageChartTooltipPosition(index))
+})
+
 watch(selectedWorkspace, (workspace) => {
   if (!workspace) {
     activeRuntimeTabId.value = ''
@@ -4737,7 +6444,16 @@ watch(selectedWorkspace, (workspace) => {
   collapsedTreeTabIds.value = collapsedTreeTabIds.value.filter((tabId) => workspace.tabs.some((tab) => tab.id === tabId))
 }, { immediate: true })
 
-function closeFloatingMenus() {
+function closeFloatingMenus(event?: Event) {
+  // Teleport 到 body 的 Usage Provider 浮层：点击其内部时不要关
+  if (usageProviderPickerOpen.value && event?.target instanceof Node) {
+    const target = event.target as Node
+    const panel = document.querySelector('.usage-provider-picker__panel--fixed')
+    const trigger = usageProviderPickerTriggerRef.value
+    if ((panel && panel.contains(target)) || (trigger && trigger.contains(target))) {
+      return
+    }
+  }
   activePaneMenu.value = null
   activePaneHeaderMenu.value = null
   activePaneBindingMenu.value = null
@@ -4760,16 +6476,17 @@ function closeFloatingMenus() {
   openProviderSourceMenu.value = false
   openProviderScopeMenu.value = false
   activeRailTooltipId.value = null
+  usageProviderPickerOpen.value = false
 }
 
-function handleGlobalClick() {
+function handleGlobalClick(event: MouseEvent) {
   if (Date.now() < suppressFloatingMenuCloseUntil) return
-  closeFloatingMenus()
+  closeFloatingMenus(event)
 }
 
-function handleGlobalPointerDown() {
+function handleGlobalPointerDown(event: PointerEvent) {
   if (Date.now() < suppressFloatingMenuCloseUntil) return
-  closeFloatingMenus()
+  closeFloatingMenus(event)
 }
 
 function handleMenuTriggerPointerDown(event: MouseEvent | PointerEvent) {
@@ -4801,6 +6518,12 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       return
     }
     lastStandaloneShiftAt = now
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b' && !event.altKey && immersiveWorkbenchActive.value) {
+    event.preventDefault()
+    toggleWorkbenchExplorerCollapsed()
+    return
   }
 
   if (event.key === 'Escape') {
@@ -4840,7 +6563,11 @@ onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('resize', refreshCachedDropZones)
   window.addEventListener('resize', clampAiAssistCardIntoViewport)
+  window.addEventListener('resize', repositionUsageProviderPickerIfOpen)
+  window.addEventListener('scroll', repositionUsageProviderPickerIfOpen, true)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   if ('__TAURI_INTERNALS__' in window) {
+    void setupManagedUsageEventListeners()
     void getCurrentWindow().onResized(() => {
       void refreshTauriViewportWidth()
     }).then((unlisten) => {
@@ -4858,9 +6585,14 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('resize', refreshCachedDropZones)
   window.removeEventListener('resize', clampAiAssistCardIntoViewport)
+  window.removeEventListener('resize', repositionUsageProviderPickerIfOpen)
+  window.removeEventListener('scroll', repositionUsageProviderPickerIfOpen, true)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   document.body.classList.remove('is-dragging-ai-assist')
   unlistenWindowResize?.()
   unlistenWindowResize = null
+  teardownManagedUsageEventListeners()
+  stopManagedUsagePolling()
   saveWorkbenchRestoreState()
   if (saveWorkspacesTimer) {
     window.clearTimeout(saveWorkspacesTimer)
@@ -4890,18 +6622,44 @@ onBeforeUnmount(() => {
     window.clearInterval(supervisorScanTimer)
     supervisorScanTimer = null
   }
+  stopManagedUsagePolling()
+  if (managedUsageDebounceTimer != null) {
+    window.clearTimeout(managedUsageDebounceTimer)
+    managedUsageDebounceTimer = null
+  }
   dragPointerCleanup?.()
   cleanupSplitResizeListeners()
   workbenchResizeCleanup?.()
 })
+
+function handleVisibilityChange() {
+  if (typeof document === 'undefined') return
+  windowVisible.value = !document.hidden
+  scheduleSystemRefresh()
+  startSupervisorScan()
+  if (windowVisible.value) {
+    void refreshSystemStatus()
+    if (appSection.value === 'usage') {
+      void loadManagedUsageLive({ reset: true })
+      startManagedUsagePolling()
+    }
+  } else {
+    stopManagedUsagePolling()
+  }
+}
 
 const activeRuntimeTab = computed(() => {
   if (!selectedWorkspace.value) return undefined
   return selectedWorkspace.value.tabs.find((tab) => tab.id === activeRuntimeTabId.value) ?? selectedWorkspace.value.tabs[0]
 })
 
+const workbenchShellClasses = computed(() => ({
+  'workbench-shell--immersive': immersiveWorkbenchActive.value,
+  'workbench-shell--explorer-collapsed': workbenchExplorerCollapsed.value,
+}))
+
 const workbenchShellStyle = computed(() => ({
-  '--workbench-sidebar-width': `${workbenchSidebarWidth.value}px`,
+  '--workbench-sidebar-width': `${immersiveWorkbenchActive.value ? Math.min(workbenchSidebarWidth.value, 212) : workbenchSidebarWidth.value}px`,
 }))
 
 watch(activeRuntimeTab, (tab) => {
@@ -4942,6 +6700,12 @@ watch(() => workspaceView.value, (view) => {
 })
 
 watch(workspaces, () => {
+  syncRuntimeEntryStatusesForCurrentWorkspaces()
+  queueSessionAttentionNotifications()
+  void applyWindowAttentionBadge()
+}, { deep: true, flush: 'post', immediate: true })
+
+watch(runtimeSessionOverlays, () => {
   queueSessionAttentionNotifications()
   void applyWindowAttentionBadge()
 }, { deep: true, flush: 'post' })
@@ -4955,7 +6719,7 @@ watch([systemRefreshInterval, hiddenEnvironmentItems], () => {
   scheduleSystemRefresh()
 }, { deep: true })
 
-watch([restoreCommandStrategy, railCollapsed, systemNotificationsEnabled, windowAttentionEnabled, pinnedRecentItemIds, hiddenRecentItemIds], () => {
+watch([restoreCommandStrategy, railCollapsed, workbenchImmersive, workbenchExplorerCollapsed, systemNotificationsEnabled, windowAttentionEnabled, pinnedRecentItemIds, hiddenRecentItemIds], () => {
   queueSaveUiPreferences()
 }, { deep: true })
 
@@ -4995,8 +6759,8 @@ const appliedTheme = computed(() => {
   }
 })
 
-const activeThemeLabel = computed(() => `${appliedTheme.value.name} · ${appliedTheme.value.kind}`)
-const activeThemeDescription = computed(() => appliedTheme.value.description)
+const activeThemeLabel = computed(() => `${themeDisplayName(appliedTheme.value)} · ${themeDisplayKind(appliedTheme.value)}`)
+const activeThemeDescription = computed(() => themeDisplayDescription(appliedTheme.value))
 const activeThemeSwatches = computed(() => appliedTheme.value.swatches)
 const customAccentRgb = computed(() => hexToRgb(customAccentHex.value))
 const isDarkTheme = computed(() => appliedTheme.value.scheme === 'dark' || colorLuminance(appliedTheme.value.background) < 0.36)
@@ -5061,7 +6825,7 @@ const terminalPreviewStyle = computed(() => ({
 
 const breadcrumbItems = computed(() => {
   const items: Array<{ key: string; label: string; icon: string; onClick?: () => void }> = [
-    { key: 'home-root', label: '首页', icon: 'home', onClick: goHome },
+    { key: 'home-root', label: t('pages.home'), icon: 'home', onClick: goHome },
   ]
 
   if (appSection.value === 'home') {
@@ -5069,11 +6833,25 @@ const breadcrumbItems = computed(() => {
   }
 
   if (appSection.value !== 'workspace') {
-    items.push({ key: appSection.value, label: placeholderTitle.value, icon: appSection.value === 'recent' ? 'recent' : appSection.value === 'templates' ? 'template' : appSection.value === 'search' ? 'search' : 'settings' })
+    items.push({
+      key: appSection.value,
+      label: placeholderTitle.value,
+      icon: appSection.value === 'recent'
+        ? 'recent'
+        : appSection.value === 'templates'
+          ? 'template'
+          : appSection.value === 'search'
+            ? 'search'
+            : appSection.value === 'providers'
+              ? 'settings'
+              : appSection.value === 'usage'
+                ? 'recent'
+                : 'settings',
+    })
     return items
   }
 
-  items.push({ key: 'workspace-root', label: '工作区', icon: 'workspace', onClick: goWorkspaceOverview })
+  items.push({ key: 'workspace-root', label: t('rail.primary.workspace.label'), icon: 'workspace', onClick: goWorkspaceOverview })
 
   if (workspaceView.value === 'overview') {
     return items
@@ -5093,36 +6871,40 @@ const breadcrumbItems = computed(() => {
 })
 
 const placeholderTitle = computed(() => {
-  if (appSection.value === 'home') return '首页'
-  if (appSection.value === 'recent') return '最近'
-  if (appSection.value === 'templates') return '模板'
-  if (appSection.value === 'search') return '搜索'
-  if (appSection.value === 'settings') return '设置'
-  return '占位页面'
+  if (appSection.value === 'home') return t('pages.home')
+  if (appSection.value === 'recent') return t('pages.recent')
+  if (appSection.value === 'templates') return t('pages.templates')
+  if (appSection.value === 'providers') return t('pages.providers')
+  if (appSection.value === 'usage') return t('pages.usage')
+  if (appSection.value === 'search') return t('pages.search')
+  if (appSection.value === 'settings') return t('pages.settings')
+  return t('pages.placeholder')
 })
 
 const placeholderDescription = computed(() => {
-  if (appSection.value === 'recent') return '这里会放最近打开的工作区、最近恢复的布局，以及高频命令入口。'
-  if (appSection.value === 'templates') return '这里会放预设模板与常用工作区蓝图。'
-  if (appSection.value === 'search') return '这里会放工作区、项目、终端、配置、命令和设置入口的本地搜索。'
-  if (appSection.value === 'settings') return '这里会放主题、Shell 默认值、字体与布局等配置。'
-  return '当前页面仍在持续完善中。'
+  if (appSection.value === 'recent') return t('pages.recentDesc')
+  if (appSection.value === 'templates') return t('pages.templatesDesc')
+  if (appSection.value === 'providers') return t('pages.providersDesc')
+  if (appSection.value === 'usage') return t('pages.usageDesc')
+  if (appSection.value === 'search') return t('pages.searchDesc')
+  if (appSection.value === 'settings') return t('pages.settingsDesc')
+  return t('pages.defaultDesc')
 })
 
 function paneCommandPreview(pane: PaneNode, mode: 'default' | 'last') {
   const entry = entryById(pane.terminalEntryId)
-  if (!entry) return '未绑定运行配置'
+  if (!entry) return tr('未绑定运行配置', 'Run config not bound')
   const command = mode === 'default' ? entry.defaultCommand?.trim() : entry.lastCommand?.trim()
-  if (!command) return mode === 'default' ? '未设置默认命令' : '还没有最后命令'
+  if (!command) return mode === 'default' ? tr('未设置默认命令', 'Default command not set') : tr('还没有最后命令', 'No last command yet')
   return command.length > 72 ? `${command.slice(0, 72)}…` : command
 }
 
 function paneMenuItems(pane: PaneNode): PopoverItem[] {
   const items: PopoverItem[] = [
     {
-      label: '重命名 Pane',
+      label: tr('重命名 Pane', 'Rename pane'),
       icon: 'edit',
-      description: '修改当前 Pane 分组名称与其组内标签前缀。',
+      description: tr('修改当前 Pane 分组名称与其组内标签前缀。', 'Rename the current pane group and the tab prefix inside it.'),
       shortcut: 'F2',
       onClick: () => {
         activePaneMenu.value = null
@@ -5130,9 +6912,9 @@ function paneMenuItems(pane: PaneNode): PopoverItem[] {
       },
     },
     {
-      label: '选择运行配置',
+      label: tr('选择运行配置', 'Choose run config'),
       icon: 'folder',
-      description: '将当前 Pane 绑定到一个已有运行配置。',
+      description: tr('将当前 Pane 绑定到一个已有运行配置。', 'Bind the current pane to an existing run config.'),
       shortcut: 'Alt+T',
       onClick: () => {
         activePaneBindingMenuPosition.value = activePaneMenuPosition.value
@@ -5141,9 +6923,9 @@ function paneMenuItems(pane: PaneNode): PopoverItem[] {
       },
     },
     {
-      label: '打开工作目录',
+      label: t('common.actions.openDirectory'),
       icon: 'folder',
-      description: '打开当前终端对应的工作目录。',
+      description: tr('打开当前终端对应的工作目录。', 'Open the working directory used by the current terminal.'),
       shortcut: 'Alt+O',
       onClick: () => {
         activePaneMenu.value = null
@@ -5151,9 +6933,9 @@ function paneMenuItems(pane: PaneNode): PopoverItem[] {
       },
     },
     {
-      label: '复制路径',
+      label: t('common.actions.copyPath'),
       icon: 'copy',
-      description: '复制当前 Pane 使用的工作目录路径。',
+      description: tr('复制当前 Pane 使用的工作目录路径。', 'Copy the working directory path used by the current pane.'),
       shortcut: 'Alt+C',
       onClick: () => {
         activePaneMenu.value = null
@@ -5161,45 +6943,45 @@ function paneMenuItems(pane: PaneNode): PopoverItem[] {
       },
     },
     {
-      label: '复制默认命令',
+      label: tr('复制默认命令', 'Copy default command'),
       icon: 'copy',
-      description: `预览：${paneCommandPreview(pane, 'default')}`,
+      description: `${tr('预览', 'Preview')}: ${paneCommandPreview(pane, 'default')}`,
       onClick: () => {
         activePaneMenu.value = null
         copyPaneCommand(pane, 'default')
       },
     },
     {
-      label: '插入默认命令',
+      label: tr('插入默认命令', 'Insert default command'),
       icon: 'terminal',
-      description: `预览：${paneCommandPreview(pane, 'default')}`,
+      description: `${tr('预览', 'Preview')}: ${paneCommandPreview(pane, 'default')}`,
       onClick: () => {
         activePaneMenu.value = null
         insertPaneCommand(pane, 'default')
       },
     },
     {
-      label: '复制最后命令',
+      label: tr('复制最后命令', 'Copy last command'),
       icon: 'copy',
-      description: `预览：${paneCommandPreview(pane, 'last')}`,
+      description: `${tr('预览', 'Preview')}: ${paneCommandPreview(pane, 'last')}`,
       onClick: () => {
         activePaneMenu.value = null
         copyPaneCommand(pane, 'last')
       },
     },
     {
-      label: '插入最后命令',
+      label: tr('插入最后命令', 'Insert last command'),
       icon: 'terminal',
-      description: `预览：${paneCommandPreview(pane, 'last')}`,
+      description: `${tr('预览', 'Preview')}: ${paneCommandPreview(pane, 'last')}`,
       onClick: () => {
         activePaneMenu.value = null
         insertPaneCommand(pane, 'last')
       },
     },
     {
-      label: '拆分到右侧',
+      label: t('common.actions.splitRight'),
       icon: 'pane',
-      description: '在当前 Pane 右侧拆出一个新的分组。',
+      description: tr('在当前 Pane 右侧拆出一个新的分组。', 'Create a new group to the right of the current pane.'),
       shortcut: 'Alt+→',
       onClick: () => {
         activePaneMenu.value = null
@@ -5207,9 +6989,9 @@ function paneMenuItems(pane: PaneNode): PopoverItem[] {
       },
     },
     {
-      label: '拆分到下方',
+      label: tr('拆分到下方', 'Split below'),
       icon: 'pane',
-      description: '在当前 Pane 下方拆出一个新的分组。',
+      description: tr('在当前 Pane 下方拆出一个新的分组。', 'Create a new group below the current pane.'),
       shortcut: 'Alt+↓',
       onClick: () => {
         activePaneMenu.value = null
@@ -5220,9 +7002,9 @@ function paneMenuItems(pane: PaneNode): PopoverItem[] {
 
   if (pane.terminalEntryId) {
     items.push({
-      label: '解除配置绑定',
+      label: tr('解除配置绑定', 'Clear config binding'),
       icon: 'close',
-      description: '将当前 Pane 恢复为独立空白终端。',
+      description: tr('将当前 Pane 恢复为独立空白终端。', 'Return the current pane to an independent blank terminal.'),
       shortcut: 'Alt+U',
       onClick: () => {
         activePaneMenu.value = null
@@ -5232,9 +7014,9 @@ function paneMenuItems(pane: PaneNode): PopoverItem[] {
   }
 
   items.push({
-    label: '删除 Pane',
+    label: tr('删除 Pane', 'Delete pane'),
     icon: 'trash',
-    description: '删除当前 Pane 分组及其中的所有终端。',
+    description: tr('删除当前 Pane 分组及其中的所有终端。', 'Delete the current pane group and every terminal inside it.'),
     shortcut: 'Del',
     danger: true,
     onClick: () => {
@@ -5250,24 +7032,24 @@ function paneSessionMenuItems(pane: PaneNode, session: PaneTerminalSession): Pop
   const supervisorEnabled = session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume'
   const items: PopoverItem[] = [
     {
-      label: '重命名终端',
+      label: tr('重命名终端', 'Rename terminal'),
       icon: 'edit',
-      description: '修改当前终端标签名称。',
+      description: tr('修改当前终端标签名称。', 'Rename the current terminal tab.'),
       shortcut: 'F2',
       onClick: () => {
         activePaneSessionMenu.value = null
         renameTarget.kind = 'session'
         renameTarget.id = session.id
-        renameTarget.title = '重命名终端'
-        renameTarget.placeholder = '例如：PowerShell 7 / 测试终端 / 构建命令'
+        renameTarget.title = tr('重命名终端', 'Rename terminal')
+        renameTarget.placeholder = tr('例如：PowerShell 7 / 测试终端 / 构建命令', 'Examples: PowerShell 7 / Test terminal / Build command')
         renameTarget.value = session.name
         openRenameModal.value = true
       },
     },
     {
-      label: '选择运行配置',
+      label: tr('选择运行配置', 'Choose run config'),
       icon: 'folder',
-      description: '将当前 Pane 绑定到一个已有运行配置。',
+      description: tr('将当前 Pane 绑定到一个已有运行配置。', 'Bind the current pane to an existing run config.'),
       shortcut: 'Alt+T',
       onClick: () => {
         activePaneBindingMenuPosition.value = activePaneSessionMenuPosition.value
@@ -5279,20 +7061,20 @@ function paneSessionMenuItems(pane: PaneNode, session: PaneTerminalSession): Pop
 
   items.push(
     {
-      label: supervisorEnabled ? '关闭任务监督' : '开启任务监督',
+      label: supervisorEnabled ? tr('关闭任务监督', 'Disable task supervision') : tr('开启任务监督', 'Enable task supervision'),
       icon: supervisorEnabled ? 'close' : 'recent',
       description: supervisorEnabled
-        ? '停止对当前终端任务的完成、停滞和待输入状态进行提醒。'
-        : '监控当前终端任务，长时间无输出或命令完成时给出提醒。',
+        ? tr('停止对当前终端任务的完成、停滞和待输入状态进行提醒。', 'Stop reminders for completion, stalls, and input-needed states in the current terminal task.')
+        : tr('监控当前终端任务，长时间无输出或命令完成时给出提醒。', 'Monitor the current terminal task and alert when output stalls or a command finishes.'),
       onClick: () => {
         activePaneSessionMenu.value = null
         setSessionSupervisorMode(session.id, supervisorEnabled ? 'off' : 'watch')
       },
     },
     {
-      label: '打开工作目录',
+      label: t('common.actions.openDirectory'),
       icon: 'folder',
-      description: '打开当前终端对应的工作目录。',
+      description: tr('打开当前终端对应的工作目录。', 'Open the working directory used by the current terminal.'),
       shortcut: 'Alt+O',
       onClick: () => {
         activePaneSessionMenu.value = null
@@ -5300,9 +7082,9 @@ function paneSessionMenuItems(pane: PaneNode, session: PaneTerminalSession): Pop
       },
     },
     {
-      label: '复制路径',
+      label: t('common.actions.copyPath'),
       icon: 'copy',
-      description: '复制当前 Pane 使用的工作目录路径。',
+      description: tr('复制当前 Pane 使用的工作目录路径。', 'Copy the working directory path used by the current pane.'),
       shortcut: 'Alt+C',
       onClick: () => {
         activePaneSessionMenu.value = null
@@ -5313,9 +7095,9 @@ function paneSessionMenuItems(pane: PaneNode, session: PaneTerminalSession): Pop
 
   if (pane.terminalEntryId) {
     items.push({
-      label: '解除配置绑定',
+      label: tr('解除配置绑定', 'Clear config binding'),
       icon: 'close',
-      description: '将当前 Pane 恢复为独立空白终端。',
+      description: tr('将当前 Pane 恢复为独立空白终端。', 'Return the current pane to an independent blank terminal.'),
       shortcut: 'Alt+U',
       onClick: () => {
         activePaneSessionMenu.value = null
@@ -5325,9 +7107,9 @@ function paneSessionMenuItems(pane: PaneNode, session: PaneTerminalSession): Pop
   }
 
   items.push({
-    label: '关闭终端',
+    label: tr('关闭终端', 'Close terminal'),
     icon: 'trash',
-    description: '仅关闭当前终端标签，不删除整个 Pane 分组。',
+    description: tr('仅关闭当前终端标签，不删除整个 Pane 分组。', 'Close only the current terminal tab without deleting the whole pane group.'),
     shortcut: 'Del',
     danger: true,
     onClick: () => {
@@ -5342,48 +7124,48 @@ function paneSessionMenuItems(pane: PaneNode, session: PaneTerminalSession): Pop
 function paneHeaderMenuItems(pane: PaneNode): PopoverItem[] {
   return [
     {
-      label: '新建终端',
-      description: '在当前 Pane 分组中新建一个终端标签。',
+      label: t('common.actions.newTerminal'),
+      description: tr('在当前 Pane 分组中新建一个终端标签。', 'Create a new terminal tab in the current pane group.'),
       onClick: () => {
         activePaneHeaderMenu.value = null
         createPaneSession(pane.id)
       },
     },
     {
-      label: '插入默认命令',
-      description: `预览：${paneCommandPreview(pane, 'default')}`,
+      label: tr('插入默认命令', 'Insert default command'),
+      description: `${tr('预览', 'Preview')}: ${paneCommandPreview(pane, 'default')}`,
       onClick: () => {
         activePaneHeaderMenu.value = null
         insertPaneCommand(pane, 'default')
       },
     },
     {
-      label: '复制默认命令',
-      description: `预览：${paneCommandPreview(pane, 'default')}`,
+      label: tr('复制默认命令', 'Copy default command'),
+      description: `${tr('预览', 'Preview')}: ${paneCommandPreview(pane, 'default')}`,
       onClick: () => {
         activePaneHeaderMenu.value = null
         copyPaneCommand(pane, 'default')
       },
     },
     {
-      label: '复制最后命令',
-      description: `预览：${paneCommandPreview(pane, 'last')}`,
+      label: tr('复制最后命令', 'Copy last command'),
+      description: `${tr('预览', 'Preview')}: ${paneCommandPreview(pane, 'last')}`,
       onClick: () => {
         activePaneHeaderMenu.value = null
         copyPaneCommand(pane, 'last')
       },
     },
     {
-      label: '拆分到右侧',
-      description: '在当前 Pane 右侧拆出一个新的分组。',
+      label: t('common.actions.splitRight'),
+      description: tr('在当前 Pane 右侧拆出一个新的分组。', 'Create a new group to the right of the current pane.'),
       onClick: () => {
         activePaneHeaderMenu.value = null
         splitLeafPane(pane.id, 'horizontal')
       },
     },
     {
-      label: '拆分到下方',
-      description: '在当前 Pane 下方拆出一个新的分组。',
+      label: tr('拆分到下方', 'Split below'),
+      description: tr('在当前 Pane 下方拆出一个新的分组。', 'Create a new group below the current pane.'),
       onClick: () => {
         activePaneHeaderMenu.value = null
         splitLeafPane(pane.id, 'vertical')
@@ -5395,24 +7177,24 @@ function paneHeaderMenuItems(pane: PaneNode): PopoverItem[] {
 function workspaceMenuItems(workspace: WorkspaceCard): PopoverItem[] {
   const items: PopoverItem[] = [
     {
-      label: '切换到此工作区',
-      description: '在右侧终端画布中打开这个工作区',
+      label: tr('切换到此工作区', 'Switch to this workspace'),
+      description: tr('在右侧终端画布中打开这个工作区', 'Open this workspace in the terminal canvas on the right.'),
       onClick: () => {
         activeWorkspaceMenu.value = null
         switchOpenedWorkspace(workspace.id)
       },
     },
     {
-      label: '运行配置',
-      description: '管理该工作区下可复用的终端模板',
+      label: t('common.actions.runConfigs'),
+      description: tr('管理该工作区下可复用的终端模板', 'Manage reusable terminal templates in this workspace.'),
       onClick: () => {
         activeWorkspaceMenu.value = null
         openWorkspaceTerminalEntries(workspace.id)
       },
     },
     {
-      label: '编辑工作区',
-      description: '修改名称、路径、描述与标签',
+      label: t('workspace.editWorkspace'),
+      description: tr('修改名称、路径、描述与标签', 'Edit the name, path, description, and tags.'),
       onClick: () => {
         activeWorkspaceMenu.value = null
         openWorkspaceEditModal(workspace.id)
@@ -5422,8 +7204,8 @@ function workspaceMenuItems(workspace: WorkspaceCard): PopoverItem[] {
 
   if (openedWorkspaces.value.length > 1) {
     items.push({
-      label: '从常用区移除',
-      description: '仅移出左侧常用工作区列表，不删除数据',
+      label: tr('从常用区移除', 'Remove from favorites'),
+      description: tr('仅移出左侧常用工作区列表，不删除数据', 'Remove it from the left favorite workspace list only without deleting any data.'),
       onClick: () => {
         activeWorkspaceMenu.value = null
         closeOpenedWorkspace(workspace.id)
@@ -5432,8 +7214,8 @@ function workspaceMenuItems(workspace: WorkspaceCard): PopoverItem[] {
   }
 
   items.push({
-    label: '删除工作区',
-    description: '删除该工作区及其项目、终端与配置模板',
+    label: t('workspace.removeWorkspace'),
+    description: tr('删除该工作区及其项目、终端与配置模板', 'Delete this workspace together with its projects, terminals, and config templates.'),
     danger: true,
     onClick: () => {
       activeWorkspaceMenu.value = null
@@ -5448,15 +7230,15 @@ function paneBindingItems(pane: PaneNode): PopoverItem[] {
   const currentEntryId = pane.terminalEntryId ?? ''
   const items: PopoverItem[] = [
     {
-      label: '未绑定配置',
-      description: '保持当前 Pane 为空白独立终端',
+      label: tr('未绑定配置', 'No config bound'),
+      description: tr('保持当前 Pane 为空白独立终端', 'Keep the current pane as a blank standalone terminal.'),
       active: currentEntryId === '',
       onClick: () => assignEntryToPane(pane.id, null),
     },
   ]
 
   selectedWorkspaceEntries.value.forEach((entry) => {
-    const commandText = entry.defaultCommand ? `命令：${entry.defaultCommand}` : '未设置默认命令'
+    const commandText = entry.defaultCommand ? `${tr('命令', 'Command')}: ${entry.defaultCommand}` : tr('未设置默认命令', 'Default command not set')
     items.push({
       label: entry.name,
       badges: entry.tags,
@@ -5501,8 +7283,8 @@ function openTabRenameModal(tabId: string) {
   closeFloatingMenus()
   renameTarget.kind = 'tab'
   renameTarget.id = tabId
-  renameTarget.title = '重命名项目'
-  renameTarget.placeholder = '例如：默认标签页 / 直播测试'
+  renameTarget.title = tr('重命名项目', 'Rename project')
+  renameTarget.placeholder = tr('例如：默认标签页 / 直播测试', 'Examples: Default tab / Live test')
   renameTarget.value = tab.name
   openRenameModal.value = true
 }
@@ -5514,8 +7296,8 @@ function openPaneRenameModal(paneId: string) {
   closeFloatingMenus()
   renameTarget.kind = 'pane'
   renameTarget.id = paneId
-  renameTarget.title = '重命名 Pane'
-  renameTarget.placeholder = '例如：直播 / 终端测试 / PowerShell 7'
+  renameTarget.title = tr('重命名 Pane', 'Rename pane')
+  renameTarget.placeholder = tr('例如：直播 / 终端测试 / PowerShell 7', 'Examples: Live / Terminal test / PowerShell 7')
   renameTarget.value = pane.name
   openRenameModal.value = true
 }
@@ -6497,13 +8279,13 @@ function submitRenameModal() {
 
   if (renameTarget.kind === 'tab') {
     renameTab(renameTarget.id, value)
-    showToast('项目已重命名', `已更新为：${value}`)
+    showToast(tr('项目已重命名', 'Project renamed'), tr(`已更新为：${value}`, `Updated to: ${value}`))
   } else if (renameTarget.kind === 'session') {
     renameSession(renameTarget.id, value)
-    showToast('终端已重命名', `已更新为：${value}`)
+    showToast(tr('终端已重命名', 'Terminal renamed'), tr(`已更新为：${value}`, `Updated to: ${value}`))
   } else {
     renamePane(renameTarget.id, value)
-    showToast('Pane 已重命名', `已更新为：${value}`)
+    showToast(tr('Pane 已重命名', 'Pane renamed'), tr(`已更新为：${value}`, `Updated to: ${value}`))
   }
 
   closeRenameModal()
@@ -6571,11 +8353,18 @@ function setActiveTabLayout(layoutMode: 'grid' | 'horizontal' | 'vertical') {
     updatedAt: now,
   }))
 
-  showToast('布局已切换', `当前标签页已切换为${layoutMode === 'grid' ? '网格' : layoutMode === 'horizontal' ? '横向' : '纵向'}布局`)
+  showToast(
+    tr('布局已切换', 'Layout changed'),
+    layoutMode === 'grid'
+      ? tr('当前标签页已切换为网格布局', 'The current tab was switched to grid layout.')
+      : layoutMode === 'horizontal'
+        ? tr('当前标签页已切换为横向布局', 'The current tab was switched to horizontal layout.')
+        : tr('当前标签页已切换为纵向布局', 'The current tab was switched to vertical layout.'),
+  )
 }
 
 const launchModeItems = computed<PopoverItem[]>(() => {
-  return launchModeOptions.map((option) => ({
+  return launchModeOptions.value.map((option) => ({
     label: option.label,
     description: option.description,
     active: terminalEntryForm.launchMode === option.value,
@@ -6587,7 +8376,7 @@ const launchModeItems = computed<PopoverItem[]>(() => {
 })
 
 const providerKindItems = computed<PopoverItem[]>(() => (
-  providerKindOptions.map((option) => ({
+  providerKindOptions.value.map((option) => ({
     label: option.label,
     description: option.description,
     active: providerForm.providerKind === option.value,
@@ -6599,7 +8388,7 @@ const providerKindItems = computed<PopoverItem[]>(() => (
 ))
 
 const providerSourceItems = computed<PopoverItem[]>(() => (
-  providerSourceOptions.map((option) => ({
+  providerSourceOptions.value.map((option) => ({
     label: option.label,
     description: option.description,
     active: providerForm.managedBy === option.value,
@@ -6611,7 +8400,7 @@ const providerSourceItems = computed<PopoverItem[]>(() => (
 ))
 
 const providerScopeItems = computed<PopoverItem[]>(() => (
-  providerScopeOptions.map((option) => ({
+  providerScopeOptions.value.map((option) => ({
     label: option.label,
     description: option.description,
     active: providerForm.configScope === option.value,
@@ -6648,6 +8437,39 @@ function toggleProviderScopeMenu() {
 
 function toggleRailCollapsed() {
   railCollapsed.value = !railCollapsed.value
+}
+
+function toggleWorkbenchExplorerCollapsed() {
+  workbenchExplorerCollapsed.value = !workbenchExplorerCollapsed.value
+  workbenchExplorerAutoCollapsed.value = false
+}
+
+function toggleWorkbenchImmersive() {
+  const next = !workbenchImmersive.value
+  workbenchImmersive.value = next
+
+  if (next) {
+    if (!workbenchExplorerCollapsed.value) {
+      workbenchExplorerCollapsed.value = true
+      workbenchExplorerAutoCollapsed.value = true
+    }
+    // 沉浸模式下 AI 辅助层默认收起，不抢终端主焦点（保留可调用，仅最小化）
+    if (aiAssistantPinned.value && !aiAssistantMinimized.value) {
+      aiAssistantMinimized.value = true
+      immersiveAiAutoMinimized.value = true
+    }
+    return
+  }
+
+  if (workbenchExplorerAutoCollapsed.value) {
+    workbenchExplorerCollapsed.value = false
+  }
+  workbenchExplorerAutoCollapsed.value = false
+  // 退出沉浸时还原被自动收起的 AI 辅助层
+  if (immersiveAiAutoMinimized.value) {
+    aiAssistantMinimized.value = false
+    immersiveAiAutoMinimized.value = false
+  }
 }
 
 function openHelpTopic(topicId: string) {
@@ -6928,7 +8750,7 @@ function sessionDisplayName(
   session: PaneTerminalSession,
   info = aiCliInfoForSession(workspace, pane, session),
 ) {
-  const raw = session.name?.trim() || pane.name?.trim() || '终端'
+  const raw = session.name?.trim() || pane.name?.trim() || tr('终端', 'Terminal')
   if (!info.isAi) return raw
   if (isGenericTerminalSessionName(raw)) return aiCliDisplayName(info.kind)
   return raw
@@ -6942,7 +8764,7 @@ function sessionHistoryDisplayName(
   historyInfo = lastAiCliInfoForSession(workspace, pane, session),
 ) {
   if (currentInfo.isAi) return sessionDisplayName(workspace, pane, session, currentInfo)
-  const raw = session.name?.trim() || pane.name?.trim() || '终端'
+  const raw = session.name?.trim() || pane.name?.trim() || tr('终端', 'Terminal')
   if (historyInfo.isAi && isGenericTerminalSessionName(raw)) return aiCliDisplayName(historyInfo.kind)
   return raw
 }
@@ -6975,6 +8797,17 @@ function aiSessionStateBadgeClass(state: SessionAttentionState) {
   if (state === 'running') return 'running'
   if (state === 'fresh') return 'fresh'
   return 'idle'
+}
+
+function sessionAttentionStateLabel(state: SessionAttentionState) {
+  if (state === 'fresh') return t('ai.states.fresh')
+  if (state === 'running') return t('ai.states.running')
+  if (state === 'waiting') return t('ai.states.waiting')
+  if (state === 'needs-input') return t('ai.states.needsInput')
+  if (state === 'completed') return t('ai.states.completed')
+  if (state === 'error') return t('ai.states.error')
+  if (state === 'stalled') return t('ai.states.stalled')
+  return t('ai.states.idle')
 }
 
 function toggleAiAssistantVisibility() {
@@ -7116,24 +8949,24 @@ function togglePinRecentItem(itemId: string) {
 function hideRecentItem(itemId: string) {
   if (recentItemIsHidden(itemId)) return
   hiddenRecentItemIds.value = [...hiddenRecentItemIds.value, itemId]
-  showToast('已移入回收站', '这条最近记录已移除，可在回收站恢复。')
+  showToast(t('toast.movedToRecycleBin'), t('toast.movedToRecycleBinMsg'))
 }
 
 function restoreHiddenRecentItems() {
   const count = hiddenRecentItemIds.value.length
   hiddenRecentItemIds.value = []
-  showToast('最近记录已恢复', `已恢复 ${count} 条最近记录。`)
+  showToast(t('toast.recentRestored'), t('toast.recentRestoredCount', { count }))
 }
 
 function restoreHiddenRecentItem(itemId: string) {
   hiddenRecentItemIds.value = hiddenRecentItemIds.value.filter((id) => id !== itemId)
-  showToast('最近记录已恢复', '已恢复这条最近记录。')
+  showToast(t('toast.recentRestored'), t('toast.recentRestoredSingle'))
 }
 
 function clearHiddenRecentItems() {
   hiddenRecentItemIds.value = []
   openRecentRecycleBinModal.value = false
-  showToast('回收站已清空', '最近记录回收站已清空。')
+  showToast(t('toast.recycleBinCleared'), t('toast.recycleBinClearedMsg'))
 }
 
 function activeSearchResultIndex() {
@@ -7174,9 +9007,9 @@ function moveSearchSelection(direction: 'next' | 'previous') {
 
   searchResultActiveId.value = activeSearchResultList.value[nextIndex]?.id ?? null
   if (didLoopToStart) {
-    showSearchLoopHint('已回到第一条')
+    showSearchLoopHint(t('search.loopFirst'))
   } else if (didLoopToEnd) {
-    showSearchLoopHint('已跳到最后一条')
+    showSearchLoopHint(t('search.loopLast'))
   } else if (searchLoopHint.value) {
     searchLoopHint.value = ''
   }
@@ -7229,7 +9062,7 @@ function pushSearchResult(results: SearchResultItem[], query: string, item: Sear
 }
 
 function restoreCommandStrategyLabel(strategy: RestoreCommandStrategy) {
-  return restoreCommandStrategyOptions.find((option) => option.value === strategy)?.label ?? '仅布局'
+  return restoreCommandStrategyOptions.value.find((option) => option.value === strategy)?.label ?? t('settings.restoreStrategies.layoutOnly')
 }
 
 function countAttentionSessions() {
@@ -7255,11 +9088,13 @@ function canInsertIntoCurrentTerminal() {
 }
 
 function splitSettingsItem(item: string) {
-  const index = item.indexOf('：')
+  const fullWidthIndex = item.indexOf('：')
+  const asciiIndex = item.indexOf(':')
+  const index = fullWidthIndex >= 0 ? fullWidthIndex : asciiIndex
   if (index < 0) {
     return {
       label: item,
-      value: '已配置',
+      value: tr('已配置', 'Configured'),
     }
   }
   return {
@@ -7286,7 +9121,7 @@ function openRecentCommandTarget(workspaceId?: string, entryId?: string | null, 
 
   if (command) {
     void copyCommandText(command)
-    showToast('未找到来源终端', '已先复制命令。你也可以在运行态里回填到当前输入框。')
+    showToast(tr('未找到来源终端', 'Source terminal not found'), tr('已先复制命令。你也可以在运行态里回填到当前输入框。', 'The command was copied first. You can still insert it manually from the runtime page.'))
   }
 }
 
@@ -7327,14 +9162,14 @@ function restoreWorkspaceSnapshotFromRecent(workspaceId: string, snapshotId: str
   if (!workspace || !snapshot) return
 
   requestConfirm({
-    title: `恢复现场「${snapshot.name}」`,
-    description: '将恢复该现场保存时的项目结构、Pane 分栏和终端焦点，不会自动执行命令。',
-    confirmLabel: '恢复现场',
+    title: tr(`恢复现场「${snapshot.name}」`, `Restore snapshot "${snapshot.name}"`),
+    description: tr('将恢复该现场保存时的项目结构、Pane 分栏和终端焦点，不会自动执行命令。', 'Restore the project structure, pane layout, and terminal focus captured in this snapshot without executing commands automatically.'),
+    confirmLabel: tr('恢复现场', 'Restore snapshot'),
     variant: 'primary',
     details: [
-      `工作区：${workspace.name}`,
-      `项目数：${snapshot.tabsState.length}`,
-      `终端数：${snapshot.tabsState.reduce((count, tab) => count + countPaneSessions(tab.panes), 0)}`,
+      tr(`工作区：${workspace.name}`, `Workspace: ${workspace.name}`),
+      tr(`项目数：${snapshot.tabsState.length}`, `Projects: ${snapshot.tabsState.length}`),
+      tr(`终端数：${snapshot.tabsState.reduce((count, tab) => count + countPaneSessions(tab.panes), 0)}`, `Terminals: ${snapshot.tabsState.reduce((count, tab) => count + countPaneSessions(tab.panes), 0)}`),
     ],
     action: () => {
       switchOpenedWorkspace(workspaceId)
@@ -7348,21 +9183,21 @@ const pendingTemplateEntries: TerminalEntry[] = []
 function applyWorkflowTemplate(template: WorkflowTemplate) {
   const workspace = templateApplyTargetWorkspace.value
   if (!workspace) {
-    showToast('暂无工作区', '请先创建一个工作区，再使用工作流模板。')
+    showToast(tr('暂无工作区', 'No workspace available'), tr('请先创建一个工作区，再使用工作流模板。', 'Create a workspace first before using workflow templates.'))
     return
   }
 
   requestConfirm({
-    title: `使用模板「${template.name}」`,
-    description: `将向工作区「${workspace.name}」新增一个项目，包含 ${template.panes.length} 个终端分组。不会自动执行命令；如果目标不是你想要的工作区，请先切换工作区后再使用。`,
-    confirmLabel: '创建项目',
+    title: tr(`使用模板「${template.name}」`, `Apply template "${template.name}"`),
+    description: tr(`将向工作区「${workspace.name}」新增一个项目，包含 ${template.panes.length} 个终端分组。不会自动执行命令；如果目标不是你想要的工作区，请先切换工作区后再使用。`, `A new project will be added into workspace "${workspace.name}" with ${template.panes.length} terminal groups. Commands will not execute automatically. If this is not the target workspace you want, switch workspaces first.`),
+    confirmLabel: tr('创建项目', 'Create project'),
     variant: 'primary',
     details: [
-      `目标工作区：${workspace.name}`,
-      `根目录：${workspace.rootPath}`,
-      `将创建终端：${template.panes.length} 个`,
-      `预置命令：${template.panes.filter((pane) => pane.defaultCommand.trim()).length} 条`,
-      `模板标签：${template.tags.length ? template.tags.join(' / ') : '无'}`,
+      tr(`目标工作区：${workspace.name}`, `Target workspace: ${workspace.name}`),
+      tr(`根目录：${workspace.rootPath}`, `Root path: ${workspace.rootPath}`),
+      tr(`将创建终端：${template.panes.length} 个`, `Terminals to create: ${template.panes.length}`),
+      tr(`预置命令：${template.panes.filter((pane) => pane.defaultCommand.trim()).length} 条`, `Preset commands: ${template.panes.filter((pane) => pane.defaultCommand.trim()).length}`),
+      tr(`模板标签：${template.tags.length ? template.tags.join(' / ') : '无'}`, `Template tags: ${template.tags.length ? template.tags.join(' / ') : 'None'}`),
     ],
     action: () => applyWorkflowTemplateToWorkspace(template, workspace.id),
   })
@@ -7371,7 +9206,7 @@ function applyWorkflowTemplate(template: WorkflowTemplate) {
 function applyWorkflowTemplateToWorkspace(template: WorkflowTemplate, workspaceId: string) {
   const workspace = workspaces.value.find((item) => item.id === workspaceId) ?? templateApplyTargetWorkspace.value
   if (!workspace) {
-    showToast('工作区不存在', '当前模板应用目标已失效，请重新选择工作区。')
+    showToast(tr('工作区不存在', 'Workspace missing'), tr('当前模板应用目标已失效，请重新选择工作区。', 'The current template target is no longer valid. Please choose a workspace again.'))
     return
   }
 
@@ -7385,7 +9220,7 @@ function applyWorkflowTemplateToWorkspace(template: WorkflowTemplate, workspaceI
       defaultCommand: templatePane.defaultCommand,
       launchMode: 'open-only',
       tags: templatePane.tags,
-      note: `${template.name} 工作流模板生成`,
+      note: tr(`${template.name} 工作流模板生成`, `Generated from workflow template: ${template.name}`),
     })
     const paneId = createId('pane')
     const sessionId = createId('session')
@@ -7447,7 +9282,7 @@ function applyWorkflowTemplateToWorkspace(template: WorkflowTemplate, workspaceI
   activeRuntimePaneId.value = panes[0]?.id ?? ''
   appSection.value = 'workspace'
   workspaceView.value = 'runtime'
-  showToast('工作流模板已应用', `${template.name} · 已加入 ${workspace.name}，创建了 ${panes.length} 个终端，不会自动执行命令。`)
+  showToast(tr('工作流模板已应用', 'Workflow template applied'), tr(`${template.name} · 已加入 ${workspace.name}，创建了 ${panes.length} 个终端，不会自动执行命令。`, `${template.name} was added into ${workspace.name}, creating ${panes.length} terminals without executing commands automatically.`))
 }
 
 function resolveTemplateWorkingDirectory(rootPath: string, hint: string) {
@@ -7461,32 +9296,32 @@ function saveActiveTabAsWorkflowTemplate() {
   const workspace = selectedWorkspace.value
   const tab = activeRuntimeTab.value
   if (!workspace || !tab) {
-    showToast('无法保存模板', '请先打开一个工作区项目。')
+    showToast(tr('无法保存模板', 'Cannot save template'), tr('请先打开一个工作区项目。', 'Open a workspace project first.'))
     return
   }
 
   const panes = flattenLeafPanes(tab.panes)
   if (!panes.length) {
-    showToast('无法保存模板', '当前项目还没有终端 Pane。')
+    showToast(tr('无法保存模板', 'Cannot save template'), tr('当前项目还没有终端 Pane。', 'The current project has no terminal panes yet.'))
     return
   }
 
   requestConfirm({
-    title: `保存项目「${tab.name}」为模板`,
-    description: `将从工作区「${workspace.name}」的当前项目结构生成一条“我的模板”，包含 ${panes.length} 个 Pane，不会立即创建新终端。`,
-    confirmLabel: '保存模板',
+    title: tr(`保存项目「${tab.name}」为模板`, `Save project "${tab.name}" as template`),
+    description: tr(`将从工作区「${workspace.name}」的当前项目结构生成一条“我的模板”，包含 ${panes.length} 个 Pane，不会立即创建新终端。`, `A new personal template will be generated from the current project structure in workspace "${workspace.name}". It contains ${panes.length} panes and does not create terminals immediately.`),
+    confirmLabel: tr('保存模板', 'Save template'),
     variant: 'primary',
     details: [
-      `工作区：${workspace.name}`,
-      `项目：${tab.name}`,
-      `Pane 数：${panes.length}`,
-      `终端数：${countPaneSessions(tab.panes)}`,
+      tr(`工作区：${workspace.name}`, `Workspace: ${workspace.name}`),
+      tr(`项目：${tab.name}`, `Project: ${tab.name}`),
+      tr(`Pane 数：${panes.length}`, `Pane count: ${panes.length}`),
+      tr(`终端数：${countPaneSessions(tab.panes)}`, `Terminal count: ${countPaneSessions(tab.panes)}`),
     ],
     action: () => {
       const template = createWorkflowTemplateFromInput({
-        name: `${tab.name} 模板`,
-        description: `从 ${workspace.name} / ${tab.name} 保存的工作流模板。`,
-        tags: ['我的模板'],
+        name: tr(`${tab.name} 模板`, `${tab.name} Template`),
+        description: tr(`从 ${workspace.name} / ${tab.name} 保存的工作流模板。`, `Workflow template saved from ${workspace.name} / ${tab.name}.`),
+        tags: [tr('我的模板', 'My template')],
         panes: panes.map((pane) => {
           const entry = workspaceEntryById(workspace, pane.terminalEntryId)
           const workingDirectory = entry?.workingDirectory || pane.pathLabel || workspace.rootPath
@@ -7501,7 +9336,7 @@ function saveActiveTabAsWorkflowTemplate() {
       })
 
       userWorkflowTemplates.value = [template, ...userWorkflowTemplates.value].slice(0, 40)
-      showToast('模板已保存', `${template.name} · 来自 ${workspace.name} / ${tab.name}`)
+      showToast(tr('模板已保存', 'Template saved'), tr(`${template.name} · 来自 ${workspace.name} / ${tab.name}`, `${template.name} · from ${workspace.name} / ${tab.name}`))
     },
   })
 }
@@ -7525,7 +9360,7 @@ function closeWorkflowTemplateEditorModal() {
 
 function submitWorkflowTemplateForm() {
   if (!workflowTemplateForm.name.trim()) {
-    showToast('信息未完整', '模板名称不能为空。')
+    showToast(tr('信息未完整', 'Incomplete information'), tr('模板名称不能为空。', 'Template name cannot be empty.'))
     return
   }
 
@@ -7542,7 +9377,7 @@ function submitWorkflowTemplateForm() {
           }
         : template,
     )
-    showToast('模板已更新', workflowTemplateForm.name.trim())
+    showToast(tr('模板已更新', 'Template updated'), workflowTemplateForm.name.trim())
   }
 
   closeWorkflowTemplateEditorModal()
@@ -7563,13 +9398,13 @@ function removeWorkflowTemplate(templateId: string) {
   if (!template) return
 
   requestConfirm({
-    title: `删除模板「${template.name}」`,
-    description: '只会删除这条用户模板本身，不会影响已经基于它创建出来的工作区、项目、Pane 和终端。',
-    confirmLabel: '删除模板',
+    title: tr(`删除模板「${template.name}」`, `Delete template "${template.name}"`),
+    description: tr('只会删除这条用户模板本身，不会影响已经基于它创建出来的工作区、项目、Pane 和终端。', 'This only removes the user template itself and does not affect workspaces, projects, panes, or terminals already created from it.'),
+    confirmLabel: tr('删除模板', 'Delete template'),
     variant: 'danger',
     action: () => {
       userWorkflowTemplates.value = userWorkflowTemplates.value.filter((item) => item.id !== templateId)
-      showToast('模板已删除', template.name)
+      showToast(tr('模板已删除', 'Template deleted'), template.name)
     },
   })
 }
@@ -7579,7 +9414,7 @@ function duplicateWorkflowTemplate(templateId: string) {
   if (!template) return
 
   const copy = createWorkflowTemplateFromInput({
-    name: `${template.name} 副本`,
+    name: tr(`${template.name} 副本`, `${template.name} Copy`),
     description: template.description,
     tags: template.tags,
     panes: template.panes.map((pane) => ({
@@ -7592,7 +9427,7 @@ function duplicateWorkflowTemplate(templateId: string) {
   })
 
   userWorkflowTemplates.value = [copy, ...userWorkflowTemplates.value].slice(0, 40)
-  showToast('模板已复制', copy.name)
+  showToast(tr('模板已复制', 'Template duplicated'), copy.name)
 }
 
 function removeWorkspaceSnapshot(workspaceId: string, snapshotId: string) {
@@ -7602,9 +9437,9 @@ function removeWorkspaceSnapshot(workspaceId: string, snapshotId: string) {
   if (!workspace || !snapshot) return
 
   requestConfirm({
-    title: `删除现场「${snapshot.name}」`,
-    description: '删除后，这条现场记录将从最近页和工作区快照列表中移除。',
-    confirmLabel: '删除现场',
+    title: tr(`删除现场「${snapshot.name}」`, `Delete snapshot "${snapshot.name}"`),
+    description: tr('删除后，这条现场记录将从最近页和工作区快照列表中移除。', 'After deletion, this snapshot will be removed from the Recent page and the workspace snapshot list.'),
+    confirmLabel: tr('删除现场', 'Delete snapshot'),
     variant: 'danger',
     action: () => {
       commitWorkspaces((current) => current.map((item) => {
@@ -7618,7 +9453,7 @@ function removeWorkspaceSnapshot(workspaceId: string, snapshotId: string) {
         }
       }))
 
-      showToast('现场已删除', snapshot.name)
+      showToast(tr('现场已删除', 'Snapshot deleted'), snapshot.name)
     },
   })
 }
@@ -7711,7 +9546,7 @@ function closeWorkspaceEditorModal() {
 
 function submitWorkspaceForm() {
   if (!workspaceForm.name.trim() || !workspaceForm.rootPath.trim()) {
-    showToast('信息未完整', '工作区名称和根目录不能为空。')
+    showToast(tr('信息未完整', 'Incomplete information'), tr('工作区名称和根目录不能为空。', 'Workspace name and root path cannot be empty.'))
     return
   }
 
@@ -7727,7 +9562,7 @@ function submitWorkspaceForm() {
 
     workspaces.value = [nextWorkspace, ...workspaces.value]
     openWorkspace(nextWorkspace.id)
-    showToast('工作区已创建', `已新增工作区：${nextWorkspace.name}`)
+    showToast(tr('工作区已创建', 'Workspace created'), tr(`已新增工作区：${nextWorkspace.name}`, `Created workspace: ${nextWorkspace.name}`))
   } else if (editingWorkspaceId.value) {
     workspaces.value = workspaces.value.map((workspace) => {
       if (workspace.id !== editingWorkspaceId.value) return workspace
@@ -7743,7 +9578,7 @@ function submitWorkspaceForm() {
       }
     })
 
-    showToast('工作区已更新', `已保存：${workspaceForm.name.trim()}`)
+    showToast(tr('工作区已更新', 'Workspace updated'), tr(`已保存：${workspaceForm.name.trim()}`, `Saved: ${workspaceForm.name.trim()}`))
   }
 
   closeWorkspaceEditorModal()
@@ -7754,9 +9589,9 @@ function removeWorkspace(workspaceId: string) {
   if (!workspace) return
 
   requestConfirm({
-    title: `删除工作区「${workspace.name}」`,
-    description: '该操作会同时移除工作区内的标签页、Pane 布局、运行配置和 Provider。',
-    confirmLabel: '确认删除',
+    title: tr(`删除工作区「${workspace.name}」`, `Delete workspace "${workspace.name}"`),
+    description: tr('该操作会同时移除工作区内的标签页、Pane 布局、运行配置和 Provider。', 'This removes tabs, pane layouts, run configs, and providers inside the workspace.'),
+    confirmLabel: tr('确认删除', 'Delete workspace'),
     action: () => {
       const sessionIds = workspace.tabs.flatMap((tab) => collectSessionIdsFromPanes(tab.panes))
       const nextRuntimeActiveSessionIds = { ...runtimeActiveSessionIds.value }
@@ -7773,7 +9608,7 @@ function removeWorkspace(workspaceId: string) {
       sessionIds.forEach((sessionId) => {
         void destroyTerminalRuntime(sessionId).catch(() => undefined)
       })
-      showToast('工作区已删除', `已移除：${workspace.name}`)
+      showToast(tr('工作区已删除', 'Workspace deleted'), tr(`已移除：${workspace.name}`, `Removed: ${workspace.name}`))
     },
   })
 }
@@ -7822,7 +9657,7 @@ function submitTerminalEntryForm() {
   if (!selectedWorkspace.value) return
 
   if (!terminalEntryForm.name.trim() || !terminalEntryForm.workingDirectory.trim()) {
-    showToast('信息未完整', '配置名称和工作目录不能为空。')
+    showToast(tr('信息未完整', 'Incomplete information'), tr('配置名称和工作目录不能为空。', 'Config name and working directory cannot be empty.'))
     return
   }
 
@@ -7846,7 +9681,7 @@ function submitTerminalEntryForm() {
       updatedAt: new Date().toISOString(),
     }))
 
-    showToast('运行配置已创建', `已新增配置：${nextEntry.name}`)
+    showToast(tr('运行配置已创建', 'Run config created'), tr(`已新增配置：${nextEntry.name}`, `Created config: ${nextEntry.name}`))
   } else if (editingTerminalEntryId.value) {
     patchSelectedWorkspace((workspace) => ({
       ...workspace,
@@ -7868,7 +9703,7 @@ function submitTerminalEntryForm() {
       updatedAt: new Date().toISOString(),
     }))
 
-    showToast('运行配置已更新', `已保存：${terminalEntryForm.name.trim()}`)
+    showToast(tr('运行配置已更新', 'Run config updated'), tr(`已保存：${terminalEntryForm.name.trim()}`, `Saved: ${terminalEntryForm.name.trim()}`))
   }
 
   closeTerminalEntryEditorModal()
@@ -7880,14 +9715,14 @@ function removeTerminalEntry(entryId: string) {
   if (!entry) return
 
   if (referencedTerminalEntryIds.value.has(entryId)) {
-    showToast('无法删除配置', '该配置仍被某个 Pane 引用，请先解除绑定或修改布局。')
+    showToast(tr('无法删除配置', 'Cannot delete config'), tr('该配置仍被某个 Pane 引用，请先解除绑定或修改布局。', 'This config is still referenced by a pane. Unbind it or change the layout first.'))
     return
   }
 
   requestConfirm({
-    title: `删除运行配置「${entry.name}」`,
-    description: '删除后，该运行配置的目录、命令、环境变量和启动模式会从当前工作区移除。',
-    confirmLabel: '确认删除',
+    title: tr(`删除运行配置「${entry.name}」`, `Delete run config "${entry.name}"`),
+    description: tr('删除后，该运行配置的目录、命令、环境变量和启动模式会从当前工作区移除。', 'After deletion, the directory, command, environment variables, and launch mode stored in this config will be removed from the current workspace.'),
+    confirmLabel: tr('确认删除', 'Delete config'),
     action: () => {
       patchSelectedWorkspace((workspace) => ({
         ...workspace,
@@ -7895,7 +9730,7 @@ function removeTerminalEntry(entryId: string) {
         updatedAt: new Date().toISOString(),
       }))
 
-      showToast('运行配置已删除', `已移除：${entry.name}`)
+      showToast(tr('运行配置已删除', 'Run config deleted'), tr(`已移除：${entry.name}`, `Removed: ${entry.name}`))
     },
   })
 }
@@ -7908,7 +9743,7 @@ function createTab() {
   const nextTab = {
     id: createId('tab'),
     workspaceId: selectedWorkspace.value.id,
-    name: `标签页 ${nextIndex}`,
+    name: tr(`标签页 ${nextIndex}`, `Tab ${nextIndex}`),
     order: selectedWorkspace.value.tabs.length,
     layoutMode: 'grid' as TabLayoutMode,
     paneSequence: 0,
@@ -7926,7 +9761,7 @@ function createTab() {
   activeRuntimeTabId.value = nextTab.id
   activeRuntimePaneId.value = ''
   workspaceView.value = 'runtime'
-  showToast('已新建标签页', `当前标签页：${nextTab.name}`)
+  showToast(tr('已新建标签页', 'Tab created'), tr(`当前标签页：${nextTab.name}`, `Current tab: ${nextTab.name}`))
 }
 
 function createPane() {
@@ -7976,7 +9811,7 @@ function createPane() {
 
   activeRuntimePaneId.value = paneId
   setRuntimeActiveSessionId(paneId, sessionId)
-  showToast('终端已创建', `当前标签页新增：${paneName}`)
+  showToast(tr('终端已创建', 'Terminal created'), tr(`当前标签页新增：${paneName}`, `Added to current tab: ${paneName}`))
 }
 
 function openProviderCreateModal() {
@@ -7992,14 +9827,234 @@ function openProviderCreateModal() {
   providerForm.configScope = 'global'
   providerForm.managedBy = 'cli-config'
   providerForm.authSource = defaultAuthSourceForProvider(providerForm.providerKind, providerForm.managedBy)
+  providerForm.homepageUrl = ''
+  providerForm.requestBaseUrl = ''
   providerForm.switchCommand = ''
   providerForm.defaultModel = ''
   providerForm.toolTargetsText = defaultProviderTargetsText(providerForm.providerKind)
   providerForm.color = providerKindColor(providerForm.providerKind)
   providerForm.note = ''
+  providerForm.configPayload = null
+  providerForm.authPayload = null
   providerForm.isDefault = selectedWorkspaceProviders.value.length === 0
   providerForm.isActive = selectedWorkspaceProviders.value.length === 0
   openProviderEditorModal.value = true
+}
+
+function openModelPricingModal() {
+  closeFloatingMenus()
+  openModelPricingModalState.value = true
+}
+
+function closeModelPricingModal() {
+  openModelPricingModalState.value = false
+}
+
+function onModelPricingSaved() {
+  showToast(
+    tr('模型价格已保存', 'Model pricing saved'),
+    tr('已写入后端计费表；新查询的 Usage 成本将使用最新价格。', 'Saved to backend pricing table; new usage queries will use the latest prices.'),
+  )
+  if (appSection.value === 'usage' || appSection.value === 'providers') {
+    void loadManagedUsageLive({ reset: true })
+  }
+}
+
+async function importCurrentCodexProfile() {
+  if (!selectedWorkspace.value) return
+  if (!("__TAURI_INTERNALS__" in window)) {
+    showToast(
+      tr('浏览器模式无法导入', 'Browser mode cannot import'),
+      tr('导入当前 Codex 配置需要 Tauri 桌面模式读取用户目录。', 'Importing the current Codex config needs Tauri desktop mode to read your user directory.'),
+    )
+    return
+  }
+
+  providerDetectionRunning.value = true
+  providerDetectionSummary.value = tr('正在读取当前 ~/.codex/config.toml 与 auth.json。', 'Reading the current ~/.codex/config.toml and auth.json.')
+  try {
+    const detected = await readCurrentCodexProfile()
+    closeFloatingMenus()
+    openTerminalEntriesModal.value = false
+    providerEditorMode.value = 'create'
+    editingProviderId.value = null
+    providerForm.name = `${detected.name} Snapshot`
+    providerForm.providerKind = 'codex'
+    providerForm.profileName = detected.profileName || 'default'
+    providerForm.configPath = detected.configPath || defaultConfigPathForProvider('codex')
+    providerForm.configScope = detected.configScope
+    providerForm.managedBy = detected.managedBy
+    providerForm.authSource = detected.authSource || defaultAuthSourceForProvider('codex', detected.managedBy)
+    providerForm.homepageUrl = baseUrlOrigin(extractCodexBaseUrlFromPayload(detected.configPayload))
+    providerForm.requestBaseUrl = extractCodexBaseUrlFromPayload(detected.configPayload)
+    providerForm.switchCommand = ''
+    providerForm.defaultModel = detected.defaultModel
+    providerForm.toolTargetsText = detected.toolTargets.join(', ') || defaultProviderTargetsText('codex')
+    providerForm.color = detected.color || providerKindColor('codex')
+    providerForm.note = detected.note || tr('从当前 Codex live config 导入，可作为独立档案再次激活写回。', 'Imported from the current Codex live config and can be activated later as an independent profile.')
+    providerForm.configPayload = detected.configPayload ?? null
+    providerForm.authPayload = detected.authPayload ?? null
+    providerForm.isDefault = selectedWorkspaceProviders.value.length === 0
+    providerForm.isActive = false
+    openProviderEditorModal.value = true
+    providerDetectionSummary.value = tr('已读取当前 Codex 配置，确认名称后保存为 Chuchen 档案。', 'Current Codex config loaded. Confirm the name to save it as a Chuchen profile.')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    providerDetectionSummary.value = tr(`导入失败：${message}`, `Import failed: ${message}`)
+    showToast(tr('Codex 导入失败', 'Codex import failed'), message)
+  } finally {
+    providerDetectionRunning.value = false
+  }
+}
+
+async function importCurrentGeminiProfileAction() {
+  if (!selectedWorkspace.value) return
+  if (!("__TAURI_INTERNALS__" in window)) {
+    showToast(
+      tr('浏览器模式无法导入', 'Browser mode cannot import'),
+      tr('导入当前 Gemini 配置需要 Tauri 桌面模式读取用户目录。', 'Importing the current Gemini config needs Tauri desktop mode to read your user directory.'),
+    )
+    return
+  }
+
+  providerDetectionRunning.value = true
+  providerDetectionSummary.value = tr('正在读取当前 ~/.gemini/.env 与 settings.json。', 'Reading the current ~/.gemini/.env and settings.json.')
+  try {
+    const detected = await readCurrentGeminiProfile()
+    closeFloatingMenus()
+    openTerminalEntriesModal.value = false
+    providerEditorMode.value = 'create'
+    editingProviderId.value = null
+    providerForm.name = `${detected.name} Snapshot`
+    providerForm.providerKind = 'gemini-cli'
+    providerForm.profileName = detected.profileName || 'default'
+    providerForm.configPath = detected.configPath || defaultConfigPathForProvider('gemini-cli')
+    providerForm.configScope = detected.configScope
+    providerForm.managedBy = detected.managedBy
+    providerForm.authSource = detected.authSource || defaultAuthSourceForProvider('gemini-cli', detected.managedBy)
+    providerForm.homepageUrl = detected.homepageUrl ?? ''
+    providerForm.requestBaseUrl = detected.requestBaseUrl ?? ''
+    providerForm.switchCommand = ''
+    providerForm.defaultModel = detected.defaultModel
+    providerForm.toolTargetsText = detected.toolTargets.join(', ') || defaultProviderTargetsText('gemini-cli')
+    providerForm.color = detected.color || providerKindColor('gemini-cli')
+    providerForm.note = detected.note || tr('从当前 Gemini live config 导入，可作为独立档案再次激活写回。', 'Imported from the current Gemini live config and can be activated later as an independent profile.')
+    providerForm.configPayload = detected.configPayload ?? null
+    providerForm.authPayload = detected.authPayload ?? null
+    providerForm.isDefault = selectedWorkspaceProviders.value.length === 0
+    providerForm.isActive = false
+    openProviderEditorModal.value = true
+    providerDetectionSummary.value = tr('已读取当前 Gemini 配置，确认名称后保存为 Chuchen 档案。', 'Current Gemini config loaded. Confirm the name to save it as a Chuchen profile.')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    providerDetectionSummary.value = tr(`导入失败：${message}`, `Import failed: ${message}`)
+    showToast(tr('Gemini 导入失败', 'Gemini import failed'), message)
+  } finally {
+    providerDetectionRunning.value = false
+  }
+}
+
+async function importCurrentClaudeProfileAction() {
+  if (!selectedWorkspace.value) return
+  if (!("__TAURI_INTERNALS__" in window)) {
+    showToast(
+      tr('浏览器模式无法导入', 'Browser mode cannot import'),
+      tr('导入当前 Claude 配置需要 Tauri 桌面模式读取用户目录。', 'Importing the current Claude config needs Tauri desktop mode to read your user directory.'),
+    )
+    return
+  }
+
+  providerDetectionRunning.value = true
+  providerDetectionSummary.value = tr('正在读取当前 ~/.claude/settings.json 与 ~/.claude.json。', 'Reading the current ~/.claude/settings.json and ~/.claude.json.')
+  try {
+    const detected = await readCurrentClaudeProfile()
+    closeFloatingMenus()
+    openTerminalEntriesModal.value = false
+    providerEditorMode.value = 'create'
+    editingProviderId.value = null
+    providerForm.name = `${detected.name} Snapshot`
+    providerForm.providerKind = 'claude-code'
+    providerForm.profileName = detected.profileName || 'default'
+    providerForm.configPath = detected.configPath || defaultConfigPathForProvider('claude-code')
+    providerForm.configScope = detected.configScope
+    providerForm.managedBy = detected.managedBy
+    providerForm.authSource = detected.authSource || defaultAuthSourceForProvider('claude-code', detected.managedBy)
+    providerForm.homepageUrl = detected.homepageUrl ?? ''
+    providerForm.requestBaseUrl = detected.requestBaseUrl ?? ''
+    providerForm.switchCommand = ''
+    providerForm.defaultModel = detected.defaultModel
+    providerForm.toolTargetsText = detected.toolTargets.join(', ') || defaultProviderTargetsText('claude-code')
+    providerForm.color = detected.color || providerKindColor('claude-code')
+    providerForm.note = detected.note || tr('从当前 Claude live config 导入，可作为独立档案再次激活写回。', 'Imported from the current Claude live config and can be activated later as an independent profile.')
+    providerForm.configPayload = detected.configPayload ?? null
+    providerForm.authPayload = detected.authPayload ?? null
+    providerForm.isDefault = selectedWorkspaceProviders.value.length === 0
+    providerForm.isActive = false
+    openProviderEditorModal.value = true
+    providerDetectionSummary.value = tr('已读取当前 Claude 配置，确认名称后保存为 Chuchen 档案。', 'Current Claude config loaded. Confirm the name to save it as a Chuchen profile.')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    providerDetectionSummary.value = tr(`导入失败：${message}`, `Import failed: ${message}`)
+    showToast(tr('Claude 导入失败', 'Claude import failed'), message)
+  } finally {
+    providerDetectionRunning.value = false
+  }
+}
+
+async function importCurrentHermesProfileAction() {
+  if (!selectedWorkspace.value) return
+  if (!("__TAURI_INTERNALS__" in window)) {
+    showToast(
+      tr('浏览器模式无法导入', 'Browser mode cannot import'),
+      tr('导入当前 Hermes 配置需要 Tauri 桌面模式读取用户目录。', 'Importing the current Hermes config needs Tauri desktop mode to read your user directory.'),
+    )
+    return
+  }
+
+  providerDetectionRunning.value = true
+  providerDetectionSummary.value = tr('正在读取当前 ~/.hermes/config.yaml。', 'Reading the current ~/.hermes/config.yaml.')
+  try {
+    const detected = await readCurrentHermesProfile()
+    closeFloatingMenus()
+    openTerminalEntriesModal.value = false
+    providerEditorMode.value = 'create'
+    editingProviderId.value = null
+    providerForm.name = `${detected.name} Snapshot`
+    providerForm.providerKind = 'hermes'
+    providerForm.profileName = detected.profileName || 'default'
+    providerForm.configPath = detected.configPath || defaultConfigPathForProvider('hermes')
+    providerForm.configScope = detected.configScope
+    providerForm.managedBy = detected.managedBy
+    providerForm.authSource = detected.authSource || defaultAuthSourceForProvider('hermes', detected.managedBy)
+    providerForm.homepageUrl = detected.homepageUrl ?? ''
+    providerForm.requestBaseUrl = detected.requestBaseUrl ?? ''
+    providerForm.switchCommand = ''
+    providerForm.defaultModel = detected.defaultModel
+    providerForm.toolTargetsText = detected.toolTargets.join(', ') || defaultProviderTargetsText('hermes')
+    providerForm.color = detected.color || providerKindColor('hermes')
+    providerForm.note = detected.note || tr('从当前 Hermes live config 导入，可作为独立档案再次激活写回。', 'Imported from the current Hermes live config and can be activated later as an independent profile.')
+    providerForm.configPayload = detected.configPayload ?? null
+    providerForm.authPayload = detected.authPayload ?? null
+    providerForm.isDefault = selectedWorkspaceProviders.value.length === 0
+    providerForm.isActive = false
+    openProviderEditorModal.value = true
+    providerDetectionSummary.value = tr('已读取当前 Hermes 配置，确认名称后保存为 Chuchen 档案。', 'Current Hermes config loaded. Confirm the name to save it as a Chuchen profile.')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    providerDetectionSummary.value = tr(`导入失败：${message}`, `Import failed: ${message}`)
+    showToast(tr('Hermes 导入失败', 'Hermes import failed'), message)
+  } finally {
+    providerDetectionRunning.value = false
+  }
+}
+
+function toggleProviderExpand(providerId: string) {
+  if (expandedProviderId.value === providerId) {
+    expandedProviderId.value = ''
+  } else {
+    expandedProviderId.value = providerId
+    activeProviderStatsId.value = providerId
+  }
 }
 
 function openProviderEditModal(providerId: string) {
@@ -8016,11 +10071,15 @@ function openProviderEditModal(providerId: string) {
   providerForm.configScope = provider.configScope
   providerForm.managedBy = provider.managedBy
   providerForm.authSource = provider.authSource
+  providerForm.homepageUrl = provider.homepageUrl ?? ''
+  providerForm.requestBaseUrl = provider.requestBaseUrl ?? ''
   providerForm.switchCommand = provider.switchCommand
   providerForm.defaultModel = provider.defaultModel
   providerForm.toolTargetsText = provider.toolTargets.join(', ')
   providerForm.color = provider.color || providerKindColor(provider.providerKind)
   providerForm.note = provider.note || ''
+  providerForm.configPayload = provider.configPayload ?? null
+  providerForm.authPayload = provider.authPayload ?? null
   providerForm.isDefault = Boolean(provider.isDefault)
   providerForm.isActive = Boolean(provider.isActive)
   openProviderEditorModal.value = true
@@ -8037,19 +10096,46 @@ function closeProviderEditorModal() {
 function submitProviderForm() {
   if (!selectedWorkspace.value) return
   if (!providerForm.name.trim()) {
-    showToast('信息未完整', 'Provider 名称不能为空。')
+    showToast(tr('信息未完整', 'Incomplete information'), tr('Provider 名称不能为空。', 'Provider name cannot be empty.'))
     return
   }
 
   const toolTargets = parseProviderToolTargets(providerForm.toolTargetsText)
   const now = new Date().toISOString()
   const profileName = providerForm.profileName.trim() || 'default'
-  const switchCommand = providerForm.switchCommand.trim() || providerFallbackSwitchCommand({
-    providerKind: providerForm.providerKind,
-    profileName,
-  } as ProviderProfile)
+  const switchCommand = providerForm.switchCommand.trim()
+  const homepageUrl = providerForm.homepageUrl.trim() || baseUrlOrigin(providerForm.requestBaseUrl.trim()) || null
+  const requestBaseUrl = providerForm.requestBaseUrl.trim() || null
+  const rawAuthPayload = normalizeProviderPayload(providerForm.authPayload)
+  const authPayload = providerForm.providerKind === 'gemini-cli'
+    ? buildGeminiAuthPayloadFromForm() || rawAuthPayload || null
+    : rawAuthPayload || null
+  const configPayload = providerForm.providerKind === 'codex'
+    ? buildCodexPayloadFromForm()
+    : providerForm.providerKind === 'gemini-cli'
+      ? buildGeminiSettingsPayloadFromForm(authPayload ?? '')
+      : normalizeProviderPayload(providerForm.configPayload) || null
+
+  if (providerForm.providerKind === 'codex' && !configPayload) {
+    showToast(tr('信息未完整', 'Incomplete information'), tr('Codex 档案至少需要一份完整 config.toml。', 'A Codex profile needs a full config.toml payload.'))
+    return
+  }
+  if (providerForm.providerKind === 'gemini-cli' && !configPayload) {
+    showToast(tr('信息未完整', 'Incomplete information'), tr('Gemini 档案至少需要一份 settings.json 快照。', 'A Gemini profile needs a settings.json payload.'))
+    return
+  }
 
   if (providerEditorMode.value === 'create') {
+    const canActivate = providerCanBeActivated({
+      providerKind: providerForm.providerKind,
+      status: 'available',
+      switchCommand,
+      configPayload,
+    })
+    if (providerForm.isActive && !canActivate) {
+      showToast(tr('无法设为当前档案', 'Cannot activate profile'), tr('当前档案还没有接通真实写回路径，请先补全 payload 或外部切换命令。', 'This profile does not have a real writeback path yet. Complete the payload or provide an external switch command first.'))
+      return
+    }
     const provider = createProviderProfileRecord({
       workspaceId: selectedWorkspace.value.id,
       name: providerForm.name.trim(),
@@ -8062,11 +10148,15 @@ function submitProviderForm() {
       switchCommand,
       defaultModel: providerForm.defaultModel.trim(),
       toolTargets,
-      status: providerForm.isActive ? 'active' : 'available',
+      status: providerForm.isActive && canActivate ? 'active' : 'available',
       color: providerForm.color.trim() || null,
       note: providerForm.note.trim() || null,
+      homepageUrl,
+      requestBaseUrl,
+      configPayload,
+      authPayload,
       isDefault: providerForm.isDefault,
-      isActive: providerForm.isActive,
+      isActive: providerForm.isActive && canActivate,
     })
 
     patchSelectedWorkspace((workspace) => {
@@ -8089,10 +10179,16 @@ function submitProviderForm() {
     })
 
     activeProviderStatsId.value = provider.id
-    showToast('配置档案已创建', provider.name)
+    showToast(tr('配置档案已创建', 'Profile created'), provider.name)
   } else if (editingProviderId.value) {
     const existingProvider = selectedWorkspaceProviders.value.find((provider) => provider.id === editingProviderId.value)
     if (!existingProvider) return
+    const canActivate = providerCanBeActivated({
+      providerKind: providerForm.providerKind,
+      status: existingProvider.status === 'missing' || existingProvider.status === 'disabled' ? existingProvider.status : 'available',
+      switchCommand,
+      configPayload,
+    })
 
     const editedProvider: ProviderProfile = {
       ...existingProvider,
@@ -8106,17 +10202,21 @@ function submitProviderForm() {
       switchCommand,
       defaultModel: providerForm.defaultModel.trim(),
       toolTargets,
-      status: providerForm.isActive && providerCanBeActivated(existingProvider) ? 'active' : existingProvider.status === 'active' ? 'available' : existingProvider.status,
-      isActive: providerForm.isActive && providerCanBeActivated(existingProvider),
+      status: providerForm.isActive && canActivate ? 'active' : existingProvider.status === 'active' ? 'available' : existingProvider.status,
+      isActive: providerForm.isActive && canActivate,
       lastDetectedAt: existingProvider.lastDetectedAt ?? now,
       color: providerForm.color.trim() || null,
       note: providerForm.note.trim() || null,
+      homepageUrl,
+      requestBaseUrl,
+      configPayload,
+      authPayload,
       isDefault: providerForm.isDefault,
       updatedAt: now,
     }
 
-    if (providerForm.isActive && !providerCanBeActivated(existingProvider)) {
-      showToast('无法设为当前档案', '未检测到或已停用的配置档案不能标记为当前。')
+    if (providerForm.isActive && !canActivate) {
+      showToast(tr('无法设为当前档案', 'Cannot activate profile'), tr('当前档案还没有接通真实写回路径，请先补全 payload 或外部切换命令。', 'This profile does not have a real writeback path yet. Complete the payload or provide an external switch command first.'))
       return
     }
 
@@ -8139,7 +10239,7 @@ function submitProviderForm() {
       }
     })
 
-    showToast('配置档案已更新', providerForm.name.trim())
+    showToast(tr('配置档案已更新', 'Profile updated'), providerForm.name.trim())
   }
 
   closeProviderEditorModal()
@@ -8151,9 +10251,9 @@ function removeProviderProfile(providerId: string) {
   if (!provider) return
 
   requestConfirm({
-    title: `删除配置档案「${provider.name}」`,
-    description: '删除后只会移除 Chuchen-Terminal 中登记的档案记录，不会改动本机真实 CLI 配置文件。',
-    confirmLabel: '删除档案',
+    title: tr(`删除配置档案「${provider.name}」`, `Delete profile "${provider.name}"`),
+    description: tr('删除后只会移除 Chuchen-Terminal 中登记的档案记录，不会改动本机真实 CLI 配置文件。', 'This only removes the registered profile inside Chuchen-Terminal and does not modify the real local CLI config files.'),
+    confirmLabel: tr('删除档案', 'Delete profile'),
     action: () => {
       patchSelectedWorkspace((workspace) => ({
         ...workspace,
@@ -8162,37 +10262,129 @@ function removeProviderProfile(providerId: string) {
         updatedAt: new Date().toISOString(),
       }))
       activeProviderStatsId.value = selectedWorkspaceProviders.value.find((item) => item.id !== providerId)?.id ?? ''
-      showToast('配置档案已删除', provider.name)
+      showToast(tr('配置档案已删除', 'Profile deleted'), provider.name)
     },
   })
 }
 
-function activateProviderProfile(providerId: string) {
+/**
+ * 仅浏览器预览：桌面模式激活后必须 re-detect，isActive 只信后端。
+ * 禁止在 Tauri 路径里本地发明 active。
+ */
+function commitProviderActivationStatePreview(provider: ProviderProfile, activatedAt: string) {
+  patchSelectedWorkspace((workspace) => ({
+    ...workspace,
+    providerProfiles: normalizeActiveProviderProfiles((workspace.providerProfiles ?? []).map((item) => ({
+      ...item,
+      isActive: item.providerKind === provider.providerKind ? item.id === provider.id : item.isActive,
+      isDefault: item.id === provider.id,
+      status: item.providerKind === provider.providerKind
+        ? item.id === provider.id ? 'active' : item.status === 'disabled' || item.status === 'missing' ? item.status : 'available'
+        : item.status,
+      lastDetectedAt: item.id === provider.id ? activatedAt : item.lastDetectedAt,
+      updatedAt: item.id === provider.id ? activatedAt : item.updatedAt,
+    }))),
+    updatedAt: activatedAt,
+  }))
+}
+
+/**
+ * 激活成功后：按 detect 结果同步 isActive / payload / identityKey。
+ * 不自行把目标档案标 active；只写后端返回的 isActive。
+ */
+async function rescanProviderProfilesAfterApply(preferredProviderId?: string) {
+  if (!selectedWorkspace.value) return
+  if (!("__TAURI_INTERNALS__" in window)) return
+
+  const detectedProfiles = await detectLocalProviderProfiles()
+  const now = new Date().toISOString()
+
+  patchSelectedWorkspace((workspace) => {
+    const nextProfiles = normalizeActiveProviderProfiles((workspace.providerProfiles ?? []).map((profile) => {
+      const detected = findDetectedProfileForStoredProfile(detectedProfiles, profile)
+      if (!detected) {
+        return {
+          ...profile,
+          isActive: false,
+          status: profile.status === 'active' ? 'available' : profile.status,
+          updatedAt: now,
+        }
+      }
+      const canActivate = detected.status !== 'missing' && detected.status !== 'disabled'
+      return {
+        ...profile,
+        status: detected.status,
+        isActive: Boolean(detected.isActive) && canActivate,
+        identityKey: detected.identityKey || profile.identityKey || null,
+        lastDetectedAt: now,
+        authSource: detected.authSource || profile.authSource,
+        switchCommand: detected.switchCommand || profile.switchCommand,
+        defaultModel: detected.defaultModel || profile.defaultModel,
+        toolTargets: detected.toolTargets.length ? detected.toolTargets : profile.toolTargets,
+        color: detected.color || profile.color,
+        note: detected.note || profile.note,
+        homepageUrl: detected.homepageUrl ?? profile.homepageUrl ?? null,
+        requestBaseUrl: detected.requestBaseUrl ?? profile.requestBaseUrl ?? null,
+        configPayload: detected.configPayload ?? profile.configPayload ?? null,
+        authPayload: detected.authPayload ?? profile.authPayload ?? null,
+        updatedAt: now,
+      }
+    }))
+
+    return {
+      ...workspace,
+      providerProfiles: nextProfiles,
+      providerUsageStats: upsertProviderUsageStatsForProfiles(workspace.providerUsageStats ?? [], nextProfiles),
+      updatedAt: now,
+    }
+  })
+
+  if (preferredProviderId) {
+    activeProviderStatsId.value = preferredProviderId
+  }
+}
+
+async function activateProviderProfile(providerId: string) {
+  if (activatingProviderId.value) return
   const provider = selectedWorkspaceProviders.value.find((item) => item.id === providerId)
   if (!provider) return
   if (!providerCanBeActivated(provider)) {
-    showToast('无法设为当前档案', '未检测到或已停用的配置档案不能标记为当前。')
+    showToast(tr('无法设为当前档案', 'Cannot activate profile'), tr('未检测到或已停用的配置档案不能标记为当前。', 'Profiles that are missing or disabled cannot be marked as current.'))
     return
   }
-  const now = new Date().toISOString()
+  activatingProviderId.value = providerId
 
-  patchSelectedWorkspace((workspace) => ({
-    ...workspace,
-    providerProfiles: (workspace.providerProfiles ?? []).map((item) => ({
-      ...item,
-      isActive: item.providerKind === provider.providerKind ? item.id === providerId : item.isActive,
-      isDefault: item.id === providerId ? true : item.isDefault && item.providerKind !== provider.providerKind,
-      status: item.providerKind === provider.providerKind
-        ? item.id === providerId ? 'active' : item.status === 'disabled' || item.status === 'missing' ? item.status : 'available'
-        : item.status,
-      lastDetectedAt: item.id === providerId ? now : item.lastDetectedAt,
-      updatedAt: item.id === providerId ? now : item.updatedAt,
-    })),
-    updatedAt: now,
-  }))
+  if ("__TAURI_INTERNALS__" in window) {
+    try {
+      // 契约：切换时传完整 configPayload / authPayload
+      await applyProviderProfile({
+        providerKind: provider.providerKind,
+        profileName: provider.profileName,
+        switchCommand: provider.switchCommand,
+        configPayload: provider.configPayload ?? null,
+        authPayload: provider.authPayload ?? null,
+      })
+      // 写回成功后 re-scan；isActive 只信 detect
+      await rescanProviderProfilesAfterApply(providerId)
+      void loadManagedUsageLive({ reset: true })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      showToast(tr('配置档案启用失败', 'Profile activation failed'), message)
+      activatingProviderId.value = ''
+      return
+    }
+  } else {
+    // 浏览器预览：无真实写回，仅本地预览态
+    commitProviderActivationStatePreview(provider, new Date().toISOString())
+    showToast(
+      tr('浏览器模式仅更新预览状态', 'Browser mode only updates preview state'),
+      tr('真实档案切换需要在 Tauri 桌面模式下执行。', 'Real profile switching runs only in Tauri desktop mode.'),
+    )
+  }
 
   activeProviderStatsId.value = providerId
-  showToast('配置档案已启用', `${providerKindLabel(provider.providerKind)} · ${provider.name}`)
+  activatingProviderId.value = ''
+  showToast(tr('配置档案已启用', 'Profile activated'), `${providerKindLabel(provider.providerKind)} · ${provider.name}`)
 }
 
 function duplicateProviderProfile(providerId: string) {
@@ -8207,7 +10399,7 @@ function duplicateProviderProfile(providerId: string) {
     id: createId('provider'),
     name: `${provider.name} Copy`,
     profileName,
-    switchCommand: providerFallbackSwitchCommand({ providerKind: provider.providerKind, profileName } as ProviderProfile),
+    switchCommand: '',
     isDefault: false,
     isActive: false,
     status: provider.status === 'disabled' || provider.status === 'missing' ? provider.status : 'available',
@@ -8223,96 +10415,565 @@ function duplicateProviderProfile(providerId: string) {
   }))
 
   activeProviderStatsId.value = copy.id
-  showToast('配置档案已复制', copy.name)
+  showToast(tr('配置档案已复制', 'Profile duplicated'), copy.name)
 }
 
 async function copyProviderSwitchCommand(provider: ProviderProfile) {
-  const command = provider.switchCommand || providerFallbackSwitchCommand(provider)
+  const command = provider.switchCommand.trim()
+  if (!command) {
+    showToast(
+      tr('无法执行切换命令', 'Cannot run switch command'),
+      tr('该档案没有登记外部切换命令；请使用内置激活逻辑或手动填写命令。', 'This profile has no external switch command. Use the built-in activation flow or enter a command manually.'),
+    )
+    return
+  }
   await copyCommandText(command)
 }
 
-async function seedCliProviderProfiles() {
-  if (!selectedWorkspace.value) return
+/**
+ * 合并 detect 结果到本地档案。
+ * - identityKey 优先匹配；payload/legacy key 次之
+ * - 同步来源（cli-config / cc-switch）在本轮 detect 中消失 → 清理
+ * - manual / oauth / env / script 手工档案一律保留
+ * 注意：当前后端 detect_local_provider_profiles 仍返回 native+CC Switch 合并目录，
+ * 前端入口拆分但不会伪造“只含 native”的结果。
+ */
+function mergeDetectedProviderProfiles(
+  workspace: WorkspaceCard,
+  detectedProfiles: DetectedProviderProfile[],
+  options: { pruneSyncedStale: boolean; preferManagedBy?: ProviderProfileSource | null } = { pruneSyncedStale: true },
+) {
+  const now = new Date().toISOString()
+  let addedCount = 0
+  let updatedCount = 0
+  let prunedCount = 0
+  let firstImportedId = ''
 
+  const nextProfiles = [...(workspace.providerProfiles ?? [])]
+  const nextUsageStats = [...(workspace.providerUsageStats ?? [])]
+  const seenIdentityKeys = new Set<string>()
+  const matchedExistingIds = new Set<string>()
+
+  // detect 结果自身按 identityKey 去重（保留第一条）
+  const uniqueDetected: DetectedProviderProfile[] = []
+  for (const detected of detectedProfiles) {
+    const key = (detected.identityKey || '').trim()
+    if (key) {
+      if (seenIdentityKeys.has(key)) continue
+      seenIdentityKeys.add(key)
+    }
+    uniqueDetected.push(detected)
+  }
+
+  uniqueDetected.forEach((detected) => {
+    const existingIndex = findExistingProviderIndexByDetection(nextProfiles, detected)
+    if (existingIndex >= 0) {
+      const existing = nextProfiles[existingIndex]
+      matchedExistingIds.add(existing.id)
+      const detectedCanActivate = detected.status !== 'missing' && detected.status !== 'disabled'
+      nextProfiles[existingIndex] = {
+        ...existing,
+        name: existing.name || detected.name,
+        identityKey: detected.identityKey || existing.identityKey || null,
+        configScope: detected.configScope,
+        managedBy: detected.managedBy || existing.managedBy,
+        authSource: detected.authSource || existing.authSource,
+        switchCommand: detected.switchCommand || existing.switchCommand,
+        defaultModel: detected.defaultModel || existing.defaultModel,
+        toolTargets: detected.toolTargets.length ? detected.toolTargets : existing.toolTargets,
+        status: detected.status,
+        // 只信本机检测结果，禁止用旧 localStorage isActive 把整列表刷成“当前启用”
+        isActive: detectedCanActivate && Boolean(detected.isActive),
+        color: detected.color || existing.color,
+        note: detected.note || existing.note,
+        homepageUrl: detected.homepageUrl ?? existing.homepageUrl ?? null,
+        requestBaseUrl: detected.requestBaseUrl ?? existing.requestBaseUrl ?? null,
+        configPayload: detected.configPayload ?? existing.configPayload ?? null,
+        authPayload: detected.authPayload ?? existing.authPayload ?? null,
+        lastDetectedAt: now,
+        updatedAt: now,
+      }
+      updatedCount += 1
+      if (!firstImportedId) firstImportedId = existing.id
+      const detectedStats = createProviderUsageStatsFromDetection(existing.id, detected)
+      const usageStatsIndex = nextUsageStats.findIndex((stats) => stats.providerProfileId === existing.id)
+      if (detectedStats && usageStatsIndex >= 0) {
+        nextUsageStats[usageStatsIndex] = detectedStats
+      } else if (detectedStats) {
+        nextUsageStats.push(detectedStats)
+      } else if (usageStatsIndex < 0) {
+        nextUsageStats.push(createEmptyProviderUsageStatsForProfile(existing.id))
+      }
+      return
+    }
+
+    const provider = createProviderProfileFromDetection(workspace.id, detected)
+    nextProfiles.push(provider)
+    matchedExistingIds.add(provider.id)
+    nextUsageStats.push(createProviderUsageStatsFromDetection(provider.id, detected) ?? createEmptyProviderUsageStatsForProfile(provider.id))
+    addedCount += 1
+    if (!firstImportedId) firstImportedId = provider.id
+  })
+
+  let keptProfiles = nextProfiles
+  if (options.pruneSyncedStale) {
+    keptProfiles = nextProfiles.filter((profile) => {
+      const isSyncedSource = profile.managedBy === 'cli-config' || profile.managedBy === 'cc-switch'
+      if (!isSyncedSource) return true
+      if (matchedExistingIds.has(profile.id)) return true
+      // 本轮 detect 未命中的同步档案 → 清理
+      prunedCount += 1
+      return false
+    })
+  }
+
+  // identityKey 二次去重（保留更新更晚 / isActive 优先）
+  const byIdentity = new Map<string, ProviderProfile>()
+  const withoutIdentity: ProviderProfile[] = []
+  for (const profile of keptProfiles) {
+    const key = (profile.identityKey || '').trim()
+    if (!key) {
+      withoutIdentity.push(profile)
+      continue
+    }
+    const existing = byIdentity.get(key)
+    if (!existing) {
+      byIdentity.set(key, profile)
+      continue
+    }
+    const preferNext = (profile.isActive && !existing.isActive)
+      || new Date(profile.updatedAt).getTime() >= new Date(existing.updatedAt).getTime()
+    byIdentity.set(key, preferNext ? profile : existing)
+  }
+  const dedupedProfiles = normalizeActiveProviderProfiles([...byIdentity.values(), ...withoutIdentity])
+
+  return {
+    workspacePatch: {
+      ...workspace,
+      providerProfiles: dedupedProfiles,
+      providerUsageStats: upsertProviderUsageStatsForProfiles(nextUsageStats, dedupedProfiles),
+      updatedAt: now,
+    } satisfies WorkspaceCard,
+    addedCount,
+    updatedCount,
+    prunedCount,
+    firstImportedId,
+    totalDetected: uniqueDetected.length,
+  }
+}
+
+/** 同步本机配置（入口：静默 / 显式）。后端仍可能混入 CC Switch 条目，文案诚实说明。 */
+async function syncNativeProviderProfiles(options: { silent?: boolean; explicit?: boolean } = {}) {
+  if (!selectedWorkspace.value) return
+  if (providerDetectionRunning.value) return
+
+  const silent = Boolean(options.silent)
   providerDetectionRunning.value = true
-  providerDetectionSummary.value = '正在只读扫描本机 CLI 配置文件和 CC Switch 档案。'
+  providerSyncMode.value = silent ? 'silent' : 'native'
+  if (!silent) {
+    providerDetectionSummary.value = tr(
+      '正在同步本机 CLI 配置（当前 detect 仍可能含 CC Switch 合并项，拆分 API 待后端）。',
+      'Syncing local CLI configs (detect may still include merged CC Switch entries until backend split).',
+    )
+  }
 
   try {
     const detectedProfiles = await detectLocalProviderProfiles()
-    const now = new Date().toISOString()
-    let addedCount = 0
-    let updatedCount = 0
+    let summaryText = ''
     let firstImportedId = ''
 
     patchSelectedWorkspace((workspace) => {
-      const nextProfiles = [...(workspace.providerProfiles ?? [])]
-      const nextUsageStats = [...(workspace.providerUsageStats ?? [])]
+      const merged = mergeDetectedProviderProfiles(workspace, detectedProfiles, { pruneSyncedStale: true })
+      firstImportedId = merged.firstImportedId
+      summaryText = tr(
+        `本机同步完成：新增 ${merged.addedCount} · 更新 ${merged.updatedCount} · 清理过期同步 ${merged.prunedCount}（detect ${merged.totalDetected} 条，identityKey 去重）。`,
+        `Local sync done: +${merged.addedCount} · ~${merged.updatedCount} · pruned ${merged.prunedCount} stale synced (detect ${merged.totalDetected}, identityKey-deduped).`,
+      )
+      return merged.workspacePatch
+    })
 
-      detectedProfiles.forEach((detected) => {
-        const existingIndex = nextProfiles.findIndex((provider) => providerProfileKey(provider) === detectedProviderProfileKey(detected))
-        if (existingIndex >= 0) {
-          const existing = nextProfiles[existingIndex]
-          const detectedCanActivate = detected.status !== 'missing' && detected.status !== 'disabled'
-          nextProfiles[existingIndex] = {
-            ...existing,
-            name: detected.name || existing.name,
-            configScope: detected.configScope,
-            managedBy: detected.managedBy,
-            authSource: detected.authSource,
-            switchCommand: detected.switchCommand || providerFallbackSwitchCommand(existing),
-            defaultModel: detected.defaultModel || existing.defaultModel,
-            toolTargets: detected.toolTargets.length ? detected.toolTargets : existing.toolTargets,
-            status: detected.status,
-            isActive: detectedCanActivate && (detected.isActive || existing.isActive),
-            color: detected.color || existing.color,
-            note: detected.note || existing.note,
-            lastDetectedAt: now,
-            updatedAt: now,
+    if (firstImportedId) activeProviderStatsId.value = firstImportedId
+    providerSilentSyncedOnce.value = true
+    providerDetectionSummary.value = summaryText
+    if (!silent) {
+      showToast(tr('本机配置已同步', 'Local configs synced'), summaryText)
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    providerDetectionSummary.value = tr(`本机同步失败：${message}`, `Local sync failed: ${message}`)
+    if (!silent) showToast(tr('本机同步失败', 'Local sync failed'), message)
+  } finally {
+    providerDetectionRunning.value = false
+    providerSyncMode.value = 'idle'
+  }
+}
+
+/**
+ * 从 CC Switch 导入。
+ * 后端尚未提供独立 import API：当前仍调用 detect_local_provider_profiles（合并目录），
+ * 前端不做假过滤；入口与文案与「同步本机」分开，待后端拆分。
+ */
+async function importCcSwitchProviderProfiles() {
+  if (!selectedWorkspace.value) return
+  if (providerDetectionRunning.value) return
+
+  providerDetectionRunning.value = true
+  providerSyncMode.value = 'cc-switch'
+  providerDetectionSummary.value = tr(
+    '正在从 CC Switch 导入（当前与本机 detect 共用合并 API，后端拆分前无法只返回 CC Switch）。',
+    'Importing from CC Switch (still shares the merged detect API; cannot return CC Switch-only until backend split).',
+  )
+
+  try {
+    const detectedProfiles = await detectLocalProviderProfiles()
+    let summaryText = ''
+    let firstImportedId = ''
+
+    patchSelectedWorkspace((workspace) => {
+      const merged = mergeDetectedProviderProfiles(workspace, detectedProfiles, { pruneSyncedStale: true })
+      firstImportedId = merged.firstImportedId
+      const ccCount = detectedProfiles.filter((item) => item.managedBy === 'cc-switch').length
+      summaryText = tr(
+        `CC Switch 导入完成：新增 ${merged.addedCount} · 更新 ${merged.updatedCount} · 清理 ${merged.prunedCount}（合并目录共 ${merged.totalDetected}，其中 managedBy=cc-switch ${ccCount}）。`,
+        `CC Switch import done: +${merged.addedCount} · ~${merged.updatedCount} · pruned ${merged.prunedCount} (merged catalog ${merged.totalDetected}, managedBy=cc-switch ${ccCount}).`,
+      )
+      return merged.workspacePatch
+    })
+
+    if (firstImportedId) activeProviderStatsId.value = firstImportedId
+    providerSilentSyncedOnce.value = true
+    providerDetectionSummary.value = summaryText
+    showToast(tr('CC Switch 导入完成', 'CC Switch import finished'), summaryText)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    providerDetectionSummary.value = tr(`CC Switch 导入失败：${message}`, `CC Switch import failed: ${message}`)
+    showToast(tr('CC Switch 导入失败', 'CC Switch import failed'), message)
+  } finally {
+    providerDetectionRunning.value = false
+    providerSyncMode.value = 'idle'
+  }
+}
+
+/** @deprecated 保留别名，避免外部残留调用；统一走 syncNative */
+async function seedCliProviderProfiles() {
+  await syncNativeProviderProfiles({ explicit: true })
+}
+
+async function refreshProviderUsageStats() {
+  if (!selectedWorkspace.value) return
+  if (providerUsageRefreshRunning.value) return
+  if (!("__TAURI_INTERNALS__" in window)) {
+    showToast(
+      tr('浏览器模式不支持实时刷新', 'Browser mode cannot refresh live usage'),
+      tr('真实用量刷新需要在 Tauri 桌面模式下读取本机 CC Switch / CLI 数据。', 'Live usage refresh needs Tauri desktop mode to read local CC Switch / CLI data.'),
+    )
+    return
+  }
+
+  providerUsageRefreshRunning.value = true
+  managedUsageLoadError.value = ''
+  try {
+    // 1) 刷新 Provider 档案状态（isActive 只信本机检测 + 归一化）
+    const detectedProfiles = await detectLocalProviderProfiles()
+    const now = new Date().toISOString()
+
+    patchSelectedWorkspace((workspace) => {
+      const nextProfiles = normalizeActiveProviderProfiles((workspace.providerProfiles ?? []).map((profile) => {
+        const detected = findDetectedProfileForStoredProfile(detectedProfiles, profile)
+        if (!detected) {
+          // 检测不到的档案：不要继续假“当前启用”
+          return {
+            ...profile,
+            isActive: false,
+            status: profile.status === 'active' ? 'available' : profile.status,
           }
-          updatedCount += 1
-          if (!firstImportedId) firstImportedId = existing.id
-          const detectedStats = createProviderUsageStatsFromDetection(existing.id, detected)
-          const usageStatsIndex = nextUsageStats.findIndex((stats) => stats.providerProfileId === existing.id)
-          if (detectedStats && usageStatsIndex >= 0) {
-            nextUsageStats[usageStatsIndex] = detectedStats
-          } else if (detectedStats) {
-            nextUsageStats.push(detectedStats)
-          } else if (usageStatsIndex < 0) {
-            nextUsageStats.push(createEmptyProviderUsageStatsForProfile(existing.id))
-          }
-          return
         }
-
-        const provider = createProviderProfileFromDetection(workspace.id, detected, nextProfiles.length === 0)
-        nextProfiles.push(provider)
-        nextUsageStats.push(createProviderUsageStatsFromDetection(provider.id, detected) ?? createEmptyProviderUsageStatsForProfile(provider.id))
-        addedCount += 1
-        if (!firstImportedId) firstImportedId = provider.id
-      })
-
-      const normalizedProfiles = normalizeActiveProviderProfiles(nextProfiles)
+        const canActivate = detected.status !== 'missing' && detected.status !== 'disabled'
+        return {
+          ...profile,
+          status: detected.status,
+          isActive: Boolean(detected.isActive) && canActivate,
+          identityKey: detected.identityKey || profile.identityKey || null,
+          lastDetectedAt: now,
+          authSource: detected.authSource || profile.authSource,
+          switchCommand: detected.switchCommand || profile.switchCommand,
+          defaultModel: detected.defaultModel || profile.defaultModel,
+          toolTargets: detected.toolTargets.length ? detected.toolTargets : profile.toolTargets,
+          color: detected.color || profile.color,
+          note: detected.note || profile.note,
+          homepageUrl: detected.homepageUrl ?? profile.homepageUrl ?? null,
+          requestBaseUrl: detected.requestBaseUrl ?? profile.requestBaseUrl ?? null,
+          configPayload: detected.configPayload ?? profile.configPayload ?? null,
+          authPayload: detected.authPayload ?? profile.authPayload ?? null,
+          updatedAt: now,
+        }
+      }))
 
       return {
         ...workspace,
-        providerProfiles: normalizedProfiles,
-        providerUsageStats: upsertProviderUsageStatsForProfiles(nextUsageStats, normalizedProfiles),
+        providerProfiles: nextProfiles,
+        // 保留旧 stats 作为兜底；真正展示优先用 managedUsageLive
+        providerUsageStats: nextProfiles.map((profile) => {
+          const detected = findDetectedProfileForStoredProfile(detectedProfiles, profile)
+          return normalizeProviderUsageStatsForProfile(
+            profile,
+            (detected && createProviderUsageStatsFromDetection(profile.id, detected))
+              ?? workspace.providerUsageStats?.find((stats) => stats.providerProfileId === profile.id)
+              ?? createEmptyProviderUsageStatsForProfile(profile.id),
+          )
+        }),
         updatedAt: now,
       }
     })
 
-    activeProviderStatsId.value = firstImportedId || activeProviderStatsId.value
-    providerDetectionSummary.value = `扫描完成：新增 ${addedCount} 个，更新 ${updatedCount} 个。只更新 Chuchen 档案，不改写真实 CLI 配置。`
-    showToast('Provider 扫描完成', providerDetectionSummary.value)
+    // 2) 实时拉取 managed usage（native + CC Switch proxy_request_logs）
+    await loadManagedUsageLive({ reset: true, manual: true })
+
+    const logCount = managedUsageRequestLogs.value.length
+    const totalHint = managedUsageTotal.value ? ` / total ${managedUsageTotal.value}` : ''
+    showToast(
+      tr('统计已刷新', 'Usage refreshed'),
+      tr(`已重新读取本机 Provider / Usage（${logCount} 条明细${totalHint}）。`, `Reloaded local Provider / Usage (${logCount} detail rows${totalHint}).`),
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    providerDetectionSummary.value = `扫描失败：${message}`
-    showToast('Provider 扫描失败', message)
+    managedUsageLoadError.value = message
+    showToast(tr('统计刷新失败', 'Usage refresh failed'), message)
   } finally {
-    providerDetectionRunning.value = false
+    providerUsageRefreshRunning.value = false
   }
 }
 
-function providerProfileKey(provider: Pick<ProviderProfile, 'providerKind' | 'profileName' | 'configPath'>) {
+/** 映射 period UI → 后端 RFC3339 startAt/endAt；bucket 由 usageEffectiveBucket 决定 */
+function usagePeriodRange(period: typeof usagePeriodFilter.value): { startAt?: string; endAt?: string } {
+  const end = new Date()
+  const endAt = end.toISOString()
+  if (period === 'all') return { endAt }
+  if (period === 'custom') {
+    const startIso = datetimeLocalToIso(usageCustomStartAt.value)
+    const endIso = datetimeLocalToIso(usageCustomEndAt.value)
+    return {
+      startAt: startIso ?? undefined,
+      endAt: endIso ?? endAt,
+    }
+  }
+  if (period === '1h') {
+    const start = new Date(end.getTime() - 3_600_000)
+    return { startAt: start.toISOString(), endAt }
+  }
+  if (period === 'today') {
+    const start = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+    return { startAt: start.toISOString(), endAt }
+  }
+  if (period === 'month') {
+    const start = new Date(end.getFullYear(), end.getMonth(), 1)
+    return { startAt: start.toISOString(), endAt }
+  }
+  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
+  const start = new Date(end.getTime() - days * 86400_000)
+  return {
+    startAt: start.toISOString(),
+    endAt,
+  }
+}
+
+/**
+ * 拉取 managed usage。
+ * - reset/默认：刷新 summary/trends/providerStats + 明细第 1 页（替换 logs）
+ * - append：仅用 nextCursor 追加 requestLogs，不覆盖聚合
+ * - 超时：45s 强制结束 inFlight，避免「刷新中」永久卡住
+ */
+async function loadManagedUsageLive(options: { append?: boolean; reset?: boolean; manual?: boolean } = {}) {
+  if (!("__TAURI_INTERNALS__" in window)) return
+  if (options.append && managedUsageInFlight.value) return
+
+  const append = Boolean(options.append)
+  if (append && (!managedUsageHasMore.value || !managedUsageNextCursor.value)) return
+
+  // 非 append 且已有请求在飞：标记需要在结束后按最新筛选再拉一次
+  if (!append && managedUsageInFlight.value) {
+    managedUsageNeedsReload = true
+    return
+  }
+
+  const range = usagePeriodRange(usagePeriodFilter.value)
+  if (usagePeriodFilter.value === 'custom' && !range.startAt && !range.endAt) {
+    return
+  }
+  const appType = usageAppFilter.value === 'all' ? null : usageAppFilter.value
+  const providerIds = resolveUsageProviderIdentityKeys()
+  // 后端空 provider_ids = 不筛选；选中了但无 identityKey 时必须短路，避免误查全量
+  if (Array.isArray(providerIds) && providerIds.length === 0) {
+    managedUsageLive.value = {
+      summary: {
+        totalRequests: 0,
+        totalCostUsd: 0,
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalCacheReadTokens: 0,
+        totalCacheCreationTokens: 0,
+        cacheHitRate: 0,
+      },
+      channels: [],
+      trends: [],
+      providerStats: [],
+      modelStats: [],
+      requestLogs: [],
+      nextCursor: null,
+      hasMore: false,
+      total: 0,
+      updatedAt: new Date().toISOString(),
+    }
+    managedUsageRequestLogs.value = []
+    managedUsageNextCursor.value = null
+    managedUsageHasMore.value = false
+    managedUsageTotal.value = 0
+    managedUsageUpdatedAt.value = managedUsageLive.value.updatedAt
+    managedUsageLoadError.value = tr(
+      '所选档案缺少 identityKey，无法按契约过滤用量。请先同步本机 Provider。',
+      'Selected profiles lack identityKey; usage cannot be filtered by contract. Sync local providers first.',
+    )
+    return
+  }
+  const bucket = usageEffectiveBucket.value
+  const seq = ++managedUsageRequestSeq
+  managedUsageInFlight.value = true
+  if (options.manual) usageManualRefreshRunning.value = true
+
+  const timeoutId = window.setTimeout(() => {
+    // 超时后作废本请求序号，避免迟到响应覆盖新筛选结果；并解除 inFlight 卡死
+    if (seq !== managedUsageRequestSeq) return
+    managedUsageRequestSeq += 1
+    managedUsageInFlight.value = false
+    if (options.manual) usageManualRefreshRunning.value = false
+    managedUsageLoadError.value = tr(
+      '用量查询超时（可能数据量过大）。请缩小时间范围后重试。',
+      'Usage query timed out (dataset may be large). Narrow the range and retry.',
+    )
+    if (managedUsageNeedsReload && !append) {
+      managedUsageNeedsReload = false
+      void loadManagedUsageLive({ reset: true })
+    }
+  }, MANAGED_USAGE_TIMEOUT_MS)
+
+  try {
+    const result = await queryManagedUsage({
+      appType,
+      providerIds,
+      // 不再叠 providerName：避免与 providerIds 冲突导致空结果
+      providerName: null,
+      startAt: range.startAt ?? null,
+      endAt: range.endAt ?? null,
+      bucket,
+      cursor: append ? managedUsageNextCursor.value : null,
+      limit: usageRequestLogPageSize,
+    })
+    if (seq !== managedUsageRequestSeq) return
+
+    if (append) {
+      const seen = new Set(managedUsageRequestLogs.value.map((log) => log.id))
+      const merged = [...managedUsageRequestLogs.value]
+      for (const log of result.requestLogs || []) {
+        if (log.id && seen.has(log.id)) continue
+        if (log.id) seen.add(log.id)
+        merged.push(log)
+      }
+      managedUsageRequestLogs.value = merged
+    } else {
+      managedUsageLive.value = {
+        ...result,
+        modelStats: Array.isArray(result.modelStats) ? result.modelStats : [],
+        providerStats: Array.isArray(result.providerStats) ? result.providerStats : [],
+        trends: Array.isArray(result.trends) ? result.trends : [],
+        channels: Array.isArray(result.channels) ? result.channels : [],
+        requestLogs: Array.isArray(result.requestLogs) ? result.requestLogs : [],
+      }
+      managedUsageRequestLogs.value = managedUsageLive.value.requestLogs
+      managedUsageUpdatedAt.value = result.updatedAt || new Date().toISOString()
+    }
+
+    managedUsageNextCursor.value = result.nextCursor ?? null
+    managedUsageHasMore.value = Boolean(result.hasMore)
+    managedUsageTotal.value = typeof result.total === 'number' ? result.total : managedUsageTotal.value
+    managedUsageLoadError.value = ''
+  } catch (error) {
+    if (seq !== managedUsageRequestSeq) return
+    managedUsageLoadError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    window.clearTimeout(timeoutId)
+    if (seq === managedUsageRequestSeq) {
+      managedUsageInFlight.value = false
+      if (options.manual) usageManualRefreshRunning.value = false
+      if (managedUsageNeedsReload && !append) {
+        managedUsageNeedsReload = false
+        void loadManagedUsageLive({ reset: true })
+      }
+    }
+  }
+}
+
+function stopManagedUsagePolling() {
+  if (managedUsagePollTimer) {
+    window.clearInterval(managedUsagePollTimer)
+    managedUsagePollTimer = null
+  }
+}
+
+function startManagedUsagePolling() {
+  stopManagedUsagePolling()
+  if (!("__TAURI_INTERNALS__" in window)) return
+  if (appSection.value !== 'usage') return
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  // 60s 盲轮询仅作兜底；主路径靠 usage-log-recorded 事件 invalidate
+  managedUsagePollTimer = window.setInterval(() => {
+    if (appSection.value !== 'usage') {
+      stopManagedUsagePolling()
+      return
+    }
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+    if (managedUsageInFlight.value) return
+    void loadManagedUsageLive({ reset: true })
+  }, MANAGED_USAGE_POLL_MS)
+}
+
+async function setupManagedUsageEventListeners() {
+  if (!("__TAURI_INTERNALS__" in window)) return
+  if (!unlistenUsageLogRecorded) {
+    try {
+      unlistenUsageLogRecorded = await listen('usage-log-recorded', () => {
+        if (appSection.value !== 'usage' && appSection.value !== 'providers') return
+        if (managedUsageInFlight.value) {
+          managedUsageNeedsReload = true
+          return
+        }
+        void loadManagedUsageLive({ reset: true })
+      })
+    } catch {
+      // 非桌面壳忽略
+    }
+  }
+  if (!unlistenModelPricingUpdated) {
+    try {
+      unlistenModelPricingUpdated = await listen('model-pricing-updated', () => {
+        if (appSection.value !== 'usage' && appSection.value !== 'providers') return
+        void loadManagedUsageLive({ reset: true })
+      })
+    } catch {
+      // 非桌面壳忽略
+    }
+  }
+}
+
+function teardownManagedUsageEventListeners() {
+  unlistenUsageLogRecorded?.()
+  unlistenUsageLogRecorded = null
+  unlistenModelPricingUpdated?.()
+  unlistenModelPricingUpdated = null
+}
+
+function providerProfileKey(provider: Pick<ProviderProfile, 'providerKind' | 'profileName' | 'configPath' | 'identityKey'>) {
+  const identity = (provider.identityKey || '').trim().toLowerCase()
+  if (identity) return `idk::${identity}`
   return [
     provider.providerKind,
     provider.profileName.trim().toLowerCase() || 'default',
@@ -8320,7 +10981,9 @@ function providerProfileKey(provider: Pick<ProviderProfile, 'providerKind' | 'pr
   ].join('::')
 }
 
-function detectedProviderProfileKey(provider: Pick<DetectedProviderProfile, 'providerKind' | 'profileName' | 'configPath'>) {
+function detectedProviderProfileKey(provider: Pick<DetectedProviderProfile, 'providerKind' | 'profileName' | 'configPath' | 'identityKey'>) {
+  const identity = (provider.identityKey || '').trim().toLowerCase()
+  if (identity) return `idk::${identity}`
   return [
     provider.providerKind,
     provider.profileName.trim().toLowerCase() || 'default',
@@ -8328,8 +10991,242 @@ function detectedProviderProfileKey(provider: Pick<DetectedProviderProfile, 'pro
   ].join('::')
 }
 
-function createProviderProfileFromDetection(workspaceId: string, detected: DetectedProviderProfile, shouldBecomeDefault: boolean) {
+function normalizeProviderPayload(payload?: string | null) {
+  return (payload ?? '').replace(/\r\n/g, '\n').trim()
+}
+
+function escapeTomlString(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+function extractTomlStringField(raw: string, field: string) {
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const equalIndex = trimmed.indexOf('=')
+    if (equalIndex < 0) continue
+    const key = trimmed.slice(0, equalIndex).trim()
+    if (key !== field) continue
+    return trimmed.slice(equalIndex + 1).trim().replace(/^['"]|['"]$/g, '')
+  }
+  return ''
+}
+
+function extractTomlSection(raw: string, sectionName: string) {
+  const header = `[${sectionName}]`
+  const lines = raw.split(/\r?\n/)
+  let active = false
+  const section: string[] = []
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      if (active) break
+      active = trimmed === header
+      continue
+    }
+    if (active) section.push(line)
+  }
+  return section.join('\n')
+}
+
+function replaceTopLevelTomlField(raw: string, keyName: string, valueText: string) {
+  const lines = raw.split(/\r?\n/)
+  let replaced = false
+  const nextLines = lines.map((line) => {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) return line
+    const equalIndex = trimmed.indexOf('=')
+    if (equalIndex < 0) return line
+    const key = trimmed.slice(0, equalIndex).trim()
+    if (key !== keyName) return line
+    replaced = true
+    return `${keyName} = "${escapeTomlString(valueText)}"`
+  })
+  if (!replaced) nextLines.unshift(`${keyName} = "${escapeTomlString(valueText)}"`)
+  return nextLines.join('\n')
+}
+
+function upsertTomlSectionField(raw: string, sectionName: string, fieldName: string, valueText: string) {
+  const lines = raw.split(/\r?\n/)
+  const header = `[${sectionName}]`
+  let sectionStart = -1
+  let sectionEnd = lines.length
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index].trim()
+    if (!(trimmed.startsWith('[') && trimmed.endsWith(']'))) continue
+    if (trimmed === header) {
+      sectionStart = index
+      continue
+    }
+    if (sectionStart >= 0) {
+      sectionEnd = index
+      break
+    }
+  }
+
+  if (sectionStart < 0) {
+    const suffix = raw.trim() ? '\n\n' : ''
+    return `${raw.trimEnd()}${suffix}${header}\n${fieldName} = "${escapeTomlString(valueText)}"\n`
+  }
+
+  let replaced = false
+  const sectionLines = lines.slice(sectionStart + 1, sectionEnd).map((line) => {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) return line
+    const equalIndex = trimmed.indexOf('=')
+    if (equalIndex < 0) return line
+    const key = trimmed.slice(0, equalIndex).trim()
+    if (key !== fieldName) return line
+    replaced = true
+    return `${fieldName} = "${escapeTomlString(valueText)}"`
+  })
+  if (!replaced) sectionLines.unshift(`${fieldName} = "${escapeTomlString(valueText)}"`)
+  return [
+    ...lines.slice(0, sectionStart + 1),
+    ...sectionLines,
+    ...lines.slice(sectionEnd),
+  ].join('\n')
+}
+
+function baseUrlOrigin(baseUrl: string) {
+  try {
+    return new URL(baseUrl).origin
+  } catch {
+    return ''
+  }
+}
+
+function extractCodexBaseUrlFromPayload(payload?: string | null) {
+  const raw = normalizeProviderPayload(payload)
+  if (!raw) return ''
+  const activeProvider = extractTomlStringField(raw, 'model_provider')
+  if (activeProvider) {
+    const sectionBaseUrl = extractTomlStringField(extractTomlSection(raw, `model_providers.${activeProvider}`), 'base_url')
+    if (sectionBaseUrl) return sectionBaseUrl
+  }
+  return extractTomlStringField(raw, 'base_url')
+}
+
+function buildCodexPayloadFromForm() {
+  const profileName = providerForm.profileName.trim() || 'default'
+  const providerName = providerForm.name.trim() || profileName
+  const model = providerForm.defaultModel.trim() || 'gpt-5'
+  const requestBaseUrl = providerForm.requestBaseUrl.trim()
+  let payload = normalizeProviderPayload(providerForm.configPayload)
+
+  if (!payload) {
+    const lines = [
+      `model_provider = "${escapeTomlString(profileName)}"`,
+      `model = "${escapeTomlString(model)}"`,
+      '',
+      `[model_providers.${profileName}]`,
+      `name = "${escapeTomlString(providerName)}"`,
+    ]
+    if (requestBaseUrl) {
+      lines.push(`base_url = "${escapeTomlString(requestBaseUrl)}"`)
+      lines.push('wire_api = "responses"')
+    }
+    return lines.join('\n')
+  }
+
+  payload = replaceTopLevelTomlField(payload, 'model_provider', profileName)
+  payload = replaceTopLevelTomlField(payload, 'model', model)
+  payload = upsertTomlSectionField(payload, `model_providers.${profileName}`, 'name', providerName)
+  if (requestBaseUrl) {
+    payload = upsertTomlSectionField(payload, `model_providers.${profileName}`, 'base_url', requestBaseUrl)
+    payload = upsertTomlSectionField(payload, `model_providers.${profileName}`, 'wire_api', 'responses')
+  }
+  return payload
+}
+
+function parseEnvPayload(payload?: string | null) {
+  const raw = normalizeProviderPayload(payload)
+  const lines = raw ? raw.split('\n') : []
+  const pairs = new Map<string, string>()
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const equalIndex = trimmed.indexOf('=')
+    if (equalIndex < 0) continue
+    const key = trimmed.slice(0, equalIndex).trim()
+    const value = trimmed.slice(equalIndex + 1).trim().replace(/^['"]|['"]$/g, '')
+    if (key) pairs.set(key, value)
+  }
+  return pairs
+}
+
+function serializeEnvPayload(map: Map<string, string>) {
+  return Array.from(map.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n')
+}
+
+function buildGeminiAuthPayloadFromForm() {
+  const env = parseEnvPayload(providerForm.authPayload)
+  const requestBaseUrl = providerForm.requestBaseUrl.trim()
+  if (requestBaseUrl) {
+    env.set('GOOGLE_GEMINI_BASE_URL', requestBaseUrl)
+  }
+  return serializeEnvPayload(env)
+}
+
+function buildGeminiSettingsPayloadFromForm(authPayload: string) {
+  const raw = normalizeProviderPayload(providerForm.configPayload)
+  let parsed: Record<string, any> = {}
+  if (raw) {
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      parsed = {}
+    }
+  }
+  if (!parsed.security || typeof parsed.security !== 'object') parsed.security = {}
+  if (!parsed.security.auth || typeof parsed.security.auth !== 'object') parsed.security.auth = {}
+  parsed.security.auth.selectedType = authPayload.trim() ? 'gemini-api-key' : 'oauth-personal'
+  return JSON.stringify(parsed, null, 2)
+}
+
+function providerPayloadMatchesDetection(
+  provider: Pick<ProviderProfile, 'providerKind' | 'configPayload' | 'authPayload'>,
+  detected: Pick<DetectedProviderProfile, 'providerKind' | 'configPayload' | 'authPayload'>,
+) {
+  if (provider.providerKind !== detected.providerKind) return false
+  const providerConfig = normalizeProviderPayload(provider.configPayload)
+  const detectedConfig = normalizeProviderPayload(detected.configPayload)
+  if (!providerConfig || !detectedConfig || providerConfig !== detectedConfig) return false
+  const providerAuth = normalizeProviderPayload(provider.authPayload)
+  const detectedAuth = normalizeProviderPayload(detected.authPayload)
+  return providerAuth === detectedAuth
+}
+
+function findExistingProviderIndexByDetection(providers: ProviderProfile[], detected: DetectedProviderProfile) {
+  const detectedKey = (detected.identityKey || '').trim()
+  if (detectedKey) {
+    const byIdentity = providers.findIndex((provider) => (provider.identityKey || '').trim() === detectedKey)
+    if (byIdentity >= 0) return byIdentity
+  }
+  const payloadMatchIndex = providers.findIndex((provider) => providerPayloadMatchesDetection(provider, detected))
+  if (payloadMatchIndex >= 0) return payloadMatchIndex
+  return providers.findIndex((provider) => providerProfileKey(provider) === detectedProviderProfileKey(detected))
+}
+
+function findDetectedProfileForStoredProfile(
+  detectedProfiles: DetectedProviderProfile[],
+  profile: ProviderProfile,
+) {
+  const profileKey = (profile.identityKey || '').trim()
+  if (profileKey) {
+    const byIdentity = detectedProfiles.find((detected) => (detected.identityKey || '').trim() === profileKey)
+    if (byIdentity) return byIdentity
+  }
+  return detectedProfiles.find((detected) => providerPayloadMatchesDetection(profile, detected))
+    ?? detectedProfiles.find((detected) => detectedProviderProfileKey(detected) === providerProfileKey(profile))
+}
+
+function createProviderProfileFromDetection(workspaceId: string, detected: DetectedProviderProfile) {
+  // Frontend Contract: 绝不因“列表第一个/空列表”隐式 active；只信后端 isActive
   const canActivate = detected.status !== 'missing' && detected.status !== 'disabled'
+  const isActive = canActivate && Boolean(detected.isActive)
   return createProviderProfileRecord({
     workspaceId,
     name: detected.name,
@@ -8339,17 +11236,19 @@ function createProviderProfileFromDetection(workspaceId: string, detected: Detec
     configScope: detected.configScope,
     managedBy: detected.managedBy,
     authSource: detected.authSource,
-    switchCommand: detected.switchCommand || providerFallbackSwitchCommand({
-      providerKind: detected.providerKind,
-      profileName: detected.profileName || 'default',
-    }),
+    switchCommand: detected.switchCommand || '',
     defaultModel: detected.defaultModel,
     toolTargets: detected.toolTargets.length ? detected.toolTargets : parseProviderToolTargets(defaultProviderTargetsText(detected.providerKind)),
-    status: detected.status,
+    status: isActive ? 'active' : (detected.status === 'active' ? 'available' : detected.status),
+    identityKey: detected.identityKey || null,
     color: detected.color || providerKindColor(detected.providerKind),
     note: detected.note,
-    isDefault: (shouldBecomeDefault || detected.isActive) && canActivate,
-    isActive: (shouldBecomeDefault || detected.isActive) && canActivate,
+    homepageUrl: detected.homepageUrl ?? (detected.providerKind === 'codex' ? baseUrlOrigin(extractCodexBaseUrlFromPayload(detected.configPayload)) || null : null),
+    requestBaseUrl: detected.requestBaseUrl ?? (detected.providerKind === 'codex' ? extractCodexBaseUrlFromPayload(detected.configPayload) || null : null),
+    configPayload: detected.configPayload ?? null,
+    authPayload: detected.authPayload ?? null,
+    isDefault: false,
+    isActive,
   })
 }
 
@@ -8402,14 +11301,29 @@ function normalizeActiveProviderProfiles(profiles: ProviderProfile[]): ProviderP
   })
 }
 
-function providerCanBeActivated(provider: Pick<ProviderProfile, 'status'>) {
-  return provider.status !== 'missing' && provider.status !== 'disabled'
+function providerSupportsBuiltinActivation(kind: ProviderProfile['providerKind']) {
+  return kind === 'codex' || kind === 'gemini-cli' || kind === 'claude-code' || kind === 'hermes'
+}
+
+function providerCanBeActivated(provider: Pick<ProviderProfile, 'providerKind' | 'status' | 'switchCommand' | 'configPayload'>) {
+  if (provider.status === 'missing' || provider.status === 'disabled') return false
+  if (providerSupportsBuiltinActivation(provider.providerKind)) {
+    return Boolean(normalizeProviderPayload(provider.configPayload))
+  }
+  return Boolean(provider.switchCommand.trim())
+}
+
+function providerActivationLabel(provider: Pick<ProviderProfile, 'providerKind' | 'status' | 'switchCommand' | 'configPayload'>) {
+  if (provider.status === 'missing' || provider.status === 'disabled') return t('provider.configMissing')
+  if (providerCanBeActivated(provider)) return t('provider.activateCurrent')
+  return tr('写回未接通', 'Writeback unavailable')
 }
 
 function providerKindToAppType(kind: ProviderProfile['providerKind']): ProviderRequestLog['appType'] {
   if (kind === 'claude-code') return 'claude'
   if (kind === 'gemini-cli') return 'gemini'
   if (kind === 'opencode') return 'opencode'
+  if (kind === 'hermes') return 'hermes'
   return 'codex'
 }
 
@@ -8418,6 +11332,7 @@ function providerDefaultModel(provider: Pick<ProviderProfile, 'providerKind' | '
   if (provider.providerKind === 'claude-code') return 'claude-sonnet-4'
   if (provider.providerKind === 'gemini-cli') return 'gemini-2.5-pro'
   if (provider.providerKind === 'opencode') return 'provider/default'
+  if (provider.providerKind === 'hermes') return 'anthropic/claude-opus-4-8'
   return 'gpt-5'
 }
 
@@ -8521,10 +11436,12 @@ function createEmptyProviderUsageStatsForProfile(providerProfileId: string): Pro
   }
 }
 
-function snapshotName(workspaceName = '工作区') {
+function snapshotName(workspaceName = tr('工作区', 'Workspace')) {
   const date = new Date()
   const pad = (value: number) => String(value).padStart(2, '0')
-  return `${workspaceName} · 现场 ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return currentLocale.value === 'zh-CN'
+    ? `${workspaceName} · 现场 ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+    : `${workspaceName} · Snapshot ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function saveCurrentWorkspaceSnapshot() {
@@ -8550,25 +11467,31 @@ function saveCurrentWorkspaceSnapshot() {
     updatedAt: now,
   }))
 
-  showToast('现场已保存', `${snapshot.name} · ${workspace.tabs.length} 个项目 · ${totalWorkspaceSessions(workspace)} 个终端`)
+  showToast(
+    tr('现场已保存', 'Snapshot saved'),
+    tr(
+      `${snapshot.name} · ${workspace.tabs.length} 个项目 · ${totalWorkspaceSessions(workspace)} 个终端`,
+      `${snapshot.name} · ${workspace.tabs.length} projects · ${totalWorkspaceSessions(workspace)} terminals`,
+    ),
+  )
 }
 
 function restoreDefaultWorkspaceSnapshot() {
   const snapshot = defaultWorkspaceSnapshot.value
   if (!snapshot) {
-    showToast('暂无现场快照', '请先保存一次当前工作现场。')
+    showToast(tr('暂无现场快照', 'No snapshot available'), tr('请先保存一次当前工作现场。', 'Save the current workspace once before restoring a snapshot.'))
     return
   }
 
   requestConfirm({
-    title: `恢复现场「${snapshot.name}」`,
-    description: '将恢复该快照中的项目、Pane 分栏、终端标签与焦点信息，不会自动执行任何命令。',
-    confirmLabel: '恢复现场',
+    title: tr(`恢复现场「${snapshot.name}」`, `Restore snapshot "${snapshot.name}"`),
+    description: tr('将恢复该快照中的项目、Pane 分栏、终端标签与焦点信息，不会自动执行任何命令。', 'Restore the projects, pane layout, terminal tabs, and focus captured in this snapshot without running any commands automatically.'),
+    confirmLabel: tr('恢复现场', 'Restore snapshot'),
     variant: 'primary',
     details: [
-      `工作区：${selectedWorkspace.value?.name || snapshot.workspaceId}`,
-      `项目数：${snapshot.tabsState.length}`,
-      `终端数：${snapshot.tabsState.reduce((count, tab) => count + countPaneSessions(tab.panes), 0)}`,
+      tr(`工作区：${selectedWorkspace.value?.name || snapshot.workspaceId}`, `Workspace: ${selectedWorkspace.value?.name || snapshot.workspaceId}`),
+      tr(`项目数：${snapshot.tabsState.length}`, `Projects: ${snapshot.tabsState.length}`),
+      tr(`终端数：${snapshot.tabsState.reduce((count, tab) => count + countPaneSessions(tab.panes), 0)}`, `Terminals: ${snapshot.tabsState.reduce((count, tab) => count + countPaneSessions(tab.panes), 0)}`),
     ],
     action: () => restoreWorkspaceSnapshot(snapshot.id),
   })
@@ -8578,26 +11501,26 @@ function restoreActiveTabFromDefaultSnapshot() {
   if (!activeRuntimeTab.value) return
   const snapshot = defaultWorkspaceSnapshot.value
   if (!snapshot) {
-    showToast('暂无现场快照', '请先保存一次当前工作现场。')
+    showToast(tr('暂无现场快照', 'No snapshot available'), tr('请先保存一次当前工作现场。', 'Save the current workspace once before restoring a snapshot.'))
     return
   }
 
   const snapshotTab = snapshot.tabsState.find((tab) => tab.id === activeRuntimeTab.value?.id)
   if (!snapshotTab) {
-    showToast('无法恢复当前项目', '最近现场中没有找到同名项目。')
+    showToast(tr('无法恢复当前项目', 'Cannot restore current project'), tr('最近现场中没有找到同名项目。', 'No project with the same name was found in the latest snapshot.'))
     return
   }
 
   requestConfirm({
-    title: `恢复项目「${snapshotTab.name}」`,
-    description: '只恢复当前项目的 Pane 分栏和终端标签，不影响同工作区内其他项目。',
-    confirmLabel: '恢复项目',
+    title: tr(`恢复项目「${snapshotTab.name}」`, `Restore project "${snapshotTab.name}"`),
+    description: tr('只恢复当前项目的 Pane 分栏和终端标签，不影响同工作区内其他项目。', 'Restore only the pane layout and terminal tabs for this project without affecting other projects in the workspace.'),
+    confirmLabel: tr('恢复项目', 'Restore project'),
     variant: 'primary',
     details: [
-      `工作区：${selectedWorkspace.value?.name || snapshot.workspaceId}`,
-      `项目：${snapshotTab.name}`,
-      `Pane 数：${countLeafPanes(snapshotTab.panes)}`,
-      `终端数：${countPaneSessions(snapshotTab.panes)}`,
+      tr(`工作区：${selectedWorkspace.value?.name || snapshot.workspaceId}`, `Workspace: ${selectedWorkspace.value?.name || snapshot.workspaceId}`),
+      tr(`项目：${snapshotTab.name}`, `Project: ${snapshotTab.name}`),
+      tr(`Pane 数：${countLeafPanes(snapshotTab.panes)}`, `Panes: ${countLeafPanes(snapshotTab.panes)}`),
+      tr(`终端数：${countPaneSessions(snapshotTab.panes)}`, `Terminals: ${countPaneSessions(snapshotTab.panes)}`),
     ],
     action: () => restoreTabSnapshot(snapshot.id, snapshotTab.id),
   })
@@ -8636,8 +11559,8 @@ function restoreWorkspaceSnapshot(snapshotId: string) {
     [workspace.id]: focus,
   }
   destroySessionsMissingAfterRestore(previousTabs, nextTabs)
-  showToast('现场已恢复', `${snapshot.name} · 已恢复整个工作区布局`)
-  void applyCommandRestoreStrategy('工作区现场', { silentNoop: true })
+  showToast(tr('现场已恢复', 'Snapshot restored'), tr(`${snapshot.name} · 已恢复整个工作区布局`, `${snapshot.name} · Full workspace layout restored`))
+  void applyCommandRestoreStrategy(tr('工作区现场', 'Workspace snapshot'), { silentNoop: true })
 }
 
 function restoreTabSnapshot(snapshotId: string, tabId: string) {
@@ -8685,8 +11608,8 @@ function restoreTabSnapshot(snapshotId: string, tabId: string) {
     [workspace.id]: focus,
   }
   destroySessionsMissingAfterRestore(previousTabs, nextTabs)
-  showToast('项目布局已恢复', `已恢复：${snapshotTab.name}`)
-  void applyCommandRestoreStrategy('当前项目', { silentNoop: true })
+  showToast(tr('项目布局已恢复', 'Project layout restored'), tr(`已恢复：${snapshotTab.name}`, `Restored: ${snapshotTab.name}`))
+  void applyCommandRestoreStrategy(tr('当前项目', 'Current project'), { silentNoop: true })
 }
 
 function cloneSnapshotTabs(tabs: WorkspaceTab[], workspaceId: string, updatedAt: string) {
@@ -8790,6 +11713,8 @@ function destroySessionsMissingAfterRestore(previousTabs: WorkspaceTab[], nextTa
     .flatMap((tab) => collectSessionIdsFromPanes(tab.panes))
     .filter((sessionId) => !nextSessionIds.has(sessionId))
     .forEach((sessionId) => {
+      clearRuntimeSessionOverlay(sessionId)
+      sessionOutputTailBySession.delete(sessionId)
       void destroyTerminalRuntime(sessionId).catch(() => undefined)
     })
 }
@@ -8854,7 +11779,7 @@ async function applyCommandRestoreStrategy(scopeLabel: string, options: { silent
 
   if (!targets.length) {
     if (!options.silentNoop) {
-      showToast('恢复命令未触发', '当前可见项目中没有符合启动策略的默认命令。')
+      showToast(tr('恢复命令未触发', 'No restore command triggered'), tr('当前可见项目中没有符合启动策略的默认命令。', 'No default commands matching the restore strategy were found in the currently visible projects.'))
     }
     return
   }
@@ -8879,14 +11804,16 @@ async function applyCommandRestoreStrategy(scopeLabel: string, options: { silent
 
   if (successCount) {
     showToast(
-      strategy === 'execute' ? '恢复命令已处理' : '恢复命令已预填',
-      `${scopeLabel}：成功 ${successCount} 个${failedCount ? `，失败 ${failedCount} 个` : ''}`,
+      strategy === 'execute' ? tr('恢复命令已处理', 'Restore commands processed') : tr('恢复命令已预填', 'Restore commands prefilled'),
+      currentLocale.value === 'zh-CN'
+        ? `${scopeLabel}：成功 ${successCount} 个${failedCount ? `，失败 ${failedCount} 个` : ''}`
+        : `${scopeLabel}: ${successCount} succeeded${failedCount ? `, ${failedCount} failed` : ''}`,
     )
     return
   }
 
   if (failedCount) {
-    showToast('恢复命令失败', '终端尚未准备完成，稍后可用闪电入口手动插入。')
+    showToast(tr('恢复命令失败', 'Restore commands failed'), tr('终端尚未准备完成，稍后可用闪电入口手动插入。', 'The terminal is not ready yet. Use the lightning action later to insert commands manually.'))
   }
 }
 
@@ -8966,7 +11893,7 @@ function createPaneWithLayout(layoutMode: TabLayoutMode) {
   activeRuntimePaneId.value = nextPane.id
   setRuntimeActiveSessionId(nextPane.id, nextSessionId)
   workspaceView.value = 'runtime'
-  showToast('已新增分屏 Pane', `当前标签页新增：${nextPane.name}`)
+  showToast(tr('已新增分屏 Pane', 'Split pane added'), tr(`当前标签页新增：${nextPane.name}`, `Added to current tab: ${nextPane.name}`))
 }
 
 function duplicatePane(paneId: string) {
@@ -8990,7 +11917,7 @@ function createPaneSession(paneId: string) {
       activeRuntimeTabId.value = existing.tabId
       activeRuntimePaneId.value = existing.paneId
       activatePaneSession(existing.paneId, existing.sessionId)
-      showToast('已切换到现有终端', `当前配置已定位：${boundEntry.name}`)
+      showToast(tr('已切换到现有终端', 'Switched to existing terminal'), tr(`当前配置已定位：${boundEntry.name}`, `Current config located: ${boundEntry.name}`))
       return
     }
   }
@@ -9030,7 +11957,7 @@ function createPaneSession(paneId: string) {
 
   activeRuntimePaneId.value = paneId
   setRuntimeActiveSessionId(paneId, nextSession.id)
-  showToast('终端已新增', `已在当前分组中新建：${nextSession.name}`)
+  showToast(tr('终端已新增', 'Terminal added'), tr(`已在当前分组中新建：${nextSession.name}`, `Created in current group: ${nextSession.name}`))
 }
 
 function removePaneSession(paneId: string, sessionId: string) {
@@ -9044,9 +11971,9 @@ function removePaneSession(paneId: string, sessionId: string) {
   if (!targetSession) return
 
   requestConfirm({
-    title: `关闭终端「${targetSession.name}」`,
-    description: '关闭后将结束当前终端会话，Pane 分组会保留。',
-    confirmLabel: '确认关闭',
+    title: tr(`关闭终端「${targetSession.name}」`, `Close terminal "${targetSession.name}"`),
+    description: tr('关闭后将结束当前终端会话，Pane 分组会保留。', 'Closing it will end the current terminal session while keeping the pane group.'),
+    confirmLabel: tr('确认关闭', 'Close terminal'),
     action: () => {
       const now = new Date().toISOString()
       const shouldRemovePane = sessions.length <= 1
@@ -9107,8 +12034,9 @@ function removePaneSession(paneId: string, sessionId: string) {
         setRuntimeActiveSessionId(paneId, remainingSessionIds[0] ?? null)
       }
 
+      clearRuntimeSessionOverlay(sessionId)
       void destroyTerminalRuntime(sessionId).catch(() => undefined)
-      showToast('终端已关闭', `已关闭：${targetSession.name}`)
+      showToast(tr('终端已关闭', 'Terminal closed'), tr(`已关闭：${targetSession.name}`, `Closed: ${targetSession.name}`))
     },
   })
 }
@@ -9119,6 +12047,7 @@ function reloadPaneSession(paneId: string, sessionId: string) {
 
   setRuntimeActiveSessionId(paneId, sessionId)
   activeRuntimePaneId.value = paneId
+  clearRuntimeSessionOverlay(sessionId)
   sessionOutputTailBySession.delete(sessionId)
   sessionAttentionNotificationState.delete(sessionId)
   clearSessionAttention(sessionId, { silent: true })
@@ -9130,7 +12059,7 @@ function reloadPaneSession(paneId: string, sessionId: string) {
 
   void destroyTerminalRuntime(sessionId)
     .catch(() => undefined)
-    .finally(() => showToast('终端已重新加载', located.session.name))
+    .finally(() => showToast(tr('终端已重新加载', 'Terminal reloaded'), located.session.name))
 }
 
 const runtimeTabMenuItems = computed<PopoverItem[]>(() => {
@@ -9141,9 +12070,9 @@ const runtimeTabMenuItems = computed<PopoverItem[]>(() => {
 
   return [
     {
-      label: '保存工作现场',
+      label: tr('保存工作现场', 'Save workspace snapshot'),
       icon: 'copy',
-      description: '保存当前工作区的 Tab、Pane、终端标签与焦点。',
+      description: tr('保存当前工作区的 Tab、Pane、终端标签与焦点。', 'Save the current workspace tabs, panes, terminal tabs, and focus state.'),
       onClick: () => {
         activeRuntimeTabMenuId.value = null
         activeRuntimeTabMenuPosition.value = null
@@ -9151,9 +12080,9 @@ const runtimeTabMenuItems = computed<PopoverItem[]>(() => {
       },
     },
     {
-      label: '恢复当前项目布局',
+      label: tr('恢复当前项目布局', 'Restore current project layout'),
       icon: 'refresh',
-      description: defaultWorkspaceSnapshot.value ? `从最近现场恢复：${defaultWorkspaceSnapshot.value.name}` : '暂无可恢复的现场快照。',
+      description: defaultWorkspaceSnapshot.value ? tr(`从最近现场恢复：${defaultWorkspaceSnapshot.value.name}`, `Restore from latest snapshot: ${defaultWorkspaceSnapshot.value.name}`) : tr('暂无可恢复的现场快照。', 'No snapshot is available to restore.'),
       onClick: () => {
         activeRuntimeTabMenuId.value = null
         activeRuntimeTabMenuPosition.value = null
@@ -9161,9 +12090,9 @@ const runtimeTabMenuItems = computed<PopoverItem[]>(() => {
       },
     },
     {
-      label: '重命名项目',
+      label: tr('重命名项目', 'Rename project'),
       icon: 'edit',
-      description: '修改当前项目名称。',
+      description: tr('修改当前项目名称。', 'Rename the current project.'),
       onClick: () => {
         openTabRenameModal(tab.id)
         activeRuntimeTabMenuId.value = null
@@ -9171,9 +12100,9 @@ const runtimeTabMenuItems = computed<PopoverItem[]>(() => {
       },
     },
     {
-      label: '删除项目',
+      label: tr('删除项目', 'Delete project'),
       icon: 'trash',
-      description: '删除当前项目及其下所有 Pane。',
+      description: tr('删除当前项目及其下所有 Pane。', 'Delete the current project and every pane inside it.'),
       danger: true,
       onClick: () => {
         activeRuntimeTabMenuId.value = null
@@ -9193,9 +12122,9 @@ const explorerProjectMenuItems = computed<PopoverItem[]>(() => {
 
   return [
     {
-      label: '保存工作现场',
+      label: tr('保存工作现场', 'Save workspace snapshot'),
       icon: 'copy',
-      description: '保存当前工作区的完整布局快照。',
+      description: tr('保存当前工作区的完整布局快照。', 'Save a full layout snapshot for the current workspace.'),
       onClick: () => {
         activeExplorerProjectMenuId.value = null
         activeExplorerProjectWorkspaceId.value = null
@@ -9207,9 +12136,9 @@ const explorerProjectMenuItems = computed<PopoverItem[]>(() => {
       },
     },
     {
-      label: '恢复该项目布局',
+      label: tr('恢复该项目布局', 'Restore this project layout'),
       icon: 'refresh',
-      description: (workspace.snapshots ?? []).length ? '从最近现场恢复这个项目。' : '暂无可恢复的现场快照。',
+      description: (workspace.snapshots ?? []).length ? tr('从最近现场恢复这个项目。', 'Restore this project from the latest snapshot.') : tr('暂无可恢复的现场快照。', 'No snapshot is available to restore.'),
       onClick: () => {
         activeExplorerProjectMenuId.value = null
         activeExplorerProjectWorkspaceId.value = null
@@ -9222,9 +12151,9 @@ const explorerProjectMenuItems = computed<PopoverItem[]>(() => {
       },
     },
     {
-      label: '重命名项目',
+      label: tr('重命名项目', 'Rename project'),
       icon: 'edit',
-      description: '修改当前项目名称。',
+      description: tr('修改当前项目名称。', 'Rename the current project.'),
       onClick: () => {
         openExplorerTabRename(workspace.id, tab.id)
         activeExplorerProjectMenuId.value = null
@@ -9233,9 +12162,9 @@ const explorerProjectMenuItems = computed<PopoverItem[]>(() => {
       },
     },
     {
-      label: '删除项目',
+      label: tr('删除项目', 'Delete project'),
       icon: 'trash',
-      description: '删除当前项目及其下所有 Pane。',
+      description: tr('删除当前项目及其下所有 Pane。', 'Delete the current project and every pane inside it.'),
       danger: true,
       onClick: () => {
         activeExplorerProjectMenuId.value = null
@@ -9333,7 +12262,7 @@ function duplicatePaneWithLayout(paneId: string, layoutMode: TabLayoutMode) {
 
   activeRuntimePaneId.value = paneId
   setRuntimeActiveSessionId(paneId, nextSession.id)
-  showToast('终端标签已复制', `已在当前 Pane 内新增：${nextSession.name}`)
+  showToast(tr('终端标签已复制', 'Terminal tab duplicated'), tr(`已在当前 Pane 内新增：${nextSession.name}`, `Added in current pane: ${nextSession.name}`))
 }
 
 function removePane(paneId: string) {
@@ -9343,9 +12272,9 @@ function removePane(paneId: string) {
   if (!pane) return
 
   requestConfirm({
-    title: `删除 Pane「${pane.name}」`,
-    description: '删除后会移除当前 Pane 分组及其中的所有终端会话。',
-    confirmLabel: '确认删除',
+    title: tr(`删除 Pane「${pane.name}」`, `Delete pane "${pane.name}"`),
+    description: tr('删除后会移除当前 Pane 分组及其中的所有终端会话。', 'Deleting it will remove the current pane group and all terminal sessions inside it.'),
+    confirmLabel: tr('确认删除', 'Delete pane'),
     action: () => {
       const sessionsToClose = paneSessions(pane).map((session) => session.id)
       const now = new Date().toISOString()
@@ -9370,11 +12299,13 @@ function removePane(paneId: string) {
       })
 
       sessionsToClose.forEach((sessionId) => {
+        clearRuntimeSessionOverlay(sessionId)
+        sessionOutputTailBySession.delete(sessionId)
         void destroyTerminalRuntime(sessionId).catch(() => undefined)
       })
       setRuntimeActiveSessionId(paneId, null)
 
-      showToast('Pane 已删除', `已移除：${pane.name}`)
+      showToast(tr('Pane 已删除', 'Pane deleted'), tr(`已移除：${pane.name}`, `Removed: ${pane.name}`))
     },
   })
 }
@@ -9394,7 +12325,7 @@ function assignEntryToPane(paneId: string, entryId: string | null) {
       activeRuntimeTabId.value = existing.tabId
       activeRuntimePaneId.value = existing.paneId
       activatePaneSession(existing.paneId, existing.sessionId)
-      showToast('已切换到现有终端', `当前配置已定位：${targetEntry.name}`)
+      showToast(tr('已切换到现有终端', 'Switched to existing terminal'), tr(`当前配置已定位：${targetEntry.name}`, `Current config located: ${targetEntry.name}`))
       return
     }
   }
@@ -9435,22 +12366,22 @@ function assignEntryToPane(paneId: string, entryId: string | null) {
   activePaneBindingMenu.value = null
 
   if (targetEntry) {
-    showToast('Pane 已绑定配置', `当前 Pane 已绑定：${targetEntry.name}`)
+    showToast(tr('Pane 已绑定配置', 'Pane bound to config'), tr(`当前 Pane 已绑定：${targetEntry.name}`, `Current pane bound to: ${targetEntry.name}`))
     return
   }
 
-  showToast('Pane 已清空绑定', '当前 Pane 已恢复为独立空白终端。')
+  showToast(tr('Pane 已清空绑定', 'Pane binding cleared'), tr('当前 Pane 已恢复为独立空白终端。', 'The current pane is now an independent blank terminal again.'))
 }
 
 function openPaneDirectory(pane: PaneNode) {
   const path = terminalSessionWorkingDirectory(pane)
   void invoke('open_directory', { path })
     .then(() => {
-      showToast('目录已打开', path)
+      showToast(tr('目录已打开', 'Directory opened'), path)
     })
     .catch((error) => {
       const message = error instanceof Error ? error.message : String(error)
-      showToast('打开失败', message)
+      showToast(tr('打开失败', 'Open failed'), message)
     })
 }
 
@@ -9459,16 +12390,16 @@ async function copyPanePath(pane: PaneNode) {
 
   try {
     await navigator.clipboard.writeText(path)
-    showToast('路径已复制', path)
+    showToast(tr('路径已复制', 'Path copied'), path)
   } catch {
-    showToast('复制失败', '当前浏览器环境未允许写入剪贴板。')
+    showToast(tr('复制失败', 'Copy failed'), tr('当前浏览器环境未允许写入剪贴板。', 'Clipboard access is not allowed in the current browser environment.'))
   }
 }
 
 async function copyPaneCommand(pane: PaneNode, mode: 'default' | 'last') {
   const entry = entryById(pane.terminalEntryId)
   if (!entry) {
-    showToast('未绑定运行配置', '当前 Pane 还没有绑定运行配置，请先绑定一个运行配置。')
+    showToast(tr('未绑定运行配置', 'Run config not bound'), tr('当前 Pane 还没有绑定运行配置，请先绑定一个运行配置。', 'The current pane has no bound run config yet. Bind one first.'))
     return
   }
   const command = mode === 'default'
@@ -9476,22 +12407,22 @@ async function copyPaneCommand(pane: PaneNode, mode: 'default' | 'last') {
     : entry.lastCommand?.trim()
 
   if (!command) {
-    showToast('暂无命令', mode === 'default' ? '当前 Pane 未设置默认命令。' : '当前 Pane 还没有历史命令。')
+    showToast(tr('暂无命令', 'No command available'), mode === 'default' ? tr('当前 Pane 未设置默认命令。', 'No default command is set for the current pane.') : tr('当前 Pane 还没有历史命令。', 'The current pane has no command history yet.'))
     return
   }
 
   try {
     await navigator.clipboard.writeText(command)
-    showToast(mode === 'default' ? '默认命令已复制' : '最后命令已复制', command)
+    showToast(mode === 'default' ? tr('默认命令已复制', 'Default command copied') : tr('最后命令已复制', 'Last command copied'), command)
   } catch {
-    showToast('复制失败', '当前浏览器环境未允许写入剪贴板。')
+    showToast(tr('复制失败', 'Copy failed'), tr('当前浏览器环境未允许写入剪贴板。', 'Clipboard access is not allowed in the current browser environment.'))
   }
 }
 
 async function insertPaneCommand(pane: PaneNode, mode: 'default' | 'last') {
   const entry = entryById(pane.terminalEntryId)
   if (!entry) {
-    showToast('未绑定运行配置', '当前 Pane 还没有绑定运行配置，请先绑定一个运行配置。')
+    showToast(tr('未绑定运行配置', 'Run config not bound'), tr('当前 Pane 还没有绑定运行配置，请先绑定一个运行配置。', 'The current pane has no bound run config yet. Bind one first.'))
     return
   }
   const command = mode === 'default'
@@ -9499,13 +12430,13 @@ async function insertPaneCommand(pane: PaneNode, mode: 'default' | 'last') {
     : entry.lastCommand?.trim()
 
   if (!command) {
-    showToast('暂无命令', mode === 'default' ? '当前 Pane 未设置默认命令。' : '当前 Pane 还没有历史命令。')
+    showToast(tr('暂无命令', 'No command available'), mode === 'default' ? tr('当前 Pane 未设置默认命令。', 'No default command is set for the current pane.') : tr('当前 Pane 还没有历史命令。', 'The current pane has no command history yet.'))
     return
   }
 
   const sessionId = pane.activeSessionId ?? paneSessions(pane)[0]?.id
   if (!sessionId) {
-    showToast('终端未就绪', '当前 Pane 还没有可写入的终端会话。')
+    showToast(tr('终端未就绪', 'Terminal not ready'), tr('当前 Pane 还没有可写入的终端会话。', 'The current pane has no writable terminal session yet.'))
     return
   }
 
@@ -9515,9 +12446,9 @@ async function insertPaneCommand(pane: PaneNode, mode: 'default' | 'last') {
     if (!mounted) throw new Error('terminal_not_mounted')
     await ensureTerminalReady(sessionId)
     await writeTerminalText(sessionId, command)
-    showToast('命令已插入', command)
+    showToast(tr('命令已插入', 'Command inserted'), command)
   } catch {
-    showToast('插入失败', '当前终端尚未准备完成，稍后再试。')
+    showToast(tr('插入失败', 'Insert failed'), tr('当前终端尚未准备完成，稍后再试。', 'The current terminal is not ready yet. Try again later.'))
   }
 }
 
@@ -9527,7 +12458,7 @@ async function insertPaneText(pane: PaneNode, text: string) {
 
   const sessionId = pane.activeSessionId ?? paneSessions(pane)[0]?.id
   if (!sessionId) {
-    showToast('终端未就绪', '当前 Pane 还没有可写入的终端会话。')
+    showToast(tr('终端未就绪', 'Terminal not ready'), tr('当前 Pane 还没有可写入的终端会话。', 'The current pane has no writable terminal session yet.'))
     return
   }
 
@@ -9537,9 +12468,9 @@ async function insertPaneText(pane: PaneNode, text: string) {
     if (!mounted) throw new Error('terminal_not_mounted')
     await ensureTerminalReady(sessionId)
     await writeTerminalText(sessionId, command)
-    showToast('命令已插入', command)
+    showToast(tr('命令已插入', 'Command inserted'), command)
   } catch {
-    showToast('插入失败', '当前终端尚未准备完成，稍后再试。')
+    showToast(tr('插入失败', 'Insert failed'), tr('当前终端尚未准备完成，稍后再试。', 'The current terminal is not ready yet. Try again later.'))
   }
 }
 
@@ -9549,7 +12480,7 @@ async function executePaneText(pane: PaneNode, text: string) {
 
   const sessionId = pane.activeSessionId ?? paneSessions(pane)[0]?.id
   if (!sessionId) {
-    showToast('终端未就绪', '当前 Pane 还没有可执行的终端会话。')
+    showToast(tr('终端未就绪', 'Terminal not ready'), tr('当前 Pane 还没有可执行的终端会话。', 'The current pane has no executable terminal session yet.'))
     return
   }
 
@@ -9560,9 +12491,9 @@ async function executePaneText(pane: PaneNode, text: string) {
     await ensureTerminalReady(sessionId)
     await writeTerminalText(sessionId, `${command}\r`)
     recordSessionCommand(sessionId, command)
-    showToast('命令已执行', command)
+    showToast(tr('命令已执行', 'Command executed'), command)
   } catch {
-    showToast('执行失败', '当前终端尚未准备完成，稍后再试。')
+    showToast(tr('执行失败', 'Execution failed'), tr('当前终端尚未准备完成，稍后再试。', 'The current terminal is not ready yet. Try again later.'))
   }
 }
 
@@ -9572,9 +12503,9 @@ async function copyCommandText(command: string) {
 
   try {
     await navigator.clipboard.writeText(value)
-    showToast('命令已复制', value)
+    showToast(tr('命令已复制', 'Command copied'), value)
   } catch {
-    showToast('复制失败', '当前环境未允许写入剪贴板。')
+    showToast(tr('复制失败', 'Copy failed'), tr('当前环境未允许写入剪贴板。', 'Clipboard access is not allowed in the current environment.'))
   }
 }
 
@@ -9583,14 +12514,14 @@ async function insertCommandToActivePane(command: string) {
   if (!value) return
   if (!(appSection.value === 'workspace' && workspaceView.value === 'runtime')) {
     await copyCommandText(value)
-    showToast('已先复制命令', '请先进入运行态并选中一个终端，再回填到当前输入框。')
+    showToast(tr('已先复制命令', 'Command copied first'), tr('请先进入运行态并选中一个终端，再回填到当前输入框。', 'Enter runtime mode and select a terminal first, then insert the command into the current input.'))
     return
   }
   const pane = activeRuntimeTab.value ? findPaneById(activeRuntimeTab.value.panes, activeRuntimePaneId.value) : null
 
   if (!pane) {
     await copyCommandText(value)
-    showToast('已先复制命令', '当前没有选中终端。进入运行态后可手动粘贴。')
+    showToast(tr('已先复制命令', 'Command copied first'), tr('当前没有选中终端。进入运行态后可手动粘贴。', 'No terminal is selected right now. You can paste it manually after entering runtime mode.'))
     return
   }
 
@@ -9607,7 +12538,7 @@ async function insertRecentCommand(item: RecentItem) {
   }
 
   await copyCommandText(value)
-  showToast('已先复制命令', '当前没有选中终端。若要回填，请先进入运行态并选中一个终端。')
+  showToast(tr('已先复制命令', 'Command copied first'), tr('当前没有选中终端。若要回填，请先进入运行态并选中一个终端。', 'No terminal is selected right now. Enter runtime mode and select a terminal first if you want to insert it.'))
 }
 
 function commandEntryForPane(pane: PaneNode) {
@@ -9646,13 +12577,13 @@ function commandPanelSections(pane: PaneNode) {
   }
 
   if (entry) {
-    pushSection('default', '默认命令', [entry.defaultCommand])
-    pushSection('last', '最后命令', [entry.lastCommand])
-    pushSection('favorite', '收藏命令', entry.favoriteCommands ?? [])
-    pushSection('history', '最近命令', entry.commandHistory ?? [])
+    pushSection('default', tr('默认命令', 'Default command'), [entry.defaultCommand])
+    pushSection('last', tr('最后命令', 'Last command'), [entry.lastCommand])
+    pushSection('favorite', tr('收藏命令', 'Favorite commands'), entry.favoriteCommands ?? [])
+    pushSection('history', tr('最近命令', 'Recent commands'), entry.commandHistory ?? [])
   }
 
-  pushSection('workspace', entry ? '工作区最近' : '最近命令', workspaceRecentCommands(), Boolean(entry))
+  pushSection('workspace', entry ? tr('工作区最近', 'Workspace recent') : tr('最近命令', 'Recent commands'), workspaceRecentCommands(), Boolean(entry))
   return sections
 }
 
@@ -9666,7 +12597,7 @@ function toggleFavoriteCommand(pane: PaneNode, command: string) {
   const value = command.trim()
   const entry = commandEntryForPane(pane)
   if (!entry || !value) {
-    showToast('无法收藏命令', '请先给当前终端绑定一个运行配置。')
+    showToast(tr('无法收藏命令', 'Cannot favorite command'), tr('请先给当前终端绑定一个运行配置。', 'Bind a run config to the current terminal first.'))
     return
   }
 
@@ -9690,7 +12621,7 @@ function toggleFavoriteCommand(pane: PaneNode, command: string) {
     updatedAt: now,
   }))
 
-  showToast(exists ? '已取消收藏' : '命令已收藏', value)
+  showToast(exists ? tr('已取消收藏', 'Removed from favorites') : tr('命令已收藏', 'Command favorited'), value)
 }
 
 function parseProviderToolTargets(value: string): ProviderToolTarget[] {
@@ -9712,7 +12643,8 @@ function providerKindLabel(kind?: ProviderProfile['providerKind']) {
   if (kind === 'claude-code') return 'Claude Code'
   if (kind === 'gemini-cli') return 'Gemini CLI'
   if (kind === 'opencode') return 'OpenCode'
-  if (kind === 'custom-cli') return '自定义 CLI'
+  if (kind === 'hermes') return 'Hermes'
+  if (kind === 'custom-cli') return t('provider.customCli')
   return 'Codex CLI'
 }
 
@@ -9720,6 +12652,7 @@ function providerKindShortLabel(kind?: ProviderProfile['providerKind']) {
   if (kind === 'claude-code') return 'CC'
   if (kind === 'gemini-cli') return 'GM'
   if (kind === 'opencode') return 'OC'
+  if (kind === 'hermes') return 'HM'
   if (kind === 'custom-cli') return 'SH'
   return 'CX'
 }
@@ -9728,6 +12661,7 @@ function providerKindColor(kind?: ProviderProfile['providerKind']) {
   if (kind === 'claude-code') return '#d97706'
   if (kind === 'gemini-cli') return '#0f9f6e'
   if (kind === 'opencode') return '#2563eb'
+  if (kind === 'hermes') return '#0891b2'
   if (kind === 'custom-cli') return '#475569'
   return '#4b83ff'
 }
@@ -9737,35 +12671,73 @@ function providerToolTargetLabel(target: ProviderToolTarget) {
   if (target === 'gemini') return 'Gemini'
   if (target === 'opencode') return 'OpenCode'
   if (target === 'codex') return 'Codex'
-  return 'Generic'
+  return t('provider.genericTarget')
 }
 
 function providerSourceLabel(source?: ProviderProfileSource) {
   if (source === 'cc-switch') return 'CC Switch'
-  if (source === 'oauth') return 'OAuth 登录态'
-  if (source === 'env') return '环境变量'
-  if (source === 'script') return '切换脚本'
-  if (source === 'manual') return '手动登记'
-  return 'CLI 本地配置'
+  if (source === 'oauth') return t('provider.oauthSource')
+  if (source === 'env') return t('provider.envSource')
+  if (source === 'script') return t('provider.scriptSource')
+  if (source === 'manual') return t('provider.manualSource')
+  return t('provider.localCliConfig')
+}
+
+function providerKindSvgIcon(kind?: ProviderProfile['providerKind']): string {
+  if (kind === 'claude-code') {
+    return `<img src="${claudeBrandIcon}" style="width:100%;height:100%;object-fit:contain;display:block;" alt="Claude" />`
+  }
+  if (kind === 'gemini-cli') {
+    return `<img src="${geminiBrandIcon}" style="width:100%;height:100%;object-fit:contain;display:block;" alt="Gemini" />`
+  }
+  if (kind === 'codex') {
+    return `<img src="${openAiBrandIcon}" style="width:100%;height:100%;object-fit:contain;display:block;" alt="Codex" />`
+  }
+  if (kind === 'opencode') {
+    return `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 7L3 12L8 17M16 7L21 12L16 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  }
+  if (kind === 'hermes') {
+    return `<img src="${hermesBrandIcon}" style="width:100%;height:100%;object-fit:contain;display:block;" alt="Hermes" />`
+  }
+  if (kind === 'custom-cli') {
+    return `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M7 9L10 12L7 15M12 15H17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  }
+  // fallback: generic terminal
+  return `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M7 9L10 12L7 15M12 15H17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+}
+
+function formatProviderRemainingBalance(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return tr('未接通', 'Not connected')
+  return `$${value.toFixed(2)}`
+}
+
+function providerPayloadStatusLabel(provider: Pick<ProviderProfile, 'configPayload' | 'authPayload'>) {
+  const hasConfig = Boolean(normalizeProviderPayload(provider.configPayload))
+  const hasAuth = Boolean(normalizeProviderPayload(provider.authPayload))
+  if (hasConfig && hasAuth) return tr('auth + config 已保存', 'auth + config saved')
+  if (hasConfig) return tr('仅保存 config', 'config only')
+  if (hasAuth) return tr('仅保存 auth', 'auth only')
+  return tr('未保存快照', 'no snapshot')
 }
 
 function providerScopeLabel(scope?: ProviderConfigScope) {
-  if (scope === 'workspace') return '工作区配置'
-  if (scope === 'project') return '项目配置'
-  return '全局配置'
+  if (scope === 'workspace') return t('provider.workspaceScope')
+  if (scope === 'project') return t('provider.projectScope')
+  return t('provider.globalScope')
 }
 
 function providerStatusLabel(status?: ProviderProfile['status']) {
-  if (status === 'active') return '当前启用'
-  if (status === 'missing') return '未检测到'
-  if (status === 'disabled') return '已停用'
-  return '可切换'
+  if (status === 'active') return t('provider.statusActive')
+  if (status === 'missing') return t('provider.statusMissing')
+  if (status === 'disabled') return t('provider.statusDisabled')
+  return t('provider.statusAvailable')
 }
 
 function defaultProviderTargetsText(kind: ProviderProfile['providerKind']) {
   if (kind === 'claude-code') return 'claude'
   if (kind === 'gemini-cli') return 'gemini'
   if (kind === 'opencode') return 'opencode'
+  if (kind === 'hermes') return 'generic'
   if (kind === 'custom-cli') return 'generic'
   return 'codex'
 }
@@ -9774,31 +12746,112 @@ function defaultConfigPathForProvider(kind: ProviderProfile['providerKind']) {
   if (kind === 'claude-code') return '~/.claude.json'
   if (kind === 'gemini-cli') return '~/.gemini/settings.json'
   if (kind === 'opencode') return '~/.config/opencode/opencode.json'
-  if (kind === 'custom-cli') return '本地 CLI 配置文件'
+  if (kind === 'hermes') return '~/.hermes/config.yaml'
+  if (kind === 'custom-cli') return t('provider.localCliFile')
   return '~/.codex/config.toml'
 }
 
 function defaultAuthSourceForProvider(kind: ProviderProfile['providerKind'], source: ProviderProfileSource) {
-  if (source === 'oauth') return 'CLI OAuth 登录态'
-  if (source === 'env') return 'Shell / 系统环境变量'
-  if (source === 'script') return '切换脚本决定'
-  if (kind === 'claude-code') return 'Claude Code 本地登录态'
-  if (kind === 'gemini-cli') return 'Gemini CLI 本地登录态'
-  if (kind === 'codex') return 'Codex CLI 本地登录态'
-  return '本地配置决定'
+  if (source === 'oauth') return t('provider.cliOauthState')
+  if (source === 'env') return t('provider.shellEnv')
+  if (source === 'script') return t('provider.scriptDriven')
+  if (kind === 'claude-code') return t('provider.claudeLocalState')
+  if (kind === 'gemini-cli') return t('provider.geminiLocalState')
+  if (kind === 'codex') return t('provider.codexLocalState')
+  if (kind === 'hermes') return t('provider.localConfigDriven')
+  return t('provider.localConfigDriven')
 }
 
-function providerFallbackSwitchCommand(provider: Pick<ProviderProfile, 'providerKind' | 'profileName'>) {
-  const profileName = provider.profileName || 'default'
-  if (provider.providerKind === 'claude-code') return `cc-switch claude use ${profileName}`
-  if (provider.providerKind === 'gemini-cli') return `cc-switch gemini use ${profileName}`
-  if (provider.providerKind === 'opencode') return `cc-switch opencode use ${profileName}`
-  if (provider.providerKind === 'custom-cli') return `cc-switch use ${profileName}`
-  return `cc-switch codex use ${profileName}`
+/** Provider 编辑表单：切换命令 placeholder 按 CLI 平台，不写虚假的 cc-switch 示例 */
+function switchCommandPlaceholderForKind(
+  kind: ProviderProfile['providerKind'],
+  profileName?: string,
+) {
+  void profileName
+  if (kind === 'codex') return 'codex resume <session-id>'
+  if (kind === 'claude-code') return 'claude --resume'
+  if (kind === 'gemini-cli') return 'gemini'
+  if (kind === 'opencode') return 'opencode'
+  if (kind === 'hermes') return 'hermes'
+  if (kind === 'deepseek-cli') return 'deepseek'
+  return tr('可选；留空则仅通过配置写回切换', 'Optional; leave empty to switch via config write-back only')
 }
 
 function providerNameById(providerId: string) {
-  return selectedWorkspaceProviders.value.find((provider) => provider.id === providerId)?.name ?? '未知配置档案'
+  return selectedWorkspaceProviders.value.find((provider) => provider.id === providerId)?.name ?? tr('未知配置档案', 'Unknown profile')
+}
+
+function providerKindByProfileId(profileId: string): ProviderProfile['providerKind'] | undefined {
+  return selectedWorkspaceProviders.value.find((p) => p.id === profileId)?.providerKind
+}
+
+/** Usage 行：优先 identityKey 命中的 Profile 名称；未匹配显示「未关联档案」 */
+function usageLogProviderName(log: Pick<ProviderRequestLog, 'providerProfileId' | 'managedProviderName' | 'managedProviderId'>) {
+  const profile = selectedWorkspaceProviders.value.find((provider) => provider.id === log.providerProfileId)
+  if (profile?.name) return profile.name
+  if (String(log.providerProfileId || '').startsWith('identity:') || String(log.providerProfileId || '').startsWith('unknown:')) {
+    const backendName = (log.managedProviderName || '').trim()
+    return backendName
+      ? tr(`未关联档案 · ${backendName}`, `Unlinked · ${backendName}`)
+      : tr('未关联档案', 'Unlinked profile')
+  }
+  if (log.managedProviderName) return log.managedProviderName
+  return tr('未知配置档案', 'Unknown profile')
+}
+
+/** Usage 行：优先 Profile.kind；未匹配时按 appType 映射图标（Hermes 独立，不伪装 Codex） */
+function usageLogProviderKind(log: Pick<ProviderRequestLog, 'providerProfileId' | 'appType'>): ProviderProfile['providerKind'] | undefined {
+  const fromProfile = providerKindByProfileId(log.providerProfileId)
+  if (fromProfile) return fromProfile
+  if (log.appType === 'claude') return 'claude-code'
+  if (log.appType === 'gemini') return 'gemini-cli'
+  if (log.appType === 'opencode') return 'opencode'
+  if (log.appType === 'hermes') return 'hermes'
+  if (log.appType === 'codex') return 'codex'
+  return undefined
+}
+
+function formatFirstTokenMs(value?: number | null) {
+  if (value == null || Number.isNaN(value) || value < 0) return '—'
+  if (value < 1000) return `${Math.round(value)}ms`
+  return `${(value / 1000).toFixed(2)}s`
+}
+
+function formatDurationMs(value?: number | null) {
+  if (value == null || Number.isNaN(value) || value < 0) return '—'
+  if (value < 1000) return `${Math.round(value)}ms`
+  return `${(value / 1000).toFixed(1)}s`
+}
+
+function usageLogCostBreakdownTitle(log: ProviderRequestLog) {
+  const parts = [
+    `in $${(log.inputCostUsd ?? 0).toFixed(4)}`,
+    `out $${(log.outputCostUsd ?? 0).toFixed(4)}`,
+    `cacheR $${(log.cacheReadCostUsd ?? 0).toFixed(4)}`,
+    `cacheW $${(log.cacheCreationCostUsd ?? 0).toFixed(4)}`,
+  ]
+  return parts.join(' · ')
+}
+
+function formatTrendBucketLabel(timestamp: string, period: string, bucket?: string) {
+  const d = new Date(timestamp)
+  if (Number.isNaN(d.getTime())) return timestamp
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  const mode = bucket || (
+    period === '1h' ? 'minute'
+      : period === 'today' ? 'hour'
+        : (period === '7d' || period === '30d' || period === 'month') ? 'day'
+          : period === '90d' ? 'week'
+            : 'month'
+  )
+  if (mode === 'minute') return `${hh}:${mi}`
+  if (mode === 'hour') return `${hh}:00`
+  if (mode === 'week') return `${mm}/${dd}`
+  if (mode === 'month') return `${d.getFullYear()}-${mm}`
+  return `${mm}/${dd}`
 }
 
 function formatLargeNumber(value: number) {
@@ -9806,7 +12859,9 @@ function formatLargeNumber(value: number) {
 }
 
 function formatCompactWan(value: number) {
-  return `${(value / 10000).toFixed(1)} 万`
+  return currentLocale.value === 'zh-CN'
+    ? `${(value / 10000).toFixed(1)} 万`
+    : `${(value / 1000).toFixed(1)}k`
 }
 
 function formatUsageHour(value: string) {
@@ -9826,26 +12881,79 @@ function formatUsageDate(value: string) {
   return `${month}/${day} ${hour}:${minute}`
 }
 
+function formatRelativeTime(value: string) {
+  if (!value) return tr('从未使用', 'Never')
+  const time = new Date(value).getTime()
+  if (Number.isNaN(time)) return tr('从未使用', 'Never')
+  const diffMs = Date.now() - time
+  const minute = 60_000
+  const hour = 60 * minute
+  const day = 24 * hour
+  if (diffMs < minute) return tr('刚刚', 'just now')
+  if (diffMs < hour) return tr(`${Math.floor(diffMs / minute)} 分钟前`, `${Math.floor(diffMs / minute)}m ago`)
+  if (diffMs < day) return tr(`${Math.floor(diffMs / hour)} 小时前`, `${Math.floor(diffMs / hour)}h ago`)
+  if (diffMs < 30 * day) return tr(`${Math.floor(diffMs / day)} 天前`, `${Math.floor(diffMs / day)}d ago`)
+  return formatUsageDate(value)
+}
+
+function isSameLocalDay(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+  const now = new Date()
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate()
+}
+
 function buildUsageLinePath(
   points: Array<{ inputTokens: number; outputTokens: number; cacheReadTokens: number; costUsd: number }>,
   getter: (point: { inputTokens: number; outputTokens: number; cacheReadTokens: number; costUsd: number }) => number,
   maxValue: number,
 ) {
   if (!points.length) return ''
-  return points
-    .map((point, index) => {
-      const x = points.length === 1 ? 500 : 40 + (920 / (points.length - 1)) * index
-      const y = 300 - (getter(point) / Math.max(1, maxValue)) * 240
-      return `${index === 0 ? 'M' : 'L'}${x},${y}`
-    })
-    .join(' ')
+  const top = 52
+  const bottom = 284
+  const height = bottom - top
+  const coords = points.map((point, index) => ({
+    x: points.length === 1 ? 500 : 56 + (884 / Math.max(points.length - 1, 1)) * index,
+    y: bottom - (Math.max(0, getter(point)) / Math.max(1, maxValue)) * height,
+  }))
+  if (coords.length === 1) return `M${coords[0].x},${coords[0].y}`
+  // Catmull-Rom → cubic bezier, tension 0.3
+  let d = `M${coords[0].x},${coords[0].y}`
+  const t = 0.3
+  for (let i = 0; i < coords.length - 1; i++) {
+    const p0 = coords[Math.max(0, i - 1)]
+    const p1 = coords[i]
+    const p2 = coords[i + 1]
+    const p3 = coords[Math.min(coords.length - 1, i + 2)]
+    const cp1x = p1.x + (p2.x - p0.x) * t
+    const cp1y = p1.y + (p2.y - p0.y) * t
+    const cp2x = p2.x - (p3.x - p1.x) * t
+    const cp2y = p2.y - (p3.y - p1.y) * t
+    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
+  }
+  return d
+}
+
+// Closed area path for gradient fill (same bezier, closes at bottom baseline)
+function buildUsageAreaPath(
+  points: Array<{ inputTokens: number; outputTokens: number; cacheReadTokens: number; costUsd: number }>,
+  getter: (point: { inputTokens: number; outputTokens: number; cacheReadTokens: number; costUsd: number }) => number,
+  maxValue: number,
+) {
+  const line = buildUsageLinePath(points, getter, maxValue)
+  if (!line) return ''
+  const firstX = points.length === 1 ? 500 : 56
+  const lastX = points.length === 1 ? 500 : 56 + 884
+  return `${line} L${lastX},284 L${firstX},284 Z`
 }
 
 function removeTab(tabId: string) {
   if (!selectedWorkspace.value) return
 
   if (selectedWorkspace.value.tabs.length <= 1) {
-    showToast('无法删除标签页', '工作区至少需要保留一个 Tab。')
+    showToast(t('toast.tabDeleteBlocked'), t('toast.tabDeleteBlockedMsg'))
     return
   }
 
@@ -9853,9 +12961,9 @@ function removeTab(tabId: string) {
   if (!tab) return
 
   requestConfirm({
-    title: `删除标签页「${tab.name}」`,
-    description: '该操作会移除当前 Tab 及其下所有 Pane 布局。',
-    confirmLabel: '确认删除',
+    title: t('confirm.deleteTabTitle', { name: tab.name }),
+    description: t('confirm.deleteTabDesc'),
+    confirmLabel: t('confirm.deleteTabConfirm'),
     action: () => {
       const now = new Date().toISOString()
       const sessionIds = collectSessionIdsFromPanes(tab.panes)
@@ -9887,7 +12995,7 @@ function removeTab(tabId: string) {
         void destroyTerminalRuntime(sessionId).catch(() => undefined)
       })
 
-      showToast('标签页已删除', `已移除：${tab.name}`)
+      showToast(t('toast.tabDeleted'), t('toast.removedName', { name: tab.name }))
     },
   })
 }
@@ -9902,7 +13010,7 @@ function requestConfirm(options: {
 }) {
   confirmDialog.title = options.title
   confirmDialog.description = options.description
-  confirmDialog.confirmLabel = options.confirmLabel ?? '确认'
+  confirmDialog.confirmLabel = options.confirmLabel ?? t('confirm.confirm')
   confirmDialog.variant = options.variant ?? 'danger'
   confirmDialog.details = options.details ?? []
   confirmAction = options.action
@@ -9929,7 +13037,7 @@ function saveWorkbenchSidebarWidth(width: number) {
 
 async function pickDirectory(defaultPath?: string) {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
-    showToast('仅桌面端可用', '当前目录选择器只在 Tauri 桌面端可用。')
+    showToast(t('toast.desktopOnly'), t('toast.desktopOnlyMsg'))
     return null
   }
 
@@ -9941,7 +13049,7 @@ async function pickDirectory(defaultPath?: string) {
     })
     return typeof selected === 'string' ? selected : null
   } catch {
-    showToast('目录选择失败', '未能打开系统目录选择框。')
+    showToast(t('toast.directoryPickFailed'), t('toast.directoryPickFailedMsg'))
     return null
   }
 }
@@ -9971,6 +13079,8 @@ function loadUiPreferences() {
   const commandRestoreStrategy = window.localStorage.getItem('chuchen-terminal.restore-command-strategy')
   const hiddenItems = window.localStorage.getItem('chuchen-terminal.hidden-environment-items')
   const railCollapsedValue = window.localStorage.getItem('chuchen-terminal.rail-collapsed')
+  const workbenchImmersiveValue = window.localStorage.getItem('chuchen-terminal.workbench-immersive')
+  const workbenchExplorerCollapsedValue = window.localStorage.getItem('chuchen-terminal.workbench-explorer-collapsed')
   const notificationsEnabledValue = window.localStorage.getItem('chuchen-terminal.notifications-enabled')
   const windowAttentionEnabledValue = window.localStorage.getItem('chuchen-terminal.window-attention-enabled')
   const pinnedRecentItems = window.localStorage.getItem('chuchen-terminal.pinned-recent-items')
@@ -10015,6 +13125,14 @@ function loadUiPreferences() {
     railCollapsed.value = railCollapsedValue === '1'
   }
 
+  if (workbenchImmersiveValue === '1' || workbenchImmersiveValue === '0') {
+    workbenchImmersive.value = workbenchImmersiveValue === '1'
+  }
+
+  if (workbenchExplorerCollapsedValue === '1' || workbenchExplorerCollapsedValue === '0') {
+    workbenchExplorerCollapsed.value = workbenchExplorerCollapsedValue === '1'
+  }
+
   if (notificationsEnabledValue === '1' || notificationsEnabledValue === '0') {
     systemNotificationsEnabled.value = notificationsEnabledValue === '1'
   }
@@ -10054,6 +13172,8 @@ function saveUiPreferences() {
   window.localStorage.setItem('chuchen-terminal.restore-command-strategy', restoreCommandStrategy.value)
   window.localStorage.setItem('chuchen-terminal.hidden-environment-items', JSON.stringify(hiddenEnvironmentItems.value))
   window.localStorage.setItem('chuchen-terminal.rail-collapsed', railCollapsed.value ? '1' : '0')
+  window.localStorage.setItem('chuchen-terminal.workbench-immersive', workbenchImmersive.value ? '1' : '0')
+  window.localStorage.setItem('chuchen-terminal.workbench-explorer-collapsed', workbenchExplorerCollapsed.value ? '1' : '0')
   window.localStorage.setItem('chuchen-terminal.notifications-enabled', systemNotificationsEnabled.value ? '1' : '0')
   window.localStorage.setItem('chuchen-terminal.window-attention-enabled', windowAttentionEnabled.value ? '1' : '0')
   window.localStorage.setItem('chuchen-terminal.pinned-recent-items', JSON.stringify(pinnedRecentItemIds.value))
@@ -10236,6 +13356,11 @@ function scheduleSystemRefresh() {
     return
   }
 
+  if (!windowVisible.value) {
+    systemRefreshCountdown.value = 0
+    return
+  }
+
   const intervalMs = systemRefreshInterval.value === '5s'
     ? 5000
     : systemRefreshInterval.value === '10s'
@@ -10300,6 +13425,7 @@ async function refreshEnvironmentChecks(force = false) {
 }
 
 function startWorkbenchResize(event: PointerEvent) {
+  if (workbenchExplorerCollapsed.value || immersiveWorkbenchActive.value) return
   event.preventDefault()
   event.stopPropagation()
   ;(event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId)
@@ -10382,7 +13508,13 @@ function workspacePaneTagCount(workspace: WorkspaceCard) {
 }
 
 function workspaceEntryById(workspace: WorkspaceCard, entryId?: string | null) {
-  return workspace.terminalEntries.find((entry) => entry.id === entryId)
+  if (workspace.id === selectedWorkspace.value?.id) {
+    return entryId ? selectedWorkspaceEntryMap.value.get(entryId) : undefined
+  }
+  const entry = workspace.terminalEntries.find((item) => item.id === entryId)
+  if (!entry) return entry
+  const runtimeStatus = runtimeEntryStatusOverlays.value[entry.id]
+  return runtimeStatus ? { ...entry, status: runtimeStatus } : entry
 }
 
 function entryUsageCount(entryId: string) {
@@ -10407,7 +13539,7 @@ async function refreshWorkspaceGitInfo(workspaceId: string) {
 
   try {
     const info = await invoke<{ isRepo: boolean; branch?: string | null }>('read_workspace_git_info', { path: workspace.rootPath })
-    const nextBranch = info.isRepo ? (info.branch?.trim() || 'HEAD') : '非 Git 仓库'
+    const nextBranch = info.isRepo ? (info.branch?.trim() || 'HEAD') : tr('非 Git 仓库', 'Not a Git repository')
     if ((workspace.gitBranch?.trim() || '') === nextBranch) return
 
     commitWorkspaces((current) => current.map((item) =>
@@ -10419,7 +13551,7 @@ async function refreshWorkspaceGitInfo(workspaceId: string) {
         : item,
     ), 'transient')
   } catch {
-    const nextBranch = workspace.gitBranch?.trim() || '未检测分支'
+    const nextBranch = workspace.gitBranch?.trim() || tr('未检测分支', 'Branch not detected')
     if ((workspace.gitBranch?.trim() || '') === nextBranch) return
 
     commitWorkspaces((current) => current.map((item) =>
@@ -10434,7 +13566,7 @@ async function refreshWorkspaceGitInfo(workspaceId: string) {
 }
 
 function workspaceGitBranchLabel(workspace: WorkspaceCard) {
-  return workspace.gitBranch?.trim() || '未检测分支'
+  return workspace.gitBranch?.trim() || tr('未检测分支', 'Branch not detected')
 }
 
 function tabRunningCount(workspace: WorkspaceCard, tab: WorkspaceTab) {
@@ -10467,7 +13599,7 @@ function countPaneSessions(panes: PaneNode[]) {
 }
 
 function entryById(entryId?: string | null) {
-  return selectedWorkspace.value?.terminalEntries.find((entry) => entry.id === entryId)
+  return entryId ? selectedWorkspaceEntryMap.value.get(entryId) : undefined
 }
 
 function sessionById(workspace: WorkspaceCard | undefined, sessionId: string) {
@@ -10543,14 +13675,8 @@ function explorerSessionTone(session: PaneTerminalSession) {
 
 function explorerSessionLabel(session: PaneTerminalSession) {
   const state = sessionAttentionState(session)
-  if (state === 'fresh') return session.lastAiCliKind || session.aiCliKind ? '待开始' : '未开始'
-  if (state === 'running') return '运行中'
-  if (state === 'needs-input') return '等待输入'
-  if (state === 'waiting') return '等待中'
-  if (state === 'stalled') return '疑似停滞'
-  if (state === 'completed') return '已完成'
-  if (state === 'error') return '异常退出'
-  return '空闲'
+  if (state === 'fresh' && !(session.lastAiCliKind || session.aiCliKind)) return t('ai.states.notStarted')
+  return sessionAttentionStateLabel(state)
 }
 
 function attentionPriority(state: SessionAttentionState) {
@@ -10584,10 +13710,10 @@ function explorerProjectAttentionClass(workspace: WorkspaceCard, tab: WorkspaceT
 
 function explorerProjectAttentionBadge(workspace: WorkspaceCard, tab: WorkspaceTab) {
   const state = explorerProjectAttentionState(workspace, tab)
-  if (state === 'error') return '异常'
-  if (state === 'needs-input') return '待处理'
-  if (state === 'stalled') return '停滞'
-  if (state === 'completed') return '完成'
+  if (state === 'error') return tr('异常', 'Error')
+  if (state === 'needs-input') return tr('待处理', 'Needs input')
+  if (state === 'stalled') return tr('停滞', 'Stalled')
+  if (state === 'completed') return tr('完成', 'Done')
   return ''
 }
 
@@ -10723,7 +13849,7 @@ function setSessionSupervisorMode(sessionId: string, mode: 'off' | 'watch') {
                             : 'idle'
                           : 'idle',
                         supervisorNote: mode === 'watch'
-                          ? '已开启任务监督：会检测完成、异常退出和疑似停滞。'
+                          ? tr('已开启任务监督：会检测完成、异常退出和疑似停滞。', 'Task supervision enabled: completion, abnormal exits, and suspected stalls will be monitored.')
                           : null,
                         lastHeartbeatAt: session.lastHeartbeatAt ?? now,
                         lastActivityAt: session.lastActivityAt ?? now,
@@ -10739,11 +13865,10 @@ function setSessionSupervisorMode(sessionId: string, mode: 'off' | 'watch') {
     return {
       ...workspace,
       tabs: nextTabs,
-      terminalEntries: applyTerminalEntryStatuses(workspace.terminalEntries, nextTabs),
     }
   }), 'transient')
 
-  showToast(mode === 'watch' ? '任务监督已开启' : '任务监督已关闭', `${located.workspace.name} / ${located.tab.name} / ${located.session.name}`)
+  showToast(mode === 'watch' ? tr('任务监督已开启', 'Task supervision enabled') : tr('任务监督已关闭', 'Task supervision disabled'), `${located.workspace.name} / ${located.tab.name} / ${located.session.name}`)
 }
 
 function clearSessionAttention(sessionId: string, options: { silent?: boolean } = {}) {
@@ -10784,7 +13909,6 @@ function clearSessionAttention(sessionId: string, options: { silent?: boolean } 
     return {
       ...workspace,
       tabs: nextTabs,
-      terminalEntries: applyTerminalEntryStatuses(workspace.terminalEntries, nextTabs),
     }
   }), 'transient')
 
@@ -10792,7 +13916,7 @@ function clearSessionAttention(sessionId: string, options: { silent?: boolean } 
   lastAttentionBadgeCount = -1
   void applyWindowAttentionBadge(true)
   if (!options.silent) {
-    showToast('提醒状态已清除', `${located.workspace.name} / ${located.tab.name} / ${located.session.name}`)
+    showToast(tr('提醒状态已清除', 'Alert state cleared'), `${located.workspace.name} / ${located.tab.name} / ${located.session.name}`)
   }
 }
 
@@ -10801,9 +13925,10 @@ function startSupervisorScan() {
   if (supervisorScanTimer) {
     window.clearInterval(supervisorScanTimer)
   }
+  const intervalMs = windowVisible.value ? SUPERVISOR_SCAN_INTERVAL_MS : Math.max(SUPERVISOR_SCAN_INTERVAL_MS * 3, 15000)
   supervisorScanTimer = window.setInterval(() => {
     scanSupervisorSessions()
-  }, SUPERVISOR_SCAN_INTERVAL_MS)
+  }, intervalMs)
 }
 
 function scanSupervisorSessions() {
@@ -10836,7 +13961,7 @@ function scanSupervisorSessions() {
             return {
               ...session,
               supervisorState: 'stalled' as const,
-              supervisorNote: '任务监督：超过 2 分钟未检测到终端输出，建议人工查看。',
+              supervisorNote: tr('任务监督：超过 2 分钟未检测到终端输出，建议人工查看。', 'Task supervision: no terminal output was detected for over 2 minutes. Manual review is recommended.'),
               lastHeartbeatAt: nowIso,
             }
           })
@@ -10854,7 +13979,6 @@ function scanSupervisorSessions() {
         ? {
             ...workspace,
             tabs: nextTabs,
-            terminalEntries: applyTerminalEntryStatuses(workspace.terminalEntries, nextTabs),
           }
         : workspace
     })
@@ -10870,7 +13994,7 @@ function simulateSessionAttention(
   const located = locateSessionAcrossWorkspaces(sessionId)
 
   if (!sessionId || !located) {
-    showToast('提醒测试不可用', '请先选中一个终端会话。')
+    showToast(tr('提醒测试不可用', 'Alert test unavailable'), tr('请先选中一个终端会话。', 'Select a terminal session first.'))
     return
   }
 
@@ -10924,12 +14048,12 @@ function simulateSessionAttention(
                     lastHeartbeatAt: now,
                     lastActivityAt: now,
                     supervisorNote: state === 'completed'
-                      ? '调试入口：模拟完成。'
+                      ? tr('调试入口：模拟完成。', 'Debug action: simulated completion.')
                       : state === 'needs-input'
-                        ? '调试入口：模拟等待输入。'
+                        ? tr('调试入口：模拟等待输入。', 'Debug action: simulated needs input.')
                         : state === 'error'
-                          ? '调试入口：模拟异常退出。'
-                          : '调试入口：模拟疑似停滞。',
+                          ? tr('调试入口：模拟异常退出。', 'Debug action: simulated abnormal exit.')
+                          : tr('调试入口：模拟疑似停滞。', 'Debug action: simulated suspected stall.'),
                   }
                 }),
               }
@@ -10941,12 +14065,11 @@ function simulateSessionAttention(
     return {
       ...workspace,
       tabs: nextTabs,
-      terminalEntries: applyTerminalEntryStatuses(workspace.terminalEntries, nextTabs),
     }
   }), 'transient')
 
   showToast(
-    state === 'clear' ? '提醒测试已清除' : '提醒测试已触发',
+    state === 'clear' ? tr('提醒测试已清除', 'Alert test cleared') : tr('提醒测试已触发', 'Alert test triggered'),
     `${located.workspace.name} / ${located.tab.name} / ${located.session.name}`,
   )
 
@@ -11026,51 +14149,12 @@ function syncSessionState(sessionId: string, status: 'idle' | 'running') {
   if (!located) return
   if (located.session.status === status) return
   const now = new Date().toISOString()
-
-  commitWorkspaces((current) => current.map((workspace) => {
-    if (workspace.id !== located.workspace.id) return workspace
-
-    let didChange = false
-
-    const nextTabs = workspace.tabs.map((tab) => {
-      if (tab.id !== located.tab.id) return tab
-
-      return {
-        ...tab,
-        panes: visitPaneTree(tab.panes, (pane) => {
-          if (pane.id !== located.pane.id) return pane
-          const nextSessions = paneSessions(pane).map((session) => {
-            if (session.id !== sessionId) return session
-            if (session.status === status) return session
-            didChange = true
-            return {
-              ...session,
-              status,
-              lastHeartbeatAt: status === 'running' ? now : session.lastHeartbeatAt ?? now,
-              lastActivityAt: status === 'running' ? now : session.lastActivityAt ?? now,
-            }
-          })
-
-          return {
-            ...pane,
-            sessions: nextSessions,
-          }
-        }),
-      }
-    })
-
-    if (!didChange) {
-      return workspace
-    }
-
-    const nextEntries = applyTerminalEntryStatuses(workspace.terminalEntries, nextTabs)
-
-    return {
-      ...workspace,
-      tabs: nextTabs,
-      terminalEntries: nextEntries,
-    }
-  }), 'transient')
+  setRuntimeSessionOverlay(sessionId, {
+    status,
+    lastHeartbeatAt: status === 'running' ? now : located.session.lastHeartbeatAt ?? now,
+    lastActivityAt: status === 'running' ? now : located.session.lastActivityAt ?? now,
+  })
+  syncRuntimeEntryStatusesForWorkspace(located.workspace)
 }
 
 function recordSessionCommand(sessionId: string, command: string) {
@@ -11092,53 +14176,34 @@ function recordSessionCommand(sessionId: string, command: string) {
         ? located.session.lastAiCliKind
         : nextDetectedKind)
   const launchOnlyAiCommand = isAiCliLaunchOnlyCommand(trimmed, nextLastDetectedKind)
+  setRuntimeSessionOverlay(sessionId, {
+    status: 'running',
+    aiCliKind: nextDetectedKind,
+    lastAiCliKind: nextLastDetectedKind,
+    hasUserCommand: launchOnlyAiCommand ? false : true,
+    lastCommandAt: now,
+    lastExitCode: null,
+    lastActivityAt: now,
+    lastHeartbeatAt: now,
+    supervisorState: launchOnlyAiCommand
+      ? 'idle'
+      : located.session.supervisorMode === 'watch' || located.session.supervisorMode === 'auto-resume'
+        ? 'watching'
+        : 'idle',
+    supervisorNote: null,
+  })
 
   commitWorkspaces((current) => current.map((workspace) => {
     if (workspace.id !== located.workspace.id) return workspace
 
     return {
       ...workspace,
-      tabs: workspace.tabs.map((tab) =>
-        tab.id === located.tab.id
-          ? {
-              ...tab,
-              panes: visitPaneTree(tab.panes, (pane) => {
-                if (pane.id !== located.pane.id) return pane
-                return {
-                  ...pane,
-                  sessions: paneSessions(pane).map((session) =>
-                    session.id === sessionId
-                    ? {
-                        ...session,
-                        status: 'running',
-                        aiCliKind: nextDetectedKind,
-                        lastAiCliKind: nextLastDetectedKind,
-                        hasUserCommand: launchOnlyAiCommand ? false : true,
-                        lastCommandAt: now,
-                        lastExitCode: null,
-                        lastActivityAt: now,
-                        lastHeartbeatAt: now,
-                        supervisorState: launchOnlyAiCommand
-                          ? 'idle'
-                          : session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume'
-                          ? 'watching'
-                          : 'idle',
-                        supervisorNote: null,
-                        }
-                      : session,
-                  ),
-                }
-              }),
-            }
-          : tab,
-      ),
       terminalEntries: workspace.terminalEntries.map((entry) =>
         entry.id === entryId
           ? {
               ...entry,
               lastCommand: trimmed,
               commandHistory: [trimmed, ...(entry.commandHistory ?? []).filter((item) => item.trim() !== trimmed)].slice(0, 20),
-              status: 'running',
               updatedAt: now,
             }
           : entry,
@@ -11171,54 +14236,29 @@ function recordSessionOutput(sessionId: string, chunk: string) {
     : (located.session.lastAiCliKind && located.session.lastAiCliKind !== 'generic-ai'
         ? located.session.lastAiCliKind
         : nextDetectedKind)
-
-  commitWorkspaces((current) => current.map((workspace) => {
-    if (workspace.id !== located.workspace.id) return workspace
-
-    const nextTabs = workspace.tabs.map((tab) =>
-      tab.id === located.tab.id
-        ? {
-            ...tab,
-            panes: visitPaneTree(tab.panes, (pane) => {
-              if (pane.id !== located.pane.id) return pane
-              return {
-                ...pane,
-                sessions: paneSessions(pane).map((session) =>
-                  session.id === sessionId
-                    ? {
-                        ...session,
-                        status: (promptReturned || aiReadyReturned) ? 'idle' : session.status,
-                        aiCliKind: nextActiveKind,
-                        lastAiCliKind: nextLastDetectedKind,
-                        lastOutputAt: now,
-                        lastActivityAt: now,
-                        lastHeartbeatAt: now,
-                        lastExitCode: completed ? 0 : session.lastExitCode ?? null,
-                        supervisorState: completed || (aiReadyReturned && session.hasUserCommand)
-                          ? 'completed'
-                          : promptReturned && session.hasUserCommand && (session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume')
-                            ? 'completed'
-                            : promptReturned && session.hasUserCommand
-                              ? 'idle'
-                            : session.supervisorState,
-                        supervisorNote: completed || (aiReadyReturned && session.hasUserCommand) || (promptReturned && session.hasUserCommand && (session.supervisorMode === 'watch' || session.supervisorMode === 'auto-resume'))
-                          ? '任务监督：检测到终端回到可输入状态。'
-                          : session.supervisorNote,
-                      }
-                    : session,
-                ),
-              }
-            }),
-          }
-        : tab,
-    )
-
-    return {
-      ...workspace,
-      tabs: nextTabs,
-      terminalEntries: applyTerminalEntryStatuses(workspace.terminalEntries, nextTabs),
-    }
-  }), 'transient')
+  const nextStatus = (promptReturned || aiReadyReturned) ? 'idle' : located.session.status
+  setRuntimeSessionOverlay(sessionId, {
+    status: nextStatus,
+    aiCliKind: nextActiveKind,
+    lastAiCliKind: nextLastDetectedKind,
+    lastOutputAt: now,
+    lastActivityAt: now,
+    lastHeartbeatAt: now,
+    lastExitCode: completed ? 0 : located.session.lastExitCode ?? null,
+    supervisorState: completed || (aiReadyReturned && located.session.hasUserCommand)
+      ? 'completed'
+      : promptReturned && located.session.hasUserCommand && (located.session.supervisorMode === 'watch' || located.session.supervisorMode === 'auto-resume')
+        ? 'completed'
+        : promptReturned && located.session.hasUserCommand
+          ? 'idle'
+          : located.session.supervisorState,
+    supervisorNote: completed || (aiReadyReturned && located.session.hasUserCommand) || (promptReturned && located.session.hasUserCommand && (located.session.supervisorMode === 'watch' || located.session.supervisorMode === 'auto-resume'))
+      ? tr('任务监督：检测到终端回到可输入状态。', 'Task supervision: the terminal returned to an input-ready state.')
+      : located.session.supervisorNote,
+  })
+  if (nextStatus !== located.session.status) {
+    syncRuntimeEntryStatusesForWorkspace(located.workspace)
+  }
 }
 
 function recordSessionExit(sessionId: string, exitCode: number) {
@@ -11226,56 +14266,28 @@ function recordSessionExit(sessionId: string, exitCode: number) {
   if (!located) return
   const now = new Date().toISOString()
   sessionOutputTailBySession.delete(sessionId)
-
-  commitWorkspaces((current) => current.map((workspace) => {
-    if (workspace.id !== located.workspace.id) return workspace
-
-    const nextTabs = workspace.tabs.map((tab) =>
-      tab.id === located.tab.id
-        ? {
-            ...tab,
-            panes: visitPaneTree(tab.panes, (pane) => {
-              if (pane.id !== located.pane.id) return pane
-              return {
-                ...pane,
-                sessions: paneSessions(pane).map((session) =>
-                  session.id === sessionId
-                    ? {
-                        ...session,
-                        status: 'idle',
-                        aiCliKind: null,
-                        lastAiCliKind: session.lastAiCliKind ?? session.aiCliKind ?? null,
-                        lastExitCode: exitCode,
-                        lastActivityAt: now,
-                        lastHeartbeatAt: now,
-                        supervisorState: exitCode === 0 && session.hasUserCommand
-                          ? 'completed'
-                          : exitCode !== 0
-                            ? 'needs-human'
-                            : session.supervisorState,
-                      }
-                    : session,
-                ),
-              }
-            }),
-          }
-        : tab,
-    )
-
-    return {
-      ...workspace,
-      tabs: nextTabs,
-      terminalEntries: applyTerminalEntryStatuses(workspace.terminalEntries, nextTabs),
-    }
-  }))
+  setRuntimeSessionOverlay(sessionId, {
+    status: 'idle',
+    aiCliKind: null,
+    lastAiCliKind: located.session.lastAiCliKind ?? located.session.aiCliKind ?? null,
+    lastExitCode: exitCode,
+    lastActivityAt: now,
+    lastHeartbeatAt: now,
+    supervisorState: exitCode === 0 && located.session.hasUserCommand
+      ? 'completed'
+      : exitCode !== 0
+        ? 'needs-human'
+        : located.session.supervisorState,
+  })
+  syncRuntimeEntryStatusesForWorkspace(located.workspace)
 }
 
 function launchModeLabel(mode?: TerminalEntry['launchMode']) {
-  if (mode === 'open-only') return '仅打开窗口'
-  if (mode === 'prefill') return '预填命令'
-  if (mode === 'execute') return '立即执行'
-  if (mode === 'switch-or-create') return '切换或创建'
-  return '未设置'
+  if (mode === 'open-only') return t('launchMode.openOnly')
+  if (mode === 'prefill') return t('launchMode.prefill')
+  if (mode === 'execute') return t('launchMode.execute')
+  if (mode === 'switch-or-create') return t('launchMode.switchOrCreate')
+  return t('workspace.notSet')
 }
 
 function isSplitPane(pane: PaneNode) {
@@ -11316,13 +14328,13 @@ function renderCommandPanel(pane: PaneNode): VNode {
   }, [
     h('div', { class: 'command-panel__header' }, [
       h('div', [
-        h('strong', '快捷命令'),
-        h('small', entry?.name || '工作区最近命令'),
+        h('strong', tr('快捷命令', 'Quick commands')),
+        h('small', entry?.name || tr('工作区最近命令', 'Workspace recent commands')),
       ]),
       h('button', {
         type: 'button',
         class: 'icon-btn icon-btn--mini',
-        title: '关闭',
+        title: t('common.actions.close'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           activeCommandPanelPaneId.value = null
@@ -11336,7 +14348,7 @@ function renderCommandPanel(pane: PaneNode): VNode {
             h('div', { class: 'command-list' }, section.commands.map((command) => renderCommandRow(pane, command, section.favoriteScope))),
           ]),
         ))
-      : h('div', { class: 'command-panel__empty' }, '当前终端还没有可复用命令。'),
+      : h('div', { class: 'command-panel__empty' }, tr('当前终端还没有可复用命令。', 'No reusable commands are available for the current terminal yet.')),
   ])
 }
 
@@ -11357,7 +14369,7 @@ function renderCommandRow(pane: PaneNode, command: string, favoriteScope: boolea
       h('button', {
         type: 'button',
         class: 'icon-btn icon-btn--mini',
-        title: '插入命令',
+        title: tr('插入命令', 'Insert command'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           void insertPaneText(pane, command)
@@ -11366,7 +14378,7 @@ function renderCommandRow(pane: PaneNode, command: string, favoriteScope: boolea
       h('button', {
         type: 'button',
         class: 'icon-btn icon-btn--mini',
-        title: '执行命令',
+        title: tr('执行命令', 'Execute command'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           void executePaneText(pane, command)
@@ -11375,7 +14387,7 @@ function renderCommandRow(pane: PaneNode, command: string, favoriteScope: boolea
       h('button', {
         type: 'button',
         class: ['icon-btn icon-btn--mini', { 'icon-btn--active': favorite }],
-        title: favorite ? '取消收藏' : '收藏命令',
+        title: favorite ? tr('取消收藏', 'Remove from favorites') : tr('收藏命令', 'Favorite command'),
         disabled: !favoriteScope,
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
@@ -11385,7 +14397,7 @@ function renderCommandRow(pane: PaneNode, command: string, favoriteScope: boolea
       h('button', {
         type: 'button',
         class: 'icon-btn icon-btn--mini',
-        title: '复制命令',
+        title: tr('复制命令', 'Copy command'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           void copyCommandText(command)
@@ -11479,7 +14491,7 @@ function renderPaneTree(pane: PaneNode): VNode {
                 h('button', {
                   type: 'button',
                   class: 'terminal-window-tab__reload',
-                  title: '重新加载当前终端',
+                  title: tr('重新加载当前终端', 'Reload current terminal'),
                   role: 'button',
                   tabindex: 0,
                   'data-no-drag': 'true',
@@ -11489,7 +14501,7 @@ function renderPaneTree(pane: PaneNode): VNode {
                 h('button', {
                   type: 'button',
                   class: 'terminal-window-tab__close',
-                  title: '关闭当前终端',
+                  title: tr('关闭当前终端', 'Close current terminal'),
                   role: 'button',
                   tabindex: 0,
                   'data-no-drag': 'true',
@@ -11501,7 +14513,7 @@ function renderPaneTree(pane: PaneNode): VNode {
             h('button', {
               type: 'button',
               class: 'terminal-window-tab terminal-window-tab--add',
-              title: '在当前分组新建终端',
+              title: tr('在当前分组新建终端', 'Create terminal in current group'),
               'data-no-drag': 'true',
               onClick: (event: MouseEvent) => { event.stopPropagation(); createPaneSession(pane.id) },
             }, [h(AppIcon, { name: 'plus', size: 13 })]),
@@ -11509,7 +14521,7 @@ function renderPaneTree(pane: PaneNode): VNode {
           isConfirmedAiCliInfo(activeAiInfo)
             ? h('div', {
                 class: 'pane-ai-pill',
-                title: activeSession?.supervisorNote || `${activeAiInfo.label}：可在此查看历史或固定到辅助层。`,
+                title: activeSession?.supervisorNote || tr(`${activeAiInfo.label}：可在此查看历史或固定到辅助层。`, `${activeAiInfo.label}: View history here or pin it to the assist layer.`),
               }, [
                 h('span', { class: ['pane-ai-pill__badge', 'ai-tool-badge', `ai-tool-badge--${activeAiInfo.tone}`, { 'ai-tool-badge--icon-only': !aiCliBadgeText(activeAiInfo) }] }, [
                   renderAiBrandIcon(activeAiInfo.kind, 'badge', activeAiInfo.iconName),
@@ -11524,14 +14536,14 @@ function renderPaneTree(pane: PaneNode): VNode {
                     event.stopPropagation()
                     openAiHistoryDrawer.value = true
                   },
-                }, '历史'),
+                }, tr('历史', 'History')),
               ])
             : null,
           h('div', { class: 'pane__actions' }, [
             h('button', {
               type: 'button',
               class: ['icon-btn icon-btn--bolt', { 'icon-btn--active': activeCommandPanelPaneId.value === pane.id }],
-              title: '快捷命令',
+              title: tr('快捷命令', 'Quick commands'),
               'data-no-drag': 'true',
               onClick: (event: MouseEvent) => {
                 event.stopPropagation()
@@ -11542,7 +14554,7 @@ function renderPaneTree(pane: PaneNode): VNode {
             h('button', {
               type: 'button',
               class: 'icon-btn pane__group-btn',
-              title: 'Pane 分组操作',
+              title: tr('Pane 分组操作', 'Pane group actions'),
               'data-no-drag': 'true',
               onClick: (event: MouseEvent) => {
                 event.stopPropagation()
@@ -11580,6 +14592,7 @@ function renderPaneTree(pane: PaneNode): VNode {
             shellLabel: terminalSessionShellLabel(pane),
             fontFamily: terminalFontFamily.value,
             fontSize: terminalFontSize.value,
+            active: activeRuntimePaneId.value === pane.id,
             onCommandCommitted: recordSessionCommand,
             onSessionStateChange: syncSessionState,
             onOutputChunk: recordSessionOutput,
@@ -11701,7 +14714,10 @@ function splitLeafPane(targetPaneId: string, direction: SplitDirection) {
 
   activeRuntimePaneId.value = nextPane.id
   setRuntimeActiveSessionId(nextPane.id, nextPane.sessions?.[0]?.id ?? null)
-  showToast(direction === 'horizontal' ? '已拆分到右侧' : '已拆分到下方', `新建分组：${nextPane.name}`)
+  showToast(
+    direction === 'horizontal' ? tr('已拆分到右侧', 'Split to the right') : tr('已拆分到下方', 'Split below'),
+    tr(`新建分组：${nextPane.name}`, `New group: ${nextPane.name}`),
+  )
 }
 
 function collapsePaneBranch(targetPaneId: string, panes: PaneNode[]): PaneNode[] {
@@ -11812,13 +14828,15 @@ function findFirstLeafPaneId(panes: PaneNode[]): string {
 }
 
 function splitLabel(direction?: string) {
-  if (direction === 'horizontal') return '水平分屏'
-  if (direction === 'vertical') return '垂直分屏'
-  return '单 Pane'
+  if (direction === 'horizontal') return t('workspace.splitHorizontal')
+  if (direction === 'vertical') return t('workspace.splitVertical')
+  return t('workspace.splitSingle')
 }
 
 function paneSessions(pane: PaneNode): PaneTerminalSession[] {
-  if (pane.sessions) return pane.sessions
+  if (pane.sessions) {
+    return pane.sessions.map((session) => mergeRuntimeSessionOverlay(session))
+  }
 
   return [
     {
@@ -11826,11 +14844,67 @@ function paneSessions(pane: PaneNode): PaneTerminalSession[] {
       name: pane.name,
       pathLabel: pane.pathLabel,
       terminalEntryId: pane.terminalEntryId,
-      status: 'idle',
+      status: 'idle' as const,
       aiCliKind: null,
       lastAiCliKind: null,
     },
-  ]
+  ].map((session) => mergeRuntimeSessionOverlay(session))
+}
+
+function mergeRuntimeSessionOverlay(session: PaneTerminalSession): PaneTerminalSession {
+  const overlay = runtimeSessionOverlays.value[session.id]
+  if (!overlay) return session
+  return {
+    ...session,
+    ...overlay,
+    status: (overlay.status ?? session.status) as PaneTerminalSession['status'],
+  }
+}
+
+function setRuntimeSessionOverlay(sessionId: string, patch: Partial<PaneTerminalSession>) {
+  runtimeSessionOverlays.value = {
+    ...runtimeSessionOverlays.value,
+    [sessionId]: {
+      ...(runtimeSessionOverlays.value[sessionId] ?? {}),
+      ...patch,
+    },
+  }
+}
+
+function clearRuntimeSessionOverlay(sessionId: string) {
+  if (!(sessionId in runtimeSessionOverlays.value)) return
+  const next = { ...runtimeSessionOverlays.value }
+  delete next[sessionId]
+  runtimeSessionOverlays.value = next
+}
+
+function syncRuntimeEntryStatusesForWorkspace(workspace: WorkspaceCard | undefined) {
+  if (!workspace) return
+  const nextStatuses: Record<string, TerminalEntry['status']> = {}
+  workspace.terminalEntries.forEach((entry) => {
+    const running = workspace.tabs.some((tab) =>
+      flattenLeafPanes(tab.panes).some((pane) =>
+        paneSessions(pane).some((session) => session.terminalEntryId === entry.id && session.status === 'running'),
+      ),
+    )
+    nextStatuses[entry.id] = running ? 'running' : 'idle'
+  })
+  runtimeEntryStatusOverlays.value = nextStatuses
+}
+
+function syncRuntimeEntryStatusesForCurrentWorkspaces() {
+  const nextStatuses: Record<string, TerminalEntry['status']> = {}
+  workspaces.value.forEach((workspace) => {
+    workspace.terminalEntries.forEach((entry) => {
+      const running = workspace.tabs.some((tab) =>
+        flattenLeafPanes(tab.panes).some((pane) =>
+          paneSessions(pane).some((session) => session.terminalEntryId === entry.id && session.status === 'running'),
+        ),
+      )
+      nextStatuses[entry.id] = running ? 'running' : 'idle'
+    })
+  })
+  runtimeEntryStatusOverlays.value = nextStatuses
 }
 
 function activePaneSession(pane: PaneNode) {
@@ -11842,10 +14916,10 @@ function activePaneSession(pane: PaneNode) {
 }
 
 function sessionStatusLabel(session?: PaneTerminalSession) {
-  if (!session) return '空闲'
-  if (session.status === 'running') return '运行中'
-  if (entryById(session.terminalEntryId)?.lastCommand || entryById(session.terminalEntryId)?.defaultCommand) return '等待中'
-  return '空闲'
+  if (!session) return t('workspace.sessionIdle')
+  if (session.status === 'running') return t('ai.states.running')
+  if (entryById(session.terminalEntryId)?.lastCommand || entryById(session.terminalEntryId)?.defaultCommand) return t('workspace.sessionWaiting')
+  return t('workspace.sessionIdle')
 }
 
 function terminalSessionEntry(pane: PaneNode) {
@@ -11876,7 +14950,7 @@ function terminalSessionShellLabel(pane: PaneNode) {
 }
 
 function runtimeTabLabel(tab: WorkspaceTab) {
-  const label = tab.name.trim() || '未命名项目'
+  const label = tab.name.trim() || tr('未命名项目', 'Untitled project')
   return label.length > 18 ? `${label.slice(0, 18)}…` : label
 }
 
@@ -11924,9 +14998,9 @@ function paneRuntimeTone(pane: PaneNode, workspace: WorkspaceCard | undefined = 
 function paneRuntimeLabel(pane: PaneNode, workspace: WorkspaceCard | undefined = selectedWorkspace.value) {
   const tone = paneRuntimeTone(pane, workspace)
 
-  if (tone === 'running') return '运行中'
-  if (tone === 'waiting') return '等待中'
-  return '空闲'
+  if (tone === 'running') return t('ai.states.running')
+  if (tone === 'waiting') return t('workspace.sessionWaiting')
+  return t('workspace.sessionIdle')
 }
 
 function openWorkspace(workspaceId: string) {
@@ -11954,7 +15028,7 @@ function openThemePanel(tab: ThemePanelTab) {
   themePanelTab.value = tab
   openThemeModal.value = true
   if (tab === 'system') {
-    if (systemStatus.cpu === '检测中' || systemStatus.memory === '检测中' || systemStatus.gpu === '检测中') {
+    if (systemStatus.cpu === '检测中' || systemStatus.memory === '检测中' || systemStatus.gpu === '检测中' || systemStatus.cpu === 'Checking' || systemStatus.memory === 'Checking' || systemStatus.gpu === 'Checking') {
       void refreshSystemStatus()
     }
     if (!hasEnvironmentCheckCache.value && !environmentChecksRefreshing.value) {
@@ -11967,7 +15041,7 @@ function selectTheme(themeId: string) {
   activeThemeId.value = themeId
   const theme = themePresets.find((item) => item.id === themeId)
   if (theme) {
-    showToast('主题已切换', `当前使用：${theme.name}`)
+    showToast(t('toast.themeUpdated'), t('toast.themeUpdatedMsg', { name: themeDisplayName(theme) }))
   }
 }
 
@@ -12029,29 +15103,35 @@ function applyThemeFromSettings(themeId: string) {
   selectTheme(themeId)
 }
 
+function applyLocaleFromSettings(nextLocale: AppLocale) {
+  if (currentLocale.value === nextLocale) return
+  locale.value = nextLocale
+  setAppLocale(nextLocale)
+}
+
 function applyTerminalFontSizeFromSettings(size: number) {
   setTerminalFontSize(size)
-  showToast('终端字号已更新', `${size}px`)
+  showToast(t('toast.terminalFontSizeUpdated'), `${size}px`)
 }
 
 function applyTerminalFontFamilyFromSettings(font: string) {
   terminalFontFamily.value = font
-  showToast('终端字体已更新', font)
+  showToast(t('toast.terminalFontUpdated'), font)
 }
 
 function applyRestoreStrategyFromSettings(strategy: RestoreCommandStrategy) {
   restoreCommandStrategy.value = strategy
-  showToast('恢复策略已更新', restoreCommandStrategyLabel(strategy))
+  showToast(t('toast.restoreStrategyUpdated'), restoreCommandStrategyLabel(strategy))
 }
 
 function applySystemRefreshModeFromSettings(mode: 'manual' | '5s' | '10s' | '30s') {
   setSystemRefreshMode(mode)
-  showToast('系统刷新频率已更新', mode === 'manual' ? '手动刷新' : `${mode} 自动刷新`)
+  showToast(t('toast.refreshRateUpdated'), mode === 'manual' ? t('refresh.manual') : t('refresh.autoInterval', { interval: mode }))
 }
 
 function toggleEnvironmentVisibilityFromSettings(name: string) {
   toggleEnvironmentVisibility(name)
-  showToast('环境项显示已更新', name)
+  showToast(t('toast.environmentVisibilityUpdated'), name)
 }
 
 function clearDiagnosticsCaches() {
@@ -12071,7 +15151,7 @@ function clearDiagnosticsCaches() {
       item.status = 'pending'
     }
   })
-  showToast('系统数据已重置', '已清空缓存并重新开始加载。')
+  showToast(t('toast.diagnosticsReset'), t('toast.diagnosticsResetMsg'))
   void refreshSystemStatus()
   void refreshEnvironmentChecks(true)
 }

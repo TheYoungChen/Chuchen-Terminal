@@ -203,6 +203,34 @@
       <path d="M12 4.5L14.25 9.05L19.25 9.78L15.62 13.31L16.48 18.3L12 15.95L7.52 18.3L8.38 13.31L4.75 9.78L9.75 9.05L12 4.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
     </template>
 
+    <template v-else-if="name === 'activity'">
+      <polyline points="22 12 18 12 15 20 9 4 6 12 2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+    </template>
+
+    <template v-else-if="name === 'dollar'">
+      <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6" />
+      <path d="M12 7V8.5M12 15.5V17M14.5 9.8C14.5 9.1 13.38 8.5 12 8.5C10.62 8.5 9.5 9.1 9.5 9.8C9.5 10.5 10.62 11 12 11C13.38 11 14.5 11.5 14.5 12.2C14.5 12.9 13.38 13.5 12 13.5C10.62 13.5 9.5 12.9 9.5 12.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+    </template>
+
+    <template v-else-if="name === 'bar-chart'">
+      <rect x="4" y="12" width="4" height="8" rx="1" stroke="currentColor" stroke-width="1.6" />
+      <rect x="10" y="7" width="4" height="13" rx="1" stroke="currentColor" stroke-width="1.6" />
+      <rect x="16" y="4" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.6" />
+    </template>
+
+    <template v-else-if="name === 'package'">
+      <path d="M20 7L12 3L4 7V17L12 21L20 17V7Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+      <path d="M4 7L12 11L20 7" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+      <path d="M12 11V21" stroke="currentColor" stroke-width="1.6" />
+      <path d="M8 5L16 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+    </template>
+
+    <template v-else-if="name === 'coin'">
+      <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6" />
+      <path d="M9.5 14.5C9.5 14.5 10.2 15.5 12 15.5C13.8 15.5 14.5 14.5 14.5 13.5C14.5 12.5 13.5 12 12 11.5C10.5 11 9.5 10.5 9.5 9.5C9.5 8.5 10.2 8 12 8C13.8 8 14.5 8.8 14.5 8.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      <path d="M12 7V8M12 16V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+    </template>
+
     <template v-else>
       <circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1.6" />
     </template>

@@ -9,6 +9,7 @@
     "dev": "vite --configLoader native",
     "build": "vue-tsc --noEmit && vite build --configLoader native",
     "preview": "vite preview --configLoader native",
+    "perf:terminal-stress": "node scripts/terminal-stress.cjs",
     "tauri": "tauri",
     "tauri:dev": "node scripts/tauri-dev-runner.mjs",
     "tauri:build": "tauri build",
@@ -23,7 +24,8 @@
     "@tauri-apps/plugin-notification": "2.3.3",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "vue": "^3.5.22"
+    "vue": "^3.5.22",
+    "vue-i18n": "^11.4.6"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.10.1",
