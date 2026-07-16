@@ -50,8 +50,13 @@ If this problem matches your workflow, issues, suggestions, screenshots, and rea
 - Quick search across local Chuchen-Terminal data.
 - Session attention states for completed, waiting, failed, and stalled terminal tasks.
 - System notifications and taskbar attention indicators for unattended AI CLI sessions.
-- Provider and runtime configuration screens for local AI CLI workflows.
+- Local Provider profile discovery, import, full-configuration switching, and native write-back for Codex CLI, Claude Code, Gemini CLI, and Hermes.
+- CC Switch configuration import as an optional source, with Provider identity reconciliation and duplicate merging.
+- Usage and cost analytics with Provider/model/channel filtering, request details, Token breakdowns, latency, duration, model pricing, historical rollups, and real-time refresh events.
+- Chinese and English interface localization across the main application flow.
 - Light-first UI with dark theme support.
+
+The June-July 2026 update substantially expanded Provider management, Usage analytics, native session ingestion, localization, terminal performance, and UI reliability. See [CHANGELOG.md](CHANGELOG.md) for the full breakdown.
 
 ## Screenshots
 
@@ -73,7 +78,7 @@ The screenshots below use local demo data. Some local paths or notification deta
 | --- |
 | ![Settings](docs/assets/screenshots/settings.png) |
 
-When real screenshots are added or replaced, they should use sanitized demo data only. Do not publish screenshots that contain private project names, terminal logs, provider keys, tokens, company data, or personal account information.
+All published screenshots use sanitized demo data and exclude private project names, terminal logs, Provider credentials, tokens, company data, and personal account information.
 
 ## Who Might Want This
 
@@ -258,52 +263,9 @@ In practice:
 
 If you are only browsing the UI or editing frontend code, the disk footprint stays much smaller than a full desktop build workflow.
 
-## Release Packaging
+## Downloads
 
-For end users, the best experience is usually a packaged executable instead of asking everyone to install Node.js, Rust, and Tauri.
-
-Recommended release workflow:
-
-1. Verify the project builds locally:
-
-```bash
-cd Chuchen-Terminal/app
-npm run build
-npm run tauri:build
-```
-
-2. Find the packaged artifacts under:
-
-```text
-app/src-tauri/target/release/bundle/
-```
-
-3. Upload the generated installer or executable to a GitHub Release.
-
-On Windows, the most practical upload target is usually one of these artifacts generated under `bundle/`:
-
-- `.exe`
-- `.msi`
-
-If you want the simplest first release, uploading the generated Windows installer / executable with a version tag such as `v0.1.0` is enough.
-
-Typical next step after the repository is public:
-
-- create a GitHub Release such as `v0.1.0`
-- upload the Windows build artifact
-- link that Release from the README
-
-The release page description should briefly state:
-
-- what version this is
-- whether it is preview / MVP
-- what users can do with it today
-- any current limitations or known issues
-
-That gives users two clear entry points:
-
-- **developers** run from source
-- **normal users** download a packaged build
+Packaged Windows preview builds are available from the repository's [GitHub Releases](https://github.com/TheYoungChen/Chuchen-Terminal/releases) page. Developers can also run the latest source using the instructions above.
 
 ## Demo Data
 
@@ -316,7 +278,7 @@ D:\Projects\demo-backend
 D:\Projects\demo-agent
 ```
 
-Demo data is meant to make the interface understandable on first launch. It should not contain real workspace paths, real project names, provider credentials, API keys, terminal logs, or private commands.
+Demo data makes the interface understandable on first launch without exposing real workspace paths, project names, Provider credentials, API keys, terminal logs, or private commands.
 
 ## Repository Layout
 
